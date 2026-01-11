@@ -1,0 +1,23 @@
+{
+    "base_url": "http://127.0.0.1:32400",
+    "token": "",
+    "bulk_files": [
+        "bulk_import.txt",
+        "test.txt"
+    ],
+    "tv_library": [
+        "TV Shows"
+    ],
+    "movie_library": [
+        "Movies"
+    ],
+    "mediux_filters": [
+        "poster",
+        "backdrop",
+        "title_card"
+    ],
+    "title_mappings": {
+        "Pluribus": "PLUR1BUS"
+    },
+    "max_workers": 4
+}

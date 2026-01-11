@@ -63,7 +63,7 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
 
 3. **Configure your Plex connection**
    
-   Rename `example_config.json` to `config.json` and fill in your details:
+  Your settings can be modified in the `config.json` file.
 
    ```json
    {
@@ -108,7 +108,7 @@ Run the script without arguments to enter interactive mode:
 python main.py
 ```
 
-![CLI Overview](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/assets/cli_overview.png)
+![CLI Overview](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/cli.png)
 
 **Menu Options:**
 1. **Single URL Import** - Paste a ThePosterDB or MediUX link to import that set
@@ -141,7 +141,9 @@ Launch the graphical interface for a more visual experience:
 python main.py gui
 ```
 
-![GUI Overview](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/assets/gui_overview.png)
+![GUI 1](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/bulk.png)
+![GUI 2](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/title_mappings.png)
+![GUI 3](https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/refs/heads/main/.github/config.png)
 
 The GUI provides an intuitive interface with multiple tabs:
 

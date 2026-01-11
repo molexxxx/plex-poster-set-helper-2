@@ -43,9 +43,12 @@ class PlexPosterGUI:
         self.poster_scrape_rows = []
         self.base_url_entry = None
         self.token_entry = None
-        self.tv_library_text = None
-        self.movie_library_text = None
-        self.mediux_filters_text = None
+        self.tv_library_container = None
+        self.tv_library_rows = []
+        self.movie_library_container = None
+        self.movie_library_rows = []
+        self.mediux_filters_container = None
+        self.mediux_filters_rows = []
         self.scrape_button = None
         self.clear_button = None
         self.bulk_import_button = None
@@ -70,7 +73,7 @@ class PlexPosterGUI:
         ctk.set_appearance_mode("dark")
         
         self.app.title("Plex Poster Upload Helper")
-        self.app.geometry("850x600")
+        self.app.geometry("750x822")
         
         try:
             self.app.iconbitmap(resource_path("icons/Plex.ico"))
@@ -183,61 +186,136 @@ class PlexPosterGUI:
             border_width=1,
         )
         
-        self._create_settings_tab(tabview)
-        self._create_title_mappings_tab(tabview)
-        self._create_bulk_import_tab(tabview)
         self._create_poster_scrape_tab(tabview)
+        self._create_bulk_import_tab(tabview)
+        self._create_title_mappings_tab(tabview)
+        self._create_settings_tab(tabview)
         
         self._set_default_tab(tabview)
     
     def _create_settings_tab(self, tabview):
         """Create settings tab."""
         settings_tab = tabview.add("Settings")
-        settings_tab.grid_columnconfigure(0, weight=0)
-        settings_tab.grid_columnconfigure(1, weight=1)
+        settings_tab.grid_columnconfigure(0, weight=1)
+        settings_tab.grid_rowconfigure(0, weight=1, minsize=560)
+        
+        # Create main scrollable container
+        main_scroll = ctk.CTkScrollableFrame(
+            settings_tab,
+            fg_color="transparent",
+            scrollbar_button_color="#484848",
+            scrollbar_button_hover_color="#696969"
+        )
+        main_scroll.grid(row=0, column=0, padx=0, pady=(0, 5), sticky="nsew")
+        main_scroll.grid_columnconfigure(0, weight=1)
         
         row = 0
         
         # Plex Base URL
-        self.base_url_entry = self._create_form_row(
-            settings_tab, row, "Plex Base URL", "Enter Plex Base URL"
+        base_url_label = ctk.CTkLabel(main_scroll, text="Plex Base URL", text_color="#696969", font=("Roboto", 15))
+        base_url_label.grid(row=row, column=0, pady=(10, 5), padx=10, sticky="w")
+        row += 1
+        
+        self.base_url_entry = ctk.CTkEntry(
+            main_scroll,
+            placeholder_text="Enter Plex Base URL",
+            fg_color="#1C1E1E",
+            text_color="#A1A1A1",
+            border_width=0,
+            height=40
         )
+        self.base_url_entry.grid(row=row, column=0, pady=(0, 10), padx=10, sticky="ew")
+        self._bind_context_menu(self.base_url_entry)
         row += 1
         
         # Plex Token
-        self.token_entry = self._create_form_row(
-            settings_tab, row, "Plex Token", "Enter Plex Token"
-        )
+        token_label = ctk.CTkLabel(main_scroll, text="Plex Token", text_color="#696969", font=("Roboto", 15))
+        token_label.grid(row=row, column=0, pady=5, padx=10, sticky="w")
         row += 1
         
-        # TV Library Names
-        self.tv_library_text = self._create_form_row(
-            settings_tab, row, "TV Library Names", ""
+        self.token_entry = ctk.CTkEntry(
+            main_scroll,
+            placeholder_text="Enter Plex Token",
+            fg_color="#1C1E1E",
+            text_color="#A1A1A1",
+            border_width=0,
+            height=40
         )
+        self.token_entry.grid(row=row, column=0, pady=(0, 10), padx=10, sticky="ew")
+        self._bind_context_menu(self.token_entry)
         row += 1
         
-        # Movie Library Names
-        self.movie_library_text = self._create_form_row(
-            settings_tab, row, "Movie Library Names", ""
-        )
+        # TV Library Names with inline add
+        tv_header_frame = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        tv_header_frame.grid(row=row, column=0, pady=(5, 5), padx=10, sticky="ew")
+        tv_header_frame.grid_columnconfigure(0, weight=1)
+        
+        tv_label = ctk.CTkLabel(tv_header_frame, text="TV Library Names", text_color="#696969", font=("Roboto", 14))
+        tv_label.grid(row=0, column=0, sticky="w")
+        
+        tv_add_button = self._create_button(tv_header_frame, text="+ Add", command=lambda: self._add_library_item('tv'), height=26)
+        tv_add_button.grid(row=0, column=1, padx=5, ipadx=8, sticky="e")
         row += 1
         
-        # Mediux Filters
-        self.mediux_filters_text = self._create_form_row(
-            settings_tab, row, "Mediux Filters", ""
-        )
+        # Container for TV library items
+        self.tv_library_container = ctk.CTkFrame(main_scroll, fg_color="#1C1E1E", corner_radius=5)
+        self.tv_library_container.grid(row=row, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.tv_library_container.grid_columnconfigure(0, weight=1)
+        self.tv_library_rows = []
+        row += 1
+        
+        # Movie Library Names with inline add
+        movie_header_frame = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        movie_header_frame.grid(row=row, column=0, pady=(5, 5), padx=10, sticky="ew")
+        movie_header_frame.grid_columnconfigure(0, weight=1)
+        
+        movie_label = ctk.CTkLabel(movie_header_frame, text="Movie Library Names", text_color="#696969", font=("Roboto", 14))
+        movie_label.grid(row=0, column=0, sticky="w")
+        
+        movie_add_button = self._create_button(movie_header_frame, text="+ Add", command=lambda: self._add_library_item('movie'), height=26)
+        movie_add_button.grid(row=0, column=1, padx=5, ipadx=8, sticky="e")
+        row += 1
+        
+        # Container for Movie library items
+        self.movie_library_container = ctk.CTkFrame(main_scroll, fg_color="#1C1E1E", corner_radius=5)
+        self.movie_library_container.grid(row=row, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.movie_library_container.grid_columnconfigure(0, weight=1)
+        self.movie_library_rows = []
+        row += 1
+        
+        # Mediux Filters with inline add
+        mediux_header_frame = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        mediux_header_frame.grid(row=row, column=0, pady=(5, 5), padx=10, sticky="ew")
+        mediux_header_frame.grid_columnconfigure(0, weight=1)
+        
+        mediux_label = ctk.CTkLabel(mediux_header_frame, text="Mediux Filters", text_color="#696969", font=("Roboto", 14))
+        mediux_label.grid(row=0, column=0, sticky="w")
+        
+        mediux_add_button = self._create_button(mediux_header_frame, text="+ Add", command=lambda: self._add_library_item('mediux'), height=26)
+        mediux_add_button.grid(row=0, column=1, padx=5, ipadx=8, sticky="e")
+        row += 1
+        
+        # Container for Mediux filter items
+        self.mediux_filters_container = ctk.CTkFrame(main_scroll, fg_color="#1C1E1E", corner_radius=5)
+        self.mediux_filters_container.grid(row=row, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.mediux_filters_container.grid_columnconfigure(0, weight=1)
+        self.mediux_filters_rows = []
         row += 1
         
         # Max Concurrent Workers
+        max_workers_frame = ctk.CTkFrame(main_scroll, fg_color="transparent")
+        max_workers_frame.grid(row=row, column=0, pady=(5, 10), padx=10, sticky="ew")
+        max_workers_frame.grid_columnconfigure(1, weight=1)
+        
         cpu_count = os.cpu_count() or 4
         default_workers = min(3, cpu_count)
         
-        max_workers_label = ctk.CTkLabel(settings_tab, text="Max Concurrent Workers", text_color="#696969", font=("Roboto", 15))
-        max_workers_label.grid(row=row, column=0, pady=5, padx=10, sticky="w")
+        max_workers_label = ctk.CTkLabel(max_workers_frame, text="Max Concurrent Workers", text_color="#696969", font=("Roboto", 14))
+        max_workers_label.grid(row=0, column=0, pady=0, padx=(0, 10), sticky="w")
         
         self.max_workers_var = tk.IntVar(value=default_workers)
         max_workers_slider = ctk.CTkSlider(
-            settings_tab,
+            max_workers_frame,
             from_=1,
             to=cpu_count,
             number_of_steps=cpu_count - 1,
@@ -247,22 +325,22 @@ class PlexPosterGUI:
             button_color="#E5A00D",
             button_hover_color="#FFA500"
         )
-        max_workers_slider.grid(row=row, column=1, pady=5, padx=10, sticky="ew")
+        max_workers_slider.grid(row=0, column=1, pady=0, padx=0, sticky="ew")
         
-        max_workers_value_label = ctk.CTkLabel(settings_tab, textvariable=self.max_workers_var, text_color="#E5A00D", font=("Roboto", 15, "bold"))
-        max_workers_value_label.grid(row=row, column=1, pady=5, padx=10, sticky="e")
-        row += 1
+        max_workers_value_label = ctk.CTkLabel(max_workers_frame, textvariable=self.max_workers_var, text_color="#E5A00D", font=("Roboto", 15, "bold"))
+        max_workers_value_label.grid(row=0, column=1, pady=0, padx=0, sticky="e")
         
-        # Spacer
-        settings_tab.grid_rowconfigure(row, weight=1)
-        row += 1
+        # Buttons fixed at bottom outside scroll area
+        button_frame = ctk.CTkFrame(settings_tab, fg_color="transparent")
+        button_frame.grid(row=1, column=0, pady=5, padx=10, sticky="ew")
+        button_frame.grid_columnconfigure(0, weight=1)
+        button_frame.grid_columnconfigure(1, weight=1)
         
-        # Buttons
-        reload_button = self._create_button(settings_tab, text="Reload", command=self._load_and_update_ui)
-        reload_button.grid(row=row, column=0, pady=5, padx=5, ipadx=30, sticky="ew")
+        reload_button = self._create_button(button_frame, text="Reload", command=self._load_and_update_ui)
+        reload_button.grid(row=0, column=0, pady=0, padx=(0, 5), sticky="ew")
         
-        save_button = self._create_button(settings_tab, text="Save", command=self._save_config, primary=True)
-        save_button.grid(row=row, column=1, pady=5, padx=5, sticky="ew")
+        save_button = self._create_button(button_frame, text="Save", command=self._save_config, primary=True)
+        save_button.grid(row=0, column=1, pady=0, padx=(5, 0), sticky="ew")
     
     def _create_bulk_import_tab(self, tabview):
         """Create bulk import tab."""
@@ -688,7 +766,7 @@ class PlexPosterGUI:
         Args:
             tabview: Tabview widget.
         """
-        tabview.set("Settings")
+        tabview.set("Poster Scrape")
     
     def _load_and_update_ui(self):
         """Load configuration and update UI fields."""
@@ -702,17 +780,50 @@ class PlexPosterGUI:
             self.token_entry.delete(0, ctk.END)
             self.token_entry.insert(0, self.config.token)
         
-        if self.tv_library_text:
-            self.tv_library_text.delete(0, ctk.END)
-            self.tv_library_text.insert(0, ", ".join(self.config.tv_library))
+        # Load TV libraries
+        if self.tv_library_container:
+            for row_widgets in self.tv_library_rows:
+                row_widgets['entry'].destroy()
+                row_widgets['remove'].destroy()
+            self.tv_library_rows.clear()
+            
+            for library in self.config.tv_library:
+                if library.strip():
+                    self._add_library_item('tv', library)
+            
+            # Add one empty row if none exist
+            if len(self.tv_library_rows) == 0:
+                self._add_library_item('tv')
         
-        if self.movie_library_text:
-            self.movie_library_text.delete(0, ctk.END)
-            self.movie_library_text.insert(0, ", ".join(self.config.movie_library))
+        # Load Movie libraries
+        if self.movie_library_container:
+            for row_widgets in self.movie_library_rows:
+                row_widgets['entry'].destroy()
+                row_widgets['remove'].destroy()
+            self.movie_library_rows.clear()
+            
+            for library in self.config.movie_library:
+                if library.strip():
+                    self._add_library_item('movie', library)
+            
+            # Add one empty row if none exist
+            if len(self.movie_library_rows) == 0:
+                self._add_library_item('movie')
         
-        if self.mediux_filters_text:
-            self.mediux_filters_text.delete(0, ctk.END)
-            self.mediux_filters_text.insert(0, ", ".join(self.config.mediux_filters))
+        # Load Mediux filters
+        if self.mediux_filters_container:
+            for row_widgets in self.mediux_filters_rows:
+                row_widgets['entry'].destroy()
+                row_widgets['remove'].destroy()
+            self.mediux_filters_rows.clear()
+            
+            for filter_name in self.config.mediux_filters:
+                if filter_name.strip():
+                    self._add_library_item('mediux', filter_name)
+            
+            # Add one empty row if none exist
+            if len(self.mediux_filters_rows) == 0:
+                self._add_library_item('mediux')
         
         if self.max_workers_var:
             max_workers_value = getattr(self.config, 'max_workers', 3)
@@ -727,12 +838,33 @@ class PlexPosterGUI:
     
     def _save_config(self):
         """Save configuration from UI fields."""
+        # Collect TV libraries
+        tv_libraries = []
+        for row_widgets in self.tv_library_rows:
+            value = row_widgets['entry'].get().strip()
+            if value:
+                tv_libraries.append(value)
+        
+        # Collect Movie libraries
+        movie_libraries = []
+        for row_widgets in self.movie_library_rows:
+            value = row_widgets['entry'].get().strip()
+            if value:
+                movie_libraries.append(value)
+        
+        # Collect Mediux filters
+        mediux_filters = []
+        for row_widgets in self.mediux_filters_rows:
+            value = row_widgets['entry'].get().strip()
+            if value:
+                mediux_filters.append(value)
+        
         new_config = Config(
             base_url=self.base_url_entry.get().strip(),
             token=self.token_entry.get().strip(),
-            tv_library=[item.strip() for item in self.tv_library_text.get().strip().split(",")],
-            movie_library=[item.strip() for item in self.movie_library_text.get().strip().split(",")],
-            mediux_filters=[item.strip() for item in self.mediux_filters_text.get().strip().split(",")],
+            tv_library=tv_libraries,
+            movie_library=movie_libraries,
+            mediux_filters=mediux_filters,
             bulk_files=self.config.bulk_files,  # Preserve bulk files list
             title_mappings=self.config.title_mappings,  # Preserve title mappings
             max_workers=self.max_workers_var.get() if self.max_workers_var else 3
@@ -1053,6 +1185,96 @@ class PlexPosterGUI:
             self._update_status("Mapping removed.", color="#E5A00D")
         except Exception as e:
             self._update_status(f"Error removing mapping: {str(e)}", color="red")
+    
+    def _add_library_item(self, list_type: str, value: str = ""):
+        """Add a new library item row.
+        
+        Args:
+            list_type: Type of list ('tv', 'movie', or 'mediux').
+            value: Value to prepopulate.
+        """
+        if list_type == 'tv':
+            container = self.tv_library_container
+            row_list = self.tv_library_rows
+            placeholder = "Enter TV library name"
+        elif list_type == 'movie':
+            container = self.movie_library_container
+            row_list = self.movie_library_rows
+            placeholder = "Enter movie library name"
+        else:  # mediux
+            container = self.mediux_filters_container
+            row_list = self.mediux_filters_rows
+            placeholder = "Enter Mediux filter name"
+        
+        row_num = len(row_list)
+        
+        # Entry field
+        entry = ctk.CTkEntry(
+            container,
+            placeholder_text=placeholder,
+            fg_color="#2A2B2B",
+            text_color="#A1A1A1",
+            border_width=1,
+            border_color="#484848",
+            height=35
+        )
+        entry.grid(row=row_num, column=0, pady=3, padx=(5, 2), sticky="ew")
+        if value:
+            entry.insert(0, value)
+        self._bind_context_menu(entry)
+        
+        # Remove button
+        remove_button = ctk.CTkButton(
+            container,
+            text="✕",
+            command=lambda: self._remove_library_item(list_type, row_num),
+            width=35,
+            height=35,
+            fg_color="#8B0000",
+            hover_color="#A52A2A",
+            text_color="white",
+            font=("Roboto", 14, "bold")
+        )
+        remove_button.grid(row=row_num, column=1, pady=3, padx=(2, 5), sticky="ew")
+        
+        # Store references
+        row_list.append({
+            'entry': entry,
+            'remove': remove_button,
+            'row': row_num
+        })
+    
+    def _remove_library_item(self, list_type: str, row_num: int):
+        """Remove a library item row.
+        
+        Args:
+            list_type: Type of list ('tv', 'movie', or 'mediux').
+            row_num: Row number to remove.
+        """
+        try:
+            if list_type == 'tv':
+                row_list = self.tv_library_rows
+            elif list_type == 'movie':
+                row_list = self.movie_library_rows
+            else:  # mediux
+                row_list = self.mediux_filters_rows
+            
+            # Remove the widgets
+            for i, row_widgets in enumerate(row_list):
+                if row_widgets['row'] == row_num:
+                    row_widgets['entry'].destroy()
+                    row_widgets['remove'].destroy()
+                    row_list.pop(i)
+                    break
+            
+            # Re-grid remaining rows
+            for i, row_widgets in enumerate(row_list):
+                row_widgets['row'] = i
+                row_widgets['entry'].grid(row=i, column=0, pady=3, padx=(5, 2), sticky="ew")
+                row_widgets['remove'].configure(command=lambda lt=list_type, r=i: self._remove_library_item(lt, r))
+                row_widgets['remove'].grid(row=i, column=1, pady=3, padx=(2, 5), sticky="ew")
+        except Exception as e:
+            self._update_status(f"Error removing item: {str(e)}", color="red")
     
     def _add_bulk_url_row(self, url=""):
         """Add a new bulk import URL row.
