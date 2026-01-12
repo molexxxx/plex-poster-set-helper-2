@@ -40,7 +40,7 @@ def main():
     print("\nNext steps:")
     print("1. Edit config.json with your Plex server details")
     print("2. Run the application:")
-    print("   - GUI: python main.py")
+    print("   - GUI: python main.py gui")
     print("   - CLI: python main.py cli")
 
 if __name__ == "__main__":
