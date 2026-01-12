@@ -1,3 +1,12 @@
-2026-01-11 22:26:58 | INFO     | PlexPosterHelper | _setup_logger:109 | ================================================================================
-2026-01-11 22:26:58 | INFO     | PlexPosterHelper | _setup_logger:110 | NEW SESSION STARTED - 2026-01-11 22:26:58
-2026-01-11 22:26:58 | INFO     | PlexPosterHelper | _setup_logger:111 | ================================================================================
+2026-01-12 08:36:36 | INFO     | PlexPosterHelper | _setup_logger:109 | ================================================================================
+2026-01-12 08:36:36 | INFO     | PlexPosterHelper | _setup_logger:110 | NEW SESSION STARTED - 2026-01-12 08:36:36
+2026-01-12 08:36:36 | INFO     | PlexPosterHelper | _setup_logger:111 | ================================================================================
+2026-01-12 08:36:36 | INFO     | PlexPosterHelper | _setup_logger:109 | ================================================================================
+2026-01-12 08:36:36 | INFO     | PlexPosterHelper | _setup_logger:110 | NEW SESSION STARTED - 2026-01-12 08:36:36
+2026-01-12 08:36:36 | INFO     | PlexPosterHelper | _setup_logger:111 | ================================================================================
+2026-01-12 08:36:36 | INFO     | PlexPosterHelper | info:148 | GUI Application initializing...
+2026-01-12 08:36:37 | INFO     | PlexPosterHelper | info:148 | Loading labeled items from Plex...
+2026-01-12 08:36:37 | INFO     | PlexPosterHelper | info:148 | Setting up Plex and scraper services...
+2026-01-12 08:36:37 | DEBUG    | PlexPosterHelper | debug:144 | Config - Base URL: http://127.0.0.1:32400, Max Workers: 4
+2026-01-12 08:36:37 | INFO     | PlexPosterHelper | info:148 | Services setup completed successfully
+2026-01-12 08:36:37 | WARNING  | PlexPosterHelper | warning:152 | Plex setup incomplete - no libraries configured

@@ -2,11 +2,26 @@
 
 block_cipher = None
 
+import os
+from pathlib import Path
+
+# Get playwright browsers path
+try:
+    import playwright
+    playwright_path = Path(playwright.__file__).parent
+    playwright_driver = (str(playwright_path / 'driver'), 'playwright/driver')
+except ImportError:
+    playwright_driver = None
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[
+        ('icons', 'icons'),
+        ('config.json', '.'),
+        playwright_driver,
+    ] if playwright_driver else [
         ('icons', 'icons'),
         ('config.json', '.'),
     ],

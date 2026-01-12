@@ -89,7 +89,7 @@ class PlexPosterGUI:
         ctk.set_appearance_mode("dark")
         
         self.app.title("Plex Poster Upload Helper")
-        self.app.geometry("666x777")
+        self.app.geometry("660x815")
         
         try:
             self.app.iconbitmap(resource_path("icons/Plex.ico"))
