@@ -10,6 +10,14 @@ from .base_scraper import BaseScraper
 class PosterDBScraper(BaseScraper):
     """Scraper for ThePosterDB website."""
     
+    def __init__(self, use_playwright: bool = True):
+        """Initialize PosterDB scraper.
+        
+        Args:
+            use_playwright: Whether to use Playwright for scraping (default True).
+        """
+        super().__init__(use_playwright)
+    
     def scrape(self, url: str) -> Tuple[List[PosterInfo], List[PosterInfo], List[PosterInfo]]:
         """Scrape posters from ThePosterDB.
         

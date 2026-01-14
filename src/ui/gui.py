@@ -1888,6 +1888,7 @@ class PlexPosterGUI:
         """
         try:
             print(f"🔍 [{threading.current_thread().name}] Starting scrape for: {url}")
+            print(f"⏳ [{threading.current_thread().name}] Initializing secure browser...")
             movie_posters, show_posters, collection_posters = self.scraper_factory.scrape_url(url)
             print(f"📦 [{threading.current_thread().name}] Scraped {len(movie_posters)} movies, {len(show_posters)} shows, {len(collection_posters)} collections from: {url}")
             

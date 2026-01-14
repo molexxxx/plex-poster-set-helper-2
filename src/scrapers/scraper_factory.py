@@ -75,9 +75,7 @@ class ScraperFactory:
             url: MediUX URL.
             
         Returns:
-        # Use requests-based scraping (no Playwright) for thread-safe concurrent scraping
-        # This avoids browser session conflicts when multiple threads scrape simultaneously
-        with MediuxScraper(config=self.config, use_playwright=False
+            Tuple of (movie_posters, show_posters, collection_posters).
         """
         with MediuxScraper(config=self.config, use_playwright=self.use_playwright) as scraper:
             return scraper.scrape(url)
@@ -96,9 +94,11 @@ class ScraperFactory:
         
         soup = BeautifulSoup(html_content, 'html.parser')
         
-        # Use PosterDB scraper for HTML files (assuming PosterDB format)
-        with PosterDBScraper(use_playwright=False) as scraper:
-            return scraper._parse_posterdb(soup)
+        # For local HTML files, we parse directly without Playwright
+        # Create a temporary scraper just for parsing (no browser needed)
+        from .posterdb_scraper import PosterDBScraper
+        scraper = PosterDBScraper(use_playwright=False)
+        return scraper._parse_posterdb(soup)
     
     def cleanup(self):
         """Clean up any open scraper resources."""
