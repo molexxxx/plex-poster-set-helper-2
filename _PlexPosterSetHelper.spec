@@ -1,39 +1,72 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+block_cipher = None
+
+import os
+from pathlib import Path
+
+# Get playwright browsers path
+try:
+    import playwright
+    playwright_path = Path(playwright.__file__).parent
+    playwright_driver = (str(playwright_path / 'driver'), 'playwright/driver')
+except ImportError:
+    playwright_driver = None
 
 a = Analysis(
-    ['plex_poster_set_helper.py'],
+    ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('icons/Plex.ico', 'icons')],
-    hiddenimports=[],
+    datas=[
+        ('icons', 'icons'),
+        ('config.json', '.'),
+        playwright_driver,
+    ] if playwright_driver else [
+        ('icons', 'icons'),
+        ('config.json', '.'),
+    ],
+    hiddenimports=[
+        'plexapi',
+        'plexapi.server',
+        'plexapi.exceptions',
+        'customtkinter',
+        'PIL',
+        'PIL._tkinter_finder',
+        'bs4',
+        'playwright',
+        'playwright.sync_api',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
     noarchive=False,
-    optimize=0,
 )
-pyz = PYZ(a.pure)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
+    a.zipfiles,
     a.datas,
     [],
-    name='Plex Poster Set Helper',
+    name='PlexPosterSetHelper',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=False,  # Set to False for GUI-only, True for CLI support
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['icons\\Plex.ico'],
+    icon='icons/Plex.ico',
 )

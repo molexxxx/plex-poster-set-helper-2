@@ -1,5 +1,6 @@
-config.json
+!config.json
 __pycache__
 tempCodeRunnerFile.py
 build/
 !dist/*.zip
+debug.log

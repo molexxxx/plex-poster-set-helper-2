@@ -1,0 +1,29 @@
+{
+    "base_url": "http://127.0.0.1:32400",
+    "token": "",
+    "bulk_files": [
+        "bulk_import.txt"
+    ],
+    "tv_library": [
+        "TV Shows"
+    ],
+    "movie_library": [
+        "Movies"
+    ],
+    "mediux_filters": [
+        "poster",
+        "backdrop",
+        "title_card"
+    ],
+    "title_mappings": {
+        "Pluribus": "PLUR1BUS"
+    },
+    "max_workers": 4,
+    "log_file": "debug.log",
+    "scraper_min_delay": 0.1,
+    "scraper_max_delay": 0.5,
+    "scraper_initial_delay": 0.0,
+    "scraper_batch_delay": 2.0,
+    "scraper_page_wait_min": 0.0,
+    "scraper_page_wait_max": 0.5
+}
