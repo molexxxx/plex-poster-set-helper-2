@@ -360,14 +360,11 @@ Control which types of media are downloaded from MediUX by editing the `mediux_f
 ```
 
 **Available filters:**
-- `poster` - Standard movie/show posters and season covers
+- `poster` - Movie posters, show posters, and season posters
 - `backdrop` - Background/backdrop images  
 - `title_card` - Episode title cards
-- `season_cover` - Season-specific cover art
-- `show_cover` - Show-level cover art
-- `background` - Alternative background images
 
-Remove any filter to skip that media type during import.
+Remove any filter type to exclude it from downloads. If you want only posters and skip backgrounds and title cards, use `["poster"]`.
 
 ### Title Matching
 
