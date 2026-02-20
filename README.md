@@ -25,6 +25,8 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
   - [Interactive CLI Mode](#interactive-cli-mode)
   - [Command-Line Arguments](#command-line-arguments)
   - [GUI Mode](#gui-mode)
+  - [Plex Sign-in (Browser PIN / TV-code)](#plex-sign-in-browser-pin--tv-code)
+  - [Log Viewer (Debug Window)](#log-viewer-debug-window)
 - [Supported URLs](#supported-urls)
   - [ThePosterDB](#theposterdb)
   - [MediUX](#mediux)
@@ -41,6 +43,7 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
   - [Operations Not Stopping](#operations-not-stopping)
   - [GUI Performance Issues](#gui-performance-issues)
   - [Media Not Found in Library](#media-not-found-in-library)
+  - [Plex Sign-in PIN Troubleshooting](#plex-sign-in-pin-troubleshooting)
   - [Linux-Specific Issues](#linux-specific-issues-ubuntudebianunraid)
 - [Requirements](#requirements)
 - [Contributing](#contributing)
@@ -132,6 +135,7 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
      },
      "max_workers": 4,
      "log_file": "debug.log",
+     "log_append": false,
      "scraper_min_delay": 0.1,
      "scraper_max_delay": 0.5,
      "scraper_initial_delay": 0.0,
@@ -154,6 +158,7 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
    | `title_mappings` | Manual title overrides for non-matching names | `{"Pluribus": "PLUR1BUS"}` |
    | `max_workers` | Number of concurrent workers for bulk operations | `4` |
    | `log_file` | Path to log file for debugging | `"debug.log"` |
+  | `log_append` | Whether to append to (`true`) or overwrite (`false`) the `debug.log` on startup and when saving logs. When `true` logs are appended (preserves history); when `false` the log file is recreated/overwritten on app start. | `true` |
    | **Scraper Performance Settings** | | |
    | `scraper_min_delay` | Minimum delay between scraping requests (seconds) | `0.1` |
    | `scraper_max_delay` | Maximum delay between scraping requests (seconds) | `0.5` |
@@ -306,6 +311,26 @@ The GUI provides an intuitive interface with multiple tabs:
 - Set up movie and TV show libraries
 - Configure MediUX download filters
 - Adjust concurrent worker settings (1 to CPU core count)
+ - Sign in with Plex via browser PIN (TV-code) — open the browser, follow the link, or enter the code shown; the app will poll for authorization and automatically populate and save the Plex token to `config.json`.
+
+**Plex Sign-in (Browser PIN / TV-code)**
+
+If you prefer an easy OAuth-style sign-in instead of manually finding or pasting your Plex token, use the built-in browser PIN flow:
+
+- Open the GUI and go to the **Settings** tab.
+- Click **Sign in with Plex**. A dialog will appear showing a short code and (when available) a link.
+- Click **Open Browser** in the dialog or visit the shown link (https://plex.tv/link?code=...) and follow the instructions to sign in and approve the device.
+- The app polls Plex for authorization; once approved the token is automatically written into the `token` field in the Settings UI and saved to `config.json`.
+- Alternative: If you already have an X-Plex-Token, paste it into the **Plex Token** box and click **Save**.
+
+Notes:
+- The token is stored in your `config.json` under the `token` key. Keep this file secure.
+- The PIN flow requires internet access and may open your default browser. If the browser does not open automatically, copy the link shown in the dialog into your browser.
+
+**Log Viewer (Debug Window):**
+- Access a built-in Log Viewer from the GUI to see verbose runtime logs in a Treeview.
+- Features: time/level/message/location columns, duplicate-collapse (counts), color-coded tags (ERROR/WARNING/INFO/DEBUG/SESSION/SUCCESS/SCRAPE), auto-scroll to newest, double-click to view full message, and Save/Export which writes the full on-disk `debug.log`.
+- Control log file behavior via the `log_append` setting in `config.json` (append vs overwrite).
 
 **Advanced Features:**
 - **Concurrent Processing:** Process multiple URLs simultaneously with configurable worker threads
@@ -508,6 +533,18 @@ A pre-built Windows executable is available in the `dist/` folder. To build it y
 - Check for special characters or formatting differences
 - Ensure the media is properly scanned and visible in your Plex library
 - Try refreshing metadata in Plex before running the tool
+
+### Plex Sign-in PIN Troubleshooting
+
+**Problem:** The browser PIN (TV-code) sign-in flow didn't complete or the token wasn't populated.  
+**Checks & Fixes:**
+- If the dialog didn't open your browser, copy the link shown in the dialog (https://plex.tv/link?code=...) and paste it into your browser manually.  
+- If you see an "expired code" or authorization failed, request a new PIN by clicking **Sign in with Plex** again and complete the flow promptly (PIN codes expire quickly).  
+- Ensure your machine has internet access and that no firewall / proxy is blocking outbound requests to `plex.tv` — the app polls Plex to detect authorization.  
+- If the app cannot write the token to `config.json`, check file permissions and that the app is running in a folder where it can write files.  
+- If polling times out, retry the flow and watch the Log Viewer for detailed messages (open the Log Viewer from the top link bar).  
+- To preserve logs across restarts when troubleshooting, set `"log_append": true` in `config.json` so the full `debug.log` is kept between runs.  
+- As a fallback, you can copy your X-Plex-Token from Plex account settings and paste it into the **Plex Token** box in Settings, then click **Save**.
 
 ---
 

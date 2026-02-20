@@ -18,6 +18,7 @@ class Config:
     title_mappings: Dict[str, str] = None
     max_workers: int = 3
     log_file: str = "debug.log"  # Path to log file
+    log_append: bool = True  # If true, append to log file; otherwise overwrite on start
     # Scraper delay settings
     scraper_min_delay: float = 0.1  # Minimum delay between requests (seconds)
     scraper_max_delay: float = 0.5  # Maximum delay between requests (seconds)

@@ -127,8 +127,11 @@ class TitleMappingsTab:
         
         if not self.rows:
             self.add_mapping_row()
-        
         self.app._update_status(f"Loaded {len(self.app.config.title_mappings)} title mapping(s)", color="#E5A00D")
+        try:
+            self.app.logger.info(f"Loaded {len(self.app.config.title_mappings)} title mapping(s) from config")
+        except Exception:
+            pass
     
     def save_mappings(self):
         """Save title mappings to config."""
@@ -143,6 +146,11 @@ class TitleMappingsTab:
                 new_mappings[original] = plex
         
         self.app.config.title_mappings = new_mappings
-        self.app.config_manager.save(self.app.config)
-        
-        self.app._update_status(f"Saved {len(new_mappings)} title mapping(s)", color="#E5A00D")
+        try:
+            self.app.config_manager.save(self.app.config)
+            self.app.logger.info(f"Saved {len(new_mappings)} title mapping(s) to config")
+            self.app.logger.debug(f"Title mappings: {new_mappings}")
+            self.app._update_status(f"Saved {len(new_mappings)} title mapping(s)", color="#E5A00D")
+        except Exception as e:
+            self.app.logger.exception(f"Error saving title mappings: {e}")
+            self.app._update_status(f"Error saving title mappings: {e}", color="red")

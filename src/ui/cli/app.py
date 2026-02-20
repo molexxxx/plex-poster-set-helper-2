@@ -21,9 +21,13 @@ class PlexPosterCLI:
         self.config_manager = ConfigManager()
         self.config = self.config_manager.load()
         
-        # Initialize logger with config
+        # Initialize logger with config (respect append preference)
         self.logger = get_logger()
-        self.logger.configure(log_file=self.config.log_file)
+        try:
+            append_mode = bool(getattr(self.config, 'log_append', False))
+        except Exception:
+            append_mode = False
+        self.logger.configure(log_file=self.config.log_file, append=append_mode)
         self.logger.info("CLI Application initializing...")
         
         self.plex_service: PlexService = None

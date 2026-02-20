@@ -47,11 +47,11 @@ class AppLogger:
         return cls._instance
     
     def __init__(self):
-        """Initialize the logger (only once)."""
+        """Initialize the logger (only once). Defaults to append mode to avoid truncating logs on import."""
         if AppLogger._logger is None:
-            self._setup_logger()
+            self._setup_logger(append=True)
     
-    def _setup_logger(self, log_file: str = "debug.log", log_level: int = logging.DEBUG):
+    def _setup_logger(self, log_file: str = "debug.log", log_level: int = logging.DEBUG, append: bool = True):
         """Set up the logger with file and console handlers.
         
         Args:
@@ -62,13 +62,16 @@ class AppLogger:
         AppLogger._logger = logging.getLogger("PlexPosterHelper")
         AppLogger._logger.setLevel(log_level)
         
-        # Prevent duplicate handlers
+        # Prevent duplicate file/console handlers while preserving custom handlers
         if AppLogger._logger.handlers:
-            AppLogger._logger.handlers.clear()
+            preserved = []
+            for h in AppLogger._logger.handlers:
+                if not isinstance(h, (logging.FileHandler, logging.StreamHandler)):
+                    preserved.append(h)
+            AppLogger._logger.handlers = preserved
         
         # Determine log file path
         if not os.path.isabs(log_file):
-            # Use the directory where the exe/script is located
             try:
                 from ..utils.helpers import get_exe_dir
                 log_dir = get_exe_dir()
@@ -94,38 +97,35 @@ class AppLogger:
             '%(levelname)s: %(message)s'
         )
         
-        # File handler (detailed logging)
         try:
+            mode = 'a' if append else 'w'
             file_handler = logging.FileHandler(
-                AppLogger._log_file_path, 
-                mode='a', 
+                AppLogger._log_file_path,
+                mode=mode,
                 encoding='utf-8'
             )
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(detailed_formatter)
             AppLogger._logger.addHandler(file_handler)
-            
-            # Log session start
             AppLogger._logger.info("="*80)
             AppLogger._logger.info(f"NEW SESSION STARTED - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             AppLogger._logger.info("="*80)
         except Exception as e:
             print(f"Warning: Could not create log file at {AppLogger._log_file_path}: {e}")
         
-        # Console handler (less verbose for user-facing output)
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)  # Only show INFO and above in console
+        console_handler = logging.StreamHandler(getattr(sys, '__stdout__', sys.stdout))
+        console_handler.setLevel(logging.INFO)
         console_handler.setFormatter(console_formatter)
         AppLogger._logger.addHandler(console_handler)
     
-    def configure(self, log_file: str = "debug.log", log_level: int = logging.DEBUG):
+    def configure(self, log_file: str = "debug.log", log_level: int = logging.DEBUG, append: bool = True):
         """Reconfigure the logger with new settings.
         
         Args:
             log_file: Name or path of the log file.
             log_level: Logging level.
         """
-        self._setup_logger(log_file, log_level)
+        self._setup_logger(log_file, log_level, append)
     
     @property
     def logger(self) -> logging.Logger:
@@ -141,27 +141,45 @@ class AppLogger:
     
     def debug(self, message: str, *args, **kwargs):
         """Log a debug message."""
-        self.logger.debug(message, *args, **kwargs)
+        kw = dict(kwargs)
+        if 'stacklevel' not in kw:
+            kw['stacklevel'] = 2
+        self.logger.debug(message, *args, **kw)
     
     def info(self, message: str, *args, **kwargs):
         """Log an info message."""
-        self.logger.info(message, *args, **kwargs)
+        kw = dict(kwargs)
+        if 'stacklevel' not in kw:
+            kw['stacklevel'] = 2
+        self.logger.info(message, *args, **kw)
     
     def warning(self, message: str, *args, **kwargs):
         """Log a warning message."""
-        self.logger.warning(message, *args, **kwargs)
+        kw = dict(kwargs)
+        if 'stacklevel' not in kw:
+            kw['stacklevel'] = 2
+        self.logger.warning(message, *args, **kw)
     
     def error(self, message: str, *args, **kwargs):
         """Log an error message."""
-        self.logger.error(message, *args, **kwargs)
+        kw = dict(kwargs)
+        if 'stacklevel' not in kw:
+            kw['stacklevel'] = 2
+        self.logger.error(message, *args, **kw)
     
     def critical(self, message: str, *args, **kwargs):
         """Log a critical message."""
-        self.logger.critical(message, *args, **kwargs)
+        kw = dict(kwargs)
+        if 'stacklevel' not in kw:
+            kw['stacklevel'] = 2
+        self.logger.critical(message, *args, **kw)
     
     def exception(self, message: str, *args, **kwargs):
         """Log an exception with traceback."""
-        self.logger.exception(message, *args, **kwargs)
+        kw = dict(kwargs)
+        if 'stacklevel' not in kw:
+            kw['stacklevel'] = 2
+        self.logger.exception(message, *args, **kw)
 
 
 # Global logger instance

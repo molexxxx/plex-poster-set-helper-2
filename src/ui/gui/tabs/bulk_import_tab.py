@@ -141,8 +141,11 @@ class BulkImportTab:
                 
                 urls = [line.strip() for line in lines if line.strip() and not line.strip().startswith('#')]
                 self.url_list.set_values(urls)
-                
                 self.app._update_status(f"Loaded {len(urls)} URLs from {self.app.current_bulk_file}", color="#E5A00D")
+                try:
+                    self.app.logger.info(f"Loaded {len(urls)} URLs from bulk file: {self.app.current_bulk_file}")
+                except Exception:
+                    pass
             else:
                 self.app._update_status(f"File not found: {self.app.current_bulk_file}", color="orange")
         except Exception as e:
@@ -162,13 +165,21 @@ class BulkImportTab:
                 for url in urls:
                     f.write(f"{url}\n")
             
-            self.app._update_status(f"Saved {len(urls)} URLs to {self.app.current_bulk_file}", color="#E5A00D")
+            try:
+                self.app.logger.info(f"Saved {len(urls)} URLs to bulk file: {self.app.current_bulk_file}")
+                self.app._update_status(f"Saved {len(urls)} URLs to {self.app.current_bulk_file}", color="#E5A00D")
+            except Exception:
+                self.app._update_status(f"Saved {len(urls)} URLs to {self.app.current_bulk_file}", color="#E5A00D")
         except Exception as e:
             self.app._update_status(f"Error saving file: {str(e)}", color="red")
     
     def on_file_changed(self, selected_file: str):
         """Handle bulk file selection change."""
         self.app.current_bulk_file = selected_file
+        try:
+            self.app.logger.info(f"Selected bulk import file: {selected_file}")
+        except Exception:
+            pass
         self.load_file()
     
     def create_new_file(self):
@@ -195,7 +206,11 @@ class BulkImportTab:
                 
                 if filename not in self.app.config.bulk_files:
                     self.app.config.bulk_files.append(filename)
-                    self.app.config_manager.save(self.app.config)
+                    try:
+                        self.app.config_manager.save(self.app.config)
+                        self.app.logger.info(f"Added new bulk file to config: {filename}")
+                    except Exception:
+                        pass
                 
                 self.file_dropdown.configure(values=self.app.config.bulk_files)
                 self.file_dropdown.set(filename)
@@ -203,6 +218,10 @@ class BulkImportTab:
                 
                 self.load_file()
                 self.app._update_status(f"Created new file: {filename}", color="#E5A00D")
+                try:
+                    self.app.logger.info(f"Created new bulk import file: {filename}")
+                except Exception:
+                    pass
             except Exception as e:
                 self.app._update_status(f"Error creating file: {str(e)}", color="red")
     
@@ -228,7 +247,11 @@ class BulkImportTab:
                 
                 if self.app.current_bulk_file in self.app.config.bulk_files:
                     self.app.config.bulk_files.remove(self.app.current_bulk_file)
-                    self.app.config_manager.save(self.app.config)
+                    try:
+                        self.app.config_manager.save(self.app.config)
+                        self.app.logger.info(f"Removed bulk file from config: {self.app.current_bulk_file}")
+                    except Exception:
+                        pass
                 
                 if self.app.config.bulk_files:
                     self.app.current_bulk_file = self.app.config.bulk_files[0]
@@ -241,6 +264,10 @@ class BulkImportTab:
                 
                 self.load_file()
                 self.app._update_status(f"Deleted file successfully", color="#E5A00D")
+                try:
+                    self.app.logger.info(f"Deleted bulk import file: {self.app.current_bulk_file}")
+                except Exception:
+                    pass
             except Exception as e:
                 self.app._update_status(f"Error deleting file: {str(e)}", color="red")
     

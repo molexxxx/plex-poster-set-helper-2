@@ -47,7 +47,10 @@ class ScrapeHandler:
                 # Submit all URL scraping and upload tasks
                 future_to_url = {executor.submit(self._scrape_and_upload_url, url): url for url in urls}
                 
-                print(f"📋 Submitted {len(urls)} URL processing tasks to {max_workers} concurrent workers")
+                try:
+                    self.app.logger.info(f"Submitted {len(urls)} URL processing tasks to {max_workers} concurrent workers")
+                except Exception:
+                    pass
                 
                 # Mark initial batch as processing
                 initial_batch = min(max_workers, total_urls)
@@ -78,7 +81,10 @@ class ScrapeHandler:
                         
                         if error:
                             self.app._set_url_row_status(url, 'error', row_list)
-                            print(f"⚠ {error}")
+                            try:
+                                self.app.logger.warning(error)
+                            except Exception:
+                                pass
                         else:
                             self.app._set_url_row_status(url, 'completed', row_list)
                             total_posters_uploaded += poster_count
@@ -94,7 +100,10 @@ class ScrapeHandler:
                         
                     except Exception as e:
                         self.app._set_url_row_status(url, 'error', row_list)
-                        print(f"⚠ Exception: {str(e)}")
+                        try:
+                            self.app.logger.exception(f"Exception processing {url}: {e}")
+                        except Exception:
+                            pass
                         completed += 1
                         
                         # Still mark next URL as processing
@@ -128,10 +137,16 @@ class ScrapeHandler:
             Tuple of (total_posters_uploaded, error_message or None)
         """
         try:
-            print(f"🔍 [{threading.current_thread().name}] Starting scrape for: {url}")
-            print(f"⏳ [{threading.current_thread().name}] Initializing secure browser...")
+            try:
+                self.app.logger.info(f"[{threading.current_thread().name}] Starting scrape for: {url}")
+                self.app.logger.debug(f"[{threading.current_thread().name}] Initializing secure browser...")
+            except Exception:
+                pass
             movie_posters, show_posters, collection_posters = self.app.scraper_factory.scrape_url(url)
-            print(f"📦 [{threading.current_thread().name}] Scraped {len(movie_posters)} movies, {len(show_posters)} shows, {len(collection_posters)} collections from: {url}")
+            try:
+                self.app.logger.info(f"[{threading.current_thread().name}] Scraped {len(movie_posters)} movies, {len(show_posters)} shows, {len(collection_posters)} collections from: {url}")
+            except Exception:
+                pass
             
             total_posters = len(movie_posters) + len(show_posters) + len(collection_posters)
             
@@ -145,11 +160,17 @@ class ScrapeHandler:
             for poster in show_posters:
                 self.app.upload_service.process_poster(poster)
             
-            print(f"✓ [{threading.current_thread().name}] Completed upload of {total_posters} posters from: {url}")
+            try:
+                self.app.logger.info(f"Completed upload of {total_posters} posters from: {url}")
+            except Exception:
+                pass
             return (total_posters, None)
         except Exception as e:
             error_msg = f"Error processing {url}: {str(e)}"
-            print(f"✗ [{threading.current_thread().name}] {error_msg}")
+            try:
+                self.app.logger.exception(error_msg)
+            except Exception:
+                pass
             return (0, error_msg)
     
     def cancel(self):
@@ -159,4 +180,7 @@ class ScrapeHandler:
             try:
                 self.active_executor.shutdown(wait=False, cancel_futures=True)
             except Exception as e:
-                print(f"Error shutting down executor: {e}")
+                try:
+                    self.app.logger.exception(f"Error shutting down executor: {e}")
+                except Exception:
+                    pass

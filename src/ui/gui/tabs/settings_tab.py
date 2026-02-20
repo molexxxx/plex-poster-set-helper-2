@@ -5,6 +5,11 @@ import tkinter as tk
 import customtkinter as ctk
 import subprocess
 import platform
+import threading
+import webbrowser
+from ....services.plex_auth_service import (
+    get_token_via_pin,
+)
 from ....utils.helpers import get_exe_dir
 
 
@@ -91,6 +96,16 @@ class SettingsTab:
         )
         self.token_entry.grid(row=row, column=0, pady=(0, 10), padx=10, sticky="ew")
         self.app.ui_helpers.bind_context_menu(self.token_entry)
+        row += 1
+
+        # Plex Sign-in button
+        sign_in_button = self.app.ui_helpers.create_button(
+            main_scroll,
+            text="Sign in with Plex",
+            command=self._open_plex_signin,
+            height=40,
+        )
+        sign_in_button.grid(row=row, column=0, pady=(0, 10), padx=10, sticky="ew")
         row += 1
         
         # TV Library Names
@@ -246,6 +261,17 @@ class SettingsTab:
             border_width=0
         )
         self.log_file_entry.grid(row=0, column=1, pady=0, padx=(0, 5), sticky="ew")
+        # Option to append to existing log file instead of overwriting on start
+        self.log_append_var = tk.BooleanVar(value=False)
+        self.log_append_checkbox = ctk.CTkCheckBox(
+            log_file_frame,
+            text="Append to log file (don't overwrite on start)",
+            variable=self.log_append_var,
+            text_color="#A1A1A1"
+        )
+        self.log_append_checkbox.grid(row=1, column=1, pady=(6, 0), padx=(0, 5), sticky="w")
+        # Optional clear-on-boot/exit controls (stored in config)
+        # no clear-on-boot option; log rotation controlled via `log_append` setting
         
         open_log_button = self.app.ui_helpers.create_button(
             log_file_frame, text="Open Log", command=self._open_log_file, height=32)
@@ -526,13 +552,12 @@ class SettingsTab:
         elif list_type == 'movie':
             container = self.movie_library_container
             rows = self.movie_library_rows
-        else:  # mediux
+        else:
             container = self.mediux_filters_container
             rows = self.mediux_filters_rows
         
         row_num = len(rows)
-        
-        # Add top padding to first row
+
         pady_value = (5, 2) if row_num == 0 else 2
         padx_value = 8
         
@@ -574,7 +599,6 @@ class SettingsTab:
             'button': delete_button
         })
         
-        # Add bottom padding spacer if this is the last row
         self._update_container_padding(container, len(rows))
     
     def remove_library_item(self, list_type: str, row_num: int):
@@ -595,7 +619,6 @@ class SettingsTab:
                 remaining_row['button'].configure(
                     command=lambda t=list_type, r=idx: self.remove_library_item(t, r))
             
-            # Update padding after removal
             if list_type == 'tv':
                 self._update_container_padding(self.tv_library_container, len(rows))
             elif list_type == 'movie':
@@ -610,16 +633,113 @@ class SettingsTab:
             container: The container widget.
             num_rows: Number of rows in the container.
         """
-        # Remove existing padding spacer if it exists
         for child in container.winfo_children():
             if isinstance(child, ctk.CTkFrame) and child.cget('height') == 5:
                 child.destroy()
         
-        # Add padding spacer at the bottom
         if num_rows > 0:
             spacer = ctk.CTkFrame(container, fg_color="transparent", height=5)
             spacer.grid(row=num_rows, column=0, sticky="ew")
-    
+
+    def _open_plex_signin(self):
+        """Open a browser-based PIN auth dialog for Plex sign-in."""
+        dialog = ctk.CTkToplevel(self.tab)
+        dialog.title("Sign in with Plex")
+        dialog.geometry("480x220")
+        dialog.resizable(False, False)
+        dialog.configure(fg_color="#2A2B2B")
+        try:
+            # Make the dialog transient to the settings tab and keep it on top
+            dialog.transient(self.tab)
+            dialog.wm_attributes("-topmost", True)
+            dialog.lift()
+            dialog.focus_force()
+        except Exception:
+            pass
+
+        lbl = ctk.CTkLabel(dialog, text="Sign in to Plex.tv to obtain a token", text_color="#A1A1A1")
+        lbl.pack(pady=(12, 6), padx=12)
+
+        code_label = ctk.CTkLabel(dialog, text="Requesting code...", text_color="#E5A00D", font=("Roboto", 14, "bold"))
+        code_label.pack(pady=(6, 6), padx=12)
+
+        link_label = ctk.CTkLabel(dialog, text="", text_color="#A1A1A1", wraplength=440)
+        link_label.pack(pady=(4, 4), padx=12)
+
+        status_label = ctk.CTkLabel(dialog, text="Waiting for authorization...", text_color="#E5A00D")
+        status_label.pack(pady=(6, 6))
+
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(pady=(6, 8))
+
+        open_btn = self.app.ui_helpers.create_button(btn_frame, text="Open Browser", command=lambda: _open_url(link_label.cget('text')))
+        open_btn.grid(row=0, column=0, padx=(0, 6))
+
+        cancel_btn = self.app.ui_helpers.create_button(btn_frame, text="Cancel", command=dialog.destroy)
+        cancel_btn.grid(row=0, column=1, padx=(6, 0))
+
+        # Progress callback receives the pin info (id, code, link, client_id)
+        def _progress(info):
+            try:
+                code = info.get('code')
+                link = info.get('link')
+                self.app.app.after(0, lambda: code_label.configure(text=f"Code: {code}"))
+                self.app.app.after(0, lambda: link_label.configure(text=link))
+            except Exception:
+                pass
+
+        def _open_url(u: str):
+            try:
+                if not u:
+                    return
+                opened = webbrowser.open(u, new=2)
+                if opened:
+                    return
+            except Exception:
+                pass
+            try:
+                if platform.system() == 'Windows':
+                    import subprocess
+                    subprocess.Popen(['cmd', '/c', 'start', '', u], shell=False)
+                    return
+            except Exception:
+                pass
+            try:
+                os.startfile(u)
+            except Exception:
+                try:
+                    webbrowser.open(u)
+                except Exception:
+                    try:
+                        import subprocess
+                        subprocess.Popen(['xdg-open', u])
+                    except Exception:
+                        pass
+
+        # Background worker: run the one-shot helper which creates the pin, opens browser, polls, and returns token
+        def worker():
+            self.app.app.after(0, lambda: status_label.configure(text="Creating PIN and opening browser...", text_color="#E5A00D"))
+            token, err, info = get_token_via_pin(open_browser=True, timeout=300, poll_interval=2.0, progress_callback=_progress)
+            if err or not token:
+                self.app.app.after(0, lambda: status_label.configure(text=f"Authorization failed: {err}", text_color="red"))
+                return
+
+            # Populate the token entry in the settings UI
+            try:
+                self.app.app.after(0, lambda: self.token_entry.delete(0, 'end'))
+                self.app.app.after(0, lambda: self.token_entry.insert(0, token))
+            except Exception:
+                pass
+
+            self.app.app.after(0, lambda: self.app._update_status("Signed in with Plex — token populated", color="#E5A00D"))
+            try:
+                self.app.app.after(0, lambda: self.app._save_config())
+            except Exception:
+                pass
+            self.app.app.after(0, dialog.destroy)
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def _open_log_file(self):
         """Open the log file in the default text editor."""
         try:

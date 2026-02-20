@@ -20,10 +20,11 @@
     },
     "max_workers": 4,
     "log_file": "debug.log",
-    "scraper_min_delay": 0.1,
-    "scraper_max_delay": 0.5,
+    "log_append": false,
+    "scraper_min_delay": 0.0,
+    "scraper_max_delay": 0.2,
     "scraper_initial_delay": 0.0,
-    "scraper_batch_delay": 2.0,
+    "scraper_batch_delay": 0.0,
     "scraper_page_wait_min": 0.0,
-    "scraper_page_wait_max": 0.5
+    "scraper_page_wait_max": 0.0
 }
