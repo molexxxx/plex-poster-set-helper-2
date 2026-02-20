@@ -172,13 +172,6 @@ Recommended: set `"log_append": true` to preserve a rolling history in `debug.lo
    > **Multiple Libraries:** You can specify multiple libraries as arrays to apply posters across all of them simultaneously.
    
    > **Multiple Bulk Files:** The `bulk_files` array supports multiple text files for organizing different import lists (e.g., movies, TV shows, seasonal updates).
-   
-   > **Scraper Performance Tuning:** Configure delays via `config.json` or the GUI Settings tab. Three presets available:
-   > - **⚡ Fast (Risky):** All delays minimized - fastest scraping, highest detection risk
-   > - **⚖️ Balanced (Default):** Optimized for speed while maintaining safety (0.1-0.5s delays)
-   > - **🛡️ Safe (Slower):** Conservative delays for maximum safety (0.5-2.0s delays)
-   > 
-   > The `scraper_page_wait_*` settings control how long to wait after page navigation for JavaScript execution. Set both to `0.0` for instant scraping (faster but may miss dynamic content).
 
 ---
 

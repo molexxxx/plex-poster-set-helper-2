@@ -207,9 +207,6 @@ class PlexPosterGUI:
             height=30
         )
         logs_button.pack(side="right", padx=5)
-
-    # All logging UI and stream redirection is implemented in `LogViewer`.
-    # Use `LogViewer` directly (see `src/ui/gui/widgets/log_viewer.py`).
     
     def _create_tabview(self):
         """Create the tabbed interface."""

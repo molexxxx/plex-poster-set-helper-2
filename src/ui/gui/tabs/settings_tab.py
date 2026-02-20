@@ -270,8 +270,6 @@ class SettingsTab:
             text_color="#A1A1A1"
         )
         self.log_append_checkbox.grid(row=1, column=1, pady=(6, 0), padx=(0, 5), sticky="w")
-        # Optional clear-on-boot/exit controls (stored in config)
-        # no clear-on-boot option; log rotation controlled via `log_append` setting
         
         open_log_button = self.app.ui_helpers.create_button(
             log_file_frame, text="Open Log", command=self._open_log_file, height=32)
