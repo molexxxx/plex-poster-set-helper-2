@@ -145,6 +145,8 @@ Automatically download and apply poster sets from ThePosterDB and MediUX to your
    }
    ```
 
+Recommended: set `"log_append": true` to preserve a rolling history in `debug.log` across runs while you troubleshoot. Set to `false` to recreate/overwrite the log file on each app start.
+
    **Configuration Options:**
    
    | Option | Description | Example |
