@@ -33,8 +33,9 @@
 }
 
 .track.on {
-  background: var(--color-accent-primary);
-  border-color: var(--color-accent-primary);
+  background: var(--color-accent-interactive);
+  border-color: var(--color-accent-interactive);
+  box-shadow: 0 0 8px rgba(229, 160, 13, 0.25);
 }
 
 .thumb {

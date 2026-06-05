@@ -5,8 +5,13 @@
   --color-bg-elevated:    #1a1e28;
   --color-bg-overlay:     rgba(33, 38, 51, 0.85);
 
-  /* Brand color — Plex gold; decorative only (logo, source badges) */
+  /* Brand color — Plex gold */
   --color-brand:            #e5a00d;
+  /* Interactive controls — sliders, toggles, range tracks */
+  --color-accent-interactive:        #e5a00d;
+  --color-accent-interactive-dim:    rgba(229, 160, 13, 0.18);
+  --color-accent-interactive-glow:   rgba(229, 160, 13, 0.32);
+  --shadow-glow-interactive: 0 0 14px rgba(229, 160, 13, 0.35);
 
   /* Accent palette — warm off-white; luminance-based interactive states */
   --color-accent-primary:   #ede8df;

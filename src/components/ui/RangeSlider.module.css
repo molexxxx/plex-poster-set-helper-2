@@ -20,7 +20,7 @@
 .val {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-accent-primary);
+  color: var(--color-accent-interactive);
   min-width: 3.5ch;
   font-variant-numeric: tabular-nums;
 }
@@ -53,9 +53,9 @@
 .fill {
   position: absolute;
   height: 100%;
-  background: var(--color-accent-primary);
+  background: linear-gradient(90deg, #c98a0a, var(--color-accent-interactive));
   border-radius: var(--radius-full);
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .thumb {
@@ -63,10 +63,10 @@
   top: 50%;
   width: 14px;
   height: 14px;
-  background: var(--color-accent-primary);
+  background: var(--color-accent-interactive);
   border-radius: var(--radius-full);
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 3px rgba(237, 232, 223, 0.15);
+  box-shadow: 0 0 0 3px var(--color-accent-interactive-dim);
   pointer-events: none;
   transition: box-shadow var(--duration-fast);
 }

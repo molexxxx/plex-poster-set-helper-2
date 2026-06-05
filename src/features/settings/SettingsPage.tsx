@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Fragment } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LogIn, LogOut, RefreshCw, Save, ServerCrash,
   Server, User, Sliders, SlidersHorizontal, Filter, Wrench,
+  CheckCircle2, Circle, Info,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
@@ -57,6 +58,58 @@ function FieldRow({ label, hint, children }: { label: string; hint?: string; chi
   )
 }
 
+// ─── Setup flow stepper ───────────────────────────────────────────────────────
+
+type StepState = 'done' | 'active' | 'waiting'
+
+function SetupFlow({ step1, step2, step3 }: { step1: StepState; step2: StepState; step3: StepState }) {
+  const steps: Array<{ label: string; sub: string; state: StepState }> = [
+    {
+      label: 'Authenticate',
+      sub: step1 === 'done' ? 'Signed in' : 'Sign in with Plex',
+      state: step1,
+    },
+    {
+      label: 'Connect Server',
+      sub: step2 === 'done' ? 'Server connected' : step2 === 'active' ? 'Enter URL below' : 'Waiting…',
+      state: step2,
+    },
+    {
+      label: 'Select Libraries',
+      sub: step3 === 'done' ? 'Libraries selected' : step3 === 'active' ? 'Choose below' : 'Waiting…',
+      state: step3,
+    },
+  ]
+
+  return (
+    <div className={styles.setupFlow}>
+      <span className={styles.setupHeading}>Getting Started</span>
+      <div className={styles.setupSteps}>
+        {steps.map((s, i) => (
+          <Fragment key={i}>
+            <div className={`${styles.setupStep} ${styles[`step_${s.state}`]}`}>
+              <span className={styles.setupBubble}>
+                {s.state === 'done'
+                  ? <CheckCircle2 size={14} />
+                  : s.state === 'active'
+                    ? <span className={styles.setupNumActive}>{i + 1}</span>
+                    : <Circle size={14} />}
+              </span>
+              <div className={styles.setupStepText}>
+                <span className={styles.setupStepLabel}>{s.label}</span>
+                <span className={styles.setupStepSub}>{s.sub}</span>
+              </div>
+            </div>
+            {i < steps.length - 1 && (
+              <div className={`${styles.setupConnector} ${steps[i + 1].state !== 'waiting' ? styles.setupConnectorActive : ''}`} />
+            )}
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -69,8 +122,9 @@ export default function SettingsPage() {
   const [signingIn, setSigningIn]   = useState(false)
 
   // server
-  const [testing, setTesting]   = useState(false)
-  const [testMsg, setTestMsg]   = useState<{ ok: boolean; msg: string } | null>(null)
+  const [testing, setTesting]         = useState(false)
+  const [testMsg, setTestMsg]         = useState<{ ok: boolean; msg: string } | null>(null)
+  const [serverConnected, setServerConnected] = useState(false)
 
   // libraries
   const [libraries, setLibraries]       = useState<Library[]>([])
@@ -99,6 +153,7 @@ export default function SettingsPage() {
     try {
       const libs = await window.api.plex.getLibraries() as Library[]
       setLibraries(libs)
+      if (libs.length > 0) setServerConnected(true)
     } finally {
       setRefreshLibs(false)
     }
@@ -155,6 +210,7 @@ export default function SettingsPage() {
       const res = await window.api.plex.connect(merged.baseUrl, merged.token) as { success: boolean; serverName?: string; error?: string }
       if (res.success) {
         setTestMsg({ ok: true, msg: `Connected to "${res.serverName}"` })
+        setServerConnected(true)
         await loadLibraries()
         // persist baseUrl + token from the merged draft
         await window.api.config.set({ baseUrl: merged.baseUrl })
@@ -199,6 +255,13 @@ export default function SettingsPage() {
   const connected = authStatus.status === 'authorized'
   const movieLibs = libraries.filter(l => l.type === 'movie')
   const showLibs  = libraries.filter(l => l.type === 'show')
+  const libsSelected = (merged.movieLibraries.length + merged.tvLibraries.length) > 0
+
+  // Setup flow state
+  const step1: StepState = connected ? 'done' : 'active'
+  const step2: StepState = serverConnected ? 'done' : connected ? 'active' : 'waiting'
+  const step3: StepState = libsSelected ? 'done' : serverConnected ? 'active' : 'waiting'
+  const setupDone = step1 === 'done' && step2 === 'done' && step3 === 'done'
 
   return (
     <div className={styles.page}>
@@ -222,6 +285,21 @@ export default function SettingsPage() {
 
       {/* ── Scrollable body ────────────────────────────────────────────────── */}
       <div className={styles.body}>
+
+        {/* ── Setup flow stepper ─────────────────────────────────────────── */}
+        <AnimatePresence initial={false}>
+          {!setupDone && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.28 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <SetupFlow step1={step1} step2={step2} step3={step3} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Plex account ───────────────────────────────────────────────── */}
         <Section icon={<User size={15} />} title="Plex Account" description="Authenticate with your plex.tv account to enable automatic library matching.">
@@ -281,6 +359,12 @@ export default function SettingsPage() {
 
         {/* ── Plex server ────────────────────────────────────────────────── */}
         <Section icon={<Server size={15} />} title="Plex Server" description="Local server address. Required even when signed in via plex.tv.">
+          {!connected && (
+            <div className={styles.authFirstNote}>
+              <Info size={13} />
+              <span>Sign in with Plex above first — your auth token is needed to connect to the server.</span>
+            </div>
+          )}
           <FieldRow label="Server URL" hint="e.g. http://localhost:32400">
             <div className={styles.inputWithAction}>
               <input
@@ -289,13 +373,14 @@ export default function SettingsPage() {
                 onChange={e => patch('baseUrl', e.target.value)}
                 placeholder="http://localhost:32400"
                 spellCheck={false}
+                disabled={!connected}
               />
               <Button
                 variant="secondary"
                 size="sm"
                 icon={testing ? <Spinner size="xs" color="current" /> : <RefreshCw size={12} />}
                 onClick={testConnection}
-                disabled={testing || !merged.baseUrl}
+                disabled={testing || !merged.baseUrl || !connected}
               >
                 Connect
               </Button>
@@ -316,8 +401,8 @@ export default function SettingsPage() {
           </FieldRow>
         </Section>
 
-        {/* ── Libraries ──────────────────────────────────────────────────── */}
-        {(libraries.length > 0 || connected) && (
+        {/* ── Libraries — only appear once server connection is established ── */}
+        {serverConnected && (
           <Section
             icon={<SlidersHorizontal size={15} />}
             title="Libraries"
@@ -439,15 +524,6 @@ export default function SettingsPage() {
             <Switch
               checked={merged.logAppend}
               onChange={v => patch('logAppend', v)}
-            />
-          </FieldRow>
-          <FieldRow label="Log Drawer Height" hint="Default height in pixels">
-            <Slider
-              min={150} max={600} step={10}
-              value={merged.logDrawerHeight}
-              onChange={v => patch('logDrawerHeight', v)}
-              unit="px"
-              ticks={5}
             />
           </FieldRow>
         </Section>
