@@ -5,18 +5,19 @@
   --color-bg-elevated:    #1a1e28;
   --color-bg-overlay:     rgba(33, 38, 51, 0.85);
 
-  /* Accent palette */
-  --color-accent-primary:   #7c6af7;
-  --color-accent-secondary: #a78bfa;
-  --color-accent-highlight: #f59e0b;
+  /* Accent palette — Plex amber/gold */
+  --color-accent-primary:   #e5a00d;
+  --color-accent-secondary: #f0b429;
+  --color-accent-dim:       #c4880a;
+  --color-accent-highlight: #ff8c00;
   --color-accent-success:   #34d399;
   --color-accent-warning:   #fbbf24;
   --color-accent-error:     #f87171;
   --color-accent-info:      #60a5fa;
 
   /* Source colors */
-  --color-source-mediux:    #a78bfa;
-  --color-source-posterdb:  #f59e0b;
+  --color-source-mediux:    #60a5fa;
+  --color-source-posterdb:  #e5a00d;
 
   /* Text hierarchy */
   --color-text-primary:   #f0f2f8;
@@ -27,14 +28,14 @@
   /* Borders */
   --color-border:         rgba(255, 255, 255, 0.06);
   --color-border-subtle:  rgba(255, 255, 255, 0.04);
-  --color-border-accent:  rgba(124, 106, 247, 0.4);
+  --color-border-accent:  rgba(229, 160, 13, 0.4);
 
   /* Shadows */
   --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
   --shadow-lg:  0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --shadow-xl:  0 16px 48px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.07);
-  --shadow-glow-accent:   0 0 20px rgba(124, 106, 247, 0.25);
+  --shadow-glow-accent:   0 0 20px rgba(229, 160, 13, 0.3);
   --shadow-glow-success:  0 0 20px rgba(52, 211, 153, 0.25);
   --shadow-glow-error:    0 0 20px rgba(248, 113, 113, 0.25);
 
