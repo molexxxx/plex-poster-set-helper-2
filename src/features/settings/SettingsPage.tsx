@@ -172,6 +172,7 @@ export default function SettingsPage() {
       }
       if (s.status === 'idle') {
         setLibraries([])
+        setServerConnected(false)
       }
     })
     return () => { off() }
@@ -198,6 +199,7 @@ export default function SettingsPage() {
     await window.api.auth.disconnect()
     setAuthStatus({ status: 'idle' })
     setLibraries([])
+    setServerConnected(false)
   }
 
   // ── Test connection ────────────────────────────────────────────────────────
