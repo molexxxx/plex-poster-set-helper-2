@@ -4,3 +4,4 @@ tempCodeRunnerFile.py
 build/
 !dist/*.zip
 debug.log
+.docs/
