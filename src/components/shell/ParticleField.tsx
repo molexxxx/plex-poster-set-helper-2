@@ -11,7 +11,7 @@ interface Particle {
 
 const PARTICLE_COUNT = 55
 const MAX_DISTANCE = 120
-const PARTICLE_COLOR = '124, 106, 247'
+const PARTICLE_COLOR = '229, 160, 13'
 
 export default function ParticleField() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
