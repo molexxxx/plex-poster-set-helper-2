@@ -1,0 +1,135 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.wrapper.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ── Value readout ────────────────────────────────────────────────────────── */
+
+.readout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.val {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-accent-primary);
+  min-width: 3.5ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash {
+  font-size: var(--text-xs);
+  color: var(--color-text-disabled);
+}
+
+/* ── Track ────────────────────────────────────────────────────────────────── */
+
+.trackWrap {
+  position: relative;
+  height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border-subtle);
+  pointer-events: none;
+}
+
+.fill {
+  position: absolute;
+  height: 100%;
+  background: var(--color-accent-primary);
+  border-radius: var(--radius-full);
+  opacity: 0.85;
+}
+
+.thumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background: var(--color-accent-primary);
+  border-radius: var(--radius-full);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(237, 232, 223, 0.15);
+  pointer-events: none;
+  transition: box-shadow var(--duration-fast);
+}
+
+/* ── Native range inputs (invisible, drive interaction) ──────────────────── */
+
+.input {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+  pointer-events: none; /* overridden per-input via style.zIndex */
+}
+
+/* Re-enable pointer events for the thumb area only via appearance */
+.input::-webkit-slider-thumb {
+  pointer-events: all;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  cursor: grab;
+}
+
+.input::-moz-range-thumb {
+  pointer-events: all;
+  width: 18px;
+  height: 18px;
+  cursor: grab;
+}
+
+/* hide native tracks */
+.input::-webkit-slider-runnable-track { background: transparent; }
+.input::-moz-range-track { background: transparent; }
+
+/* Focus glow on visual thumb via sibling trick isn't possible, handled via wrapper hover */
+
+/* ── Ticks ────────────────────────────────────────────────────────────────── */
+
+.ticks {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 1px;
+}
+
+.tick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.tickMark {
+  width: 1px;
+  height: 4px;
+  background: var(--color-border);
+}
+
+.tickLabel {
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+}

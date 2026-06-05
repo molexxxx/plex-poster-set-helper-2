@@ -319,8 +319,3 @@
   gap: var(--space-4);
 }
 
-.rangeRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-}

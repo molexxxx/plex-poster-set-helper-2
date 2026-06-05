@@ -8,6 +8,7 @@ import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import Switch from '../../components/ui/Switch'
 import Slider from '../../components/ui/Slider'
+import RangeSlider from '../../components/ui/RangeSlider'
 import Checkbox from '../../components/ui/Checkbox'
 import type { AppConfig, Library, PlexAuthStatus } from '../../../electron/ipc/types'
 import styles from './SettingsPage.module.css'
@@ -400,41 +401,25 @@ export default function SettingsPage() {
                 ticks={8}
               />
             </FieldRow>
-            <FieldRow label="Request Delay" hint="Seconds between requests (random range)">
-              <div className={styles.rangeRow}>
-                <Slider
-                  min={0} max={5} step={0.1}
-                  value={merged.scraperMinDelay}
-                  onChange={v => patch('scraperMinDelay', v)}
-                  label="Min"
-                  unit="s"
-                />
-                <Slider
-                  min={0} max={10} step={0.1}
-                  value={merged.scraperMaxDelay}
-                  onChange={v => patch('scraperMaxDelay', v)}
-                  label="Max"
-                  unit="s"
-                />
-              </div>
+            <FieldRow label="Request Delay" hint="Random pause between each request">
+              <RangeSlider
+                min={0} max={10} step={0.1}
+                minVal={merged.scraperMinDelay}
+                maxVal={merged.scraperMaxDelay}
+                onChange={(lo, hi) => { patch('scraperMinDelay', lo); patch('scraperMaxDelay', hi) }}
+                unit="s"
+                ticks={6}
+              />
             </FieldRow>
-            <FieldRow label="Page Wait" hint="Pause after page load (random range)">
-              <div className={styles.rangeRow}>
-                <Slider
-                  min={0} max={3} step={0.1}
-                  value={merged.scraperPageWaitMin}
-                  onChange={v => patch('scraperPageWaitMin', v)}
-                  label="Min"
-                  unit="s"
-                />
-                <Slider
-                  min={0} max={5} step={0.1}
-                  value={merged.scraperPageWaitMax}
-                  onChange={v => patch('scraperPageWaitMax', v)}
-                  label="Max"
-                  unit="s"
-                />
-              </div>
+            <FieldRow label="Page Wait" hint="Random pause after page load">
+              <RangeSlider
+                min={0} max={5} step={0.1}
+                minVal={merged.scraperPageWaitMin}
+                maxVal={merged.scraperPageWaitMax}
+                onChange={(lo, hi) => { patch('scraperPageWaitMin', lo); patch('scraperPageWaitMax', hi) }}
+                unit="s"
+                ticks={6}
+              />
             </FieldRow>
             <FieldRow label="Batch Delay" hint="Pause between paginated pages">
               <Slider
