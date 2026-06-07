@@ -167,8 +167,8 @@ function createWindow() {
   const launchedAtLogin = app.getLoginItemSettings().wasOpenedAtLogin
 
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: 1620,
+    height: 1080,
     minWidth: 900,
     minHeight: 600,
     frame: false,
