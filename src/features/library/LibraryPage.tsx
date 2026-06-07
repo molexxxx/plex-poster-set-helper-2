@@ -578,7 +578,7 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
                           <button
                             key={p.url}
                             className={styles.groupThumb}
-                            title={`${p.episode != null ? `Episode ${p.episode}` : g.label} — click to enlarge`}
+                            title={`${p.episode != null ? `Episode ${p.episode}` : g.label} - click to enlarge`}
                             onClick={() => setLightbox(idx)}
                           >
                             <img src={p.thumbUrl ?? p.url} alt={g.label} loading="lazy" draggable={false} />

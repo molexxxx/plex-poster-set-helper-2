@@ -12,6 +12,8 @@ import MappingsPage from '../features/mappings/MappingsPage'
 import ResetPage from '../features/reset/ResetPage'
 import SettingsPage from '../features/settings/SettingsPage'
 import SetupScreen from '../features/setup/SetupScreen'
+import { UpdaterProvider } from '../features/updater/UpdaterContext'
+import UpdateToast from '../features/updater/UpdateToast'
 import { AppContext } from './AppContext'
 
 export type NavTab = 'library' | 'scheduler' | 'mappings' | 'manual' | 'reset' | 'settings'
@@ -55,6 +57,7 @@ export default function App() {
 
   return (
     <AppContext.Provider value={{ navigate, plexConnected }}>
+    <UpdaterProvider>
     {/* Setup gate - shown on first launch until Chromium is installed */}
     <AnimatePresence>
       {browserReady === false && (
@@ -103,8 +106,11 @@ export default function App() {
 
       <LogDrawer open={logOpen} onClose={() => setLogOpen(false)} />
 
+      <UpdateToast />
+
       <StatusBar />
     </div>
+    </UpdaterProvider>
     </AppContext.Provider>
   )
 }

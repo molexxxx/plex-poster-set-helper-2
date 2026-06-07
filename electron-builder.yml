@@ -1,6 +1,6 @@
 appId: com.tonywied17.plex-poster-set-helper
 productName: Plex Poster Set Helper
-copyright: Copyright © 2025 tonywied17
+copyright: Copyright © 2026 tonywied17
 
 directories:
   output: dist-electron
@@ -20,12 +20,13 @@ asarUnpack:
 extraMetadata:
   main: electron/dist/main.js
 
+# Icons: drop branded files at resources/icon.ico (Windows) and
+# resources/icon.png (Linux, 512x512+) and electron-builder picks them up
+# automatically. Until then the default Electron icon is used.
 win:
   target:
     - target: nsis
       arch: [x64]
-  icon: resources/icon.ico
-  publisherName: tonywied17
 
 nsis:
   oneClick: false
@@ -41,7 +42,6 @@ linux:
       arch: [x64]
     - target: deb
       arch: [x64]
-  icon: resources/icon.png
   category: Utility
   maintainer: tonywied17
 

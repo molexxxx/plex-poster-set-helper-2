@@ -19,11 +19,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Node 20: Electron's postinstall (which fetches the binary that
+          # electron-builder packages) is reliable here, unlike Node 22.
+          node-version: 20
           cache: npm
 
+      # `npm install` (not `npm ci`): the committed lockfile is generated on
+      # Windows and omits a few Linux-only optional deps, which fails the
+      # stricter `npm ci` on the Linux runner.
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Build renderer
         run: npx vite build

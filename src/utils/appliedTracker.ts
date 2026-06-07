@@ -1,6 +1,6 @@
 import type { AppliedRecord } from '../../electron/ipc/types'
 
-// Record an applied poster set in local history — the single source of truth for
+// Record an applied poster set in local history - the single source of truth for
 // the "Applied / in library" markers and the Reset Posters page. Deduped by the
 // Plex item + set (manual uploads have no setId, so they dedupe per item); the
 // per-poster `posterUrls` are merged so multiple uploads to the same set/item
@@ -20,7 +20,7 @@ export function appliedKey(title: string, year?: number): string {
   return `${title.toLowerCase()}|${year ?? ''}`
 }
 
-// A snapshot of what's been applied — interchangeable across Manual Scrape and
+// A snapshot of what's been applied - interchangeable across Manual Scrape and
 // the Library Browser. `setIds` = exact MediUX sets applied; `titles` = any title
 // (title|year) that has custom art, regardless of which set/source it came from.
 export interface AppliedIndex {

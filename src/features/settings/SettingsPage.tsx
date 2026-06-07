@@ -4,14 +4,79 @@ import {
   LogIn, LogOut, RefreshCw, ServerCrash, Pencil, X,
   Server, User, Sliders, SlidersHorizontal, Filter, Wrench,
   CheckCircle2, Circle, Globe, Download, RotateCcw, AlertTriangle, Film, Copy, ExternalLink,
+  Package, FolderOpen, Sparkles,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import Switch from '../../components/ui/Switch'
 import Slider from '../../components/ui/Slider'
 import Checkbox from '../../components/ui/Checkbox'
+import { useUpdater } from '../updater/UpdaterContext'
 import type { AppConfig, Library, PlexAuthStatus, BrowserStatus } from '../../../electron/ipc/types'
 import styles from './SettingsPage.module.css'
+
+// --- Application / updates section --------------------------------------------
+
+function ApplicationSection() {
+  const { status, info, version, lastChecked, check, download, restart } = useUpdater()
+  const [checking, setChecking] = useState(false)
+  const [noUpdate, setNoUpdate] = useState(false)
+
+  async function onCheck() {
+    setChecking(true)
+    setNoUpdate(false)
+    const res = await check()
+    setChecking(false)
+    if (!res.available) setNoUpdate(true)
+  }
+
+  const lastText = lastChecked
+    ? `Last checked ${new Date(lastChecked).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+    : 'Not checked yet'
+
+  return (
+    <Section icon={<Package size={15} />} title="Application">
+      <FieldRow label="Version" hint={lastText}>
+        <span className={styles.versionTag}>v{version || '…'}</span>
+      </FieldRow>
+
+      <FieldRow label="Updates" hint="Check GitHub for a newer release">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          {status === 'available' && (
+            <Button variant="primary" size="sm" icon={<Download size={13} />} onClick={download}>
+              Download v{info?.version}
+            </Button>
+          )}
+          {status === 'downloading' && <span className={styles.updHint}><Spinner size="xs" /> Downloading…</span>}
+          {status === 'ready' && (
+            <Button variant="primary" size="sm" icon={<RefreshCw size={13} />} onClick={restart}>
+              Restart to update
+            </Button>
+          )}
+          {(status === 'idle' || status === 'checking') && (
+            <Button
+              variant="ghost" size="sm"
+              icon={checking ? <Spinner size="xs" color="current" /> : <RefreshCw size={13} />}
+              onClick={onCheck}
+              disabled={checking}
+            >
+              {checking ? 'Checking…' : 'Check for updates'}
+            </Button>
+          )}
+          {noUpdate && status !== 'available' && (
+            <span className={styles.updHint}><Sparkles size={12} /> Up to date</span>
+          )}
+        </div>
+      </FieldRow>
+
+      <FieldRow label="Logs" hint="Open the folder containing the app log files">
+        <Button variant="ghost" size="sm" icon={<FolderOpen size={13} />} onClick={() => window.api.app.openLogFolder()}>
+          Open log folder
+        </Button>
+      </FieldRow>
+    </Section>
+  )
+}
 
 // --- Section wrapper ----------------------------------------------------------
 
@@ -720,6 +785,9 @@ export default function SettingsPage() {
             />
           </FieldRow>
         </Section>
+
+        {/* -- Application / updates ---------------------------------------- */}
+        <ApplicationSection />
 
       </div>
     </div>
