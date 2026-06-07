@@ -1,11 +1,11 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/logo.svg" width="120" alt="Plex Poster Set Helper" />
+  <img src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/logo.svg" width="120" alt="Plex Poster Set Helper 2" />
 </p>
 
-<h1 align="center">Plex Poster Set Helper</h1>
+<h1 align="center">Plex Poster Set Helper 2</h1>
 
 <p align="center">
-  Browse, download, and apply custom poster sets from <b>MediUX</b> and <b>ThePosterDB</b> to your Plex library — in a clean desktop app.
+  Browse, download, and apply custom poster sets from <b>MediUX</b> and <b>ThePosterDB</b> to your Plex library - in a clean desktop app.
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 
 ## What it does
 
-Plex Poster Set Helper finds high‑quality poster artwork for the movies and shows already in your Plex library and applies it with a click — posters, season posters, episode title cards, and backdrops, all routed to the right place automatically.
+Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and shows already in your Plex library and applies it with a click - posters, season posters, episode title cards, and backdrops, all routed to the right place automatically.
 
 <p align="center">
   <img width="48%" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-library.svg" alt="Library Browser" />
@@ -41,28 +41,28 @@ Not sure where to run it? Here's the plain‑English version:
 
 | You want to… | Use this |
 |---|---|
-| Use it on your own PC | **Desktop app** (Windows / Linux) — _start here_ |
+| Use it on your own PC | **Desktop app** (Windows / Linux) - _start here_ |
 | Run it on a home server / unraid in your browser | **Docker GUI** (the full app, in a web page) |
 | Keep weekly schedules running 24/7 with no window open | **Docker headless** (just the background scheduler) |
 
-The **Docker GUI** and **Docker headless** images are two different things: the GUI is the whole app you click around in; the headless one has **no interface at all** — it only runs the schedules you already set up. Most people just want the **desktop app**.
+The **Docker GUI** and **Docker headless** images are two different things: the GUI is the whole app you click around in; the headless one has **no interface at all** - it only runs the schedules you already set up. Most people just want the **desktop app**.
 
 ---
 
 ## Getting started
 
-### Option 1 — Download the app (easiest)
+### Option 1 - Download the app (easiest)
 
 1. Go to the **[Releases page](https://github.com/tonywied17/plex-poster-set-helper/releases/latest)**.
 2. Download the installer for your system:
    - **Windows** → the `.exe` installer
    - **Linux** → the `.AppImage` or `.deb`
 3. Install and launch it.
-4. On first run, open **Settings → Sign in with Plex**, click the link, approve in your browser — done. Your libraries appear automatically.
+4. On first run, open **Settings → Sign in with Plex**, click the link, approve in your browser - done. Your libraries appear automatically.
 
 > The app checks GitHub for new versions and can update itself with one click.
 
-### Option 2 — Run from source
+### Option 2 - Run from source
 
 You'll need **[Node.js 22+](https://nodejs.org/)** installed.
 
@@ -73,7 +73,7 @@ npm install
 npm run dev
 ```
 
-### Option 3 — Docker (servers / unraid / always‑on)
+### Option 3 - Docker (servers / unraid / always‑on)
 
 Run the full app in your browser, or a lightweight headless scheduler that keeps your weekly syncs going 24/7.
 
@@ -83,19 +83,19 @@ Run the full app in your browser, or a lightweight headless scheduler that keeps
 
 ## First‑run setup
 
-1. **Sign in to Plex** — Settings → *Sign in with Plex* → click the link → approve. (No token copy‑paste needed.)
-2. **Confirm your libraries** — they're detected automatically after sign‑in.
-3. *(Optional)* **Anime / non‑TMDB libraries** — if your library uses an agent without TMDB IDs (e.g. HAMA), add a free **TMDB API key** in Settings so titles can be matched.
+1. **Sign in to Plex** - Settings → *Sign in with Plex* → click the link → approve. (No token copy‑paste needed.)
+2. **Confirm your libraries** - they're detected automatically after sign‑in.
+3. *(Optional)* **Anime / non‑TMDB libraries** - if your library uses an agent without TMDB IDs (e.g. HAMA), add a free **TMDB API key** in Settings so titles can be matched.
 
-That's it — head to the **Library Browser** and start applying posters.
+That's it - head to the **Library Browser** and start applying posters.
 
 ---
 
-## Scheduling — keep posters up to date automatically
+## Scheduling - keep posters up to date automatically
 
 The **Scheduler** lets you re‑apply a set on a repeating schedule, which is great for shows that keep getting new episodes (so new title cards get art too).
 
-- **In the desktop app (Windows / Linux):** schedules run whenever the app is open **and** while it's **minimized to the system tray** — close the window and it keeps running quietly in the background. You can also enable **launch on startup** so it's always there after a reboot. No server required.
+- **In the desktop app (Windows / Linux):** schedules run whenever the app is open **and** while it's **minimized to the system tray** - close the window and it keeps running quietly in the background. You can also enable **launch on startup** so it's always there after a reboot. No server required.
 - **For 24/7 on a server:** set your schedules up once in the GUI, then run the **Docker headless** image to keep them firing around the clock without leaving anything open. See the [Docker guide](docker/README.md).
 
 ---
@@ -123,13 +123,13 @@ npm run typecheck    # type-check renderer + main process
 npm run lint         # eslint
 ```
 
-**Stack:** Electron · React 18 · TypeScript · Vite · Playwright (scraping) · electron‑store. See **[`.docs/refactor.md`](.docs/refactor.md)** for the full architecture and roadmap.
+**Stack:** Electron · React 18 · TypeScript · Vite · Playwright (scraping) · electron‑store.
 
 ---
 
 ## Contributing
 
-Issues and pull requests are welcome. Please run `npm run lint` and `npm run typecheck` before opening a PR — CI runs both.
+Issues and pull requests are welcome. Please run `npm run lint` and `npm run typecheck` before opening a PR - CI runs both.
 
 ## License
 
@@ -137,5 +137,5 @@ Issues and pull requests are welcome. Please run `npm run lint` and `npm run typ
 
 ## Credits
 
-- **[MediUX](https://mediux.pro)** and **[ThePosterDB](https://theposterdb.com)** — the communities behind the artwork.
-- Originally inspired by the Python `plex-poster-set-helper`; rebuilt from the ground up as a cross‑platform desktop app.
+- **[MediUX](https://mediux.pro)** and **[ThePosterDB](https://theposterdb.com)** - the communities behind the artwork.
+- Originally inspired by [**bbrown430/plex-poster-set-helper**](https://github.com/bbrown430/plex-poster-set-helper) (the Python original); rebuilt from the ground up as a cross‑platform desktop app.

@@ -26,6 +26,6 @@
   </g>
 
   <text x="128" y="76" font-family="Segoe UI, Inter, sans-serif" font-size="25" font-weight="700" fill="#f0f2f8">One-click Plex sign-in</text>
-  <text x="128" y="106" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">Sign in through Plex in your browser — no hunting for tokens.</text>
+  <text x="128" y="106" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">Sign in through Plex in your browser - no hunting for tokens.</text>
   <text x="128" y="128" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">Your libraries are detected and filled in automatically.</text>
 </svg>
