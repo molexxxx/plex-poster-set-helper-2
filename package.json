@@ -1,6 +1,6 @@
 {
   "name": "plex-poster-set-helper",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Download and apply custom poster artwork from ThePosterDB and MediUX to your Plex Media Server",
   "author": "tonywied17",
   "license": "MIT",
