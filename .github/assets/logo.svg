@@ -1,0 +1,54 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Plex Poster Set Helper logo">
+  <defs>
+    <linearGradient id="poster" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0b429"/>
+      <stop offset="0.55" stop-color="#e5a00d"/>
+      <stop offset="1" stop-color="#b8780a"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c212b"/>
+      <stop offset="1" stop-color="#11141b"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="clip"><rect x="62" y="38" width="76" height="112" rx="12"/></clipPath>
+    <style>
+      @keyframes float  { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-5px) } }
+      @keyframes floatB { 0%,100% { transform: translateY(0) } 50% { transform: translateY(4px) } }
+      @keyframes pulse  { 0%,100% { opacity: .9; transform: scale(1) } 50% { opacity: 1; transform: scale(1.06) } }
+      @keyframes sweep  { 0% { transform: translateX(-120px) } 60%,100% { transform: translateX(120px) } }
+      @keyframes ring   { 0% { opacity:.5; transform: scale(.7) } 70%,100% { opacity:0; transform: scale(1.5) } }
+      .back  { transform-origin: 100px 100px; animation: floatB 5s ease-in-out infinite }
+      .back2 { transform-origin: 100px 100px; animation: float  6s ease-in-out infinite }
+      .main  { transform-origin: 100px 94px;  animation: float  4.5s ease-in-out infinite }
+      .play  { transform-origin: 100px 94px;  animation: pulse  2.4s ease-in-out infinite }
+      .glint { animation: sweep 4.5s ease-in-out infinite }
+      .r     { transform-origin: 100px 94px;  animation: ring 2.4s ease-out infinite }
+    </style>
+  </defs>
+
+  <!-- stacked poster cards behind -->
+  <g class="back2"><rect x="50" y="52" width="76" height="104" rx="12" fill="url(#card)" opacity="0.5" transform="rotate(-9 88 104)"/></g>
+  <g class="back"><rect x="76" y="50" width="76" height="106" rx="12" fill="url(#card)" opacity="0.8" transform="rotate(8 114 103)"/></g>
+
+  <!-- main poster -->
+  <g class="main" filter="url(#glow)">
+    <rect x="62" y="38" width="76" height="112" rx="12" fill="url(#poster)"/>
+    <g clip-path="url(#clip)">
+      <rect class="glint" x="62" y="38" width="40" height="112" fill="url(#shine)"/>
+    </g>
+    <!-- pulse ring + play triangle -->
+    <circle class="r" cx="100" cy="94" r="22" fill="none" stroke="#fff" stroke-width="2"/>
+    <g class="play">
+      <circle cx="100" cy="94" r="22" fill="#11141b" opacity="0.92"/>
+      <path d="M93 84 L113 94 L93 104 Z" fill="#f0b429"/>
+    </g>
+  </g>
+</svg>

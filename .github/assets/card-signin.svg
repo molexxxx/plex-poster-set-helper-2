@@ -1,0 +1,31 @@
+<svg width="640" height="176" viewBox="0 0 640 176" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="One-click Plex sign-in">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#161a22"/><stop offset="1" stop-color="#0f1218"/></linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e5a00d" stop-opacity="0"/><stop offset=".5" stop-color="#e5a00d" stop-opacity=".10"/><stop offset="1" stop-color="#e5a00d" stop-opacity="0"/></linearGradient>
+    <clipPath id="card"><rect x="1" y="1" width="638" height="174" rx="16"/></clipPath>
+    <style>
+      @keyframes sweep{0%{transform:translateX(-300px)}55%,100%{transform:translateX(760px)}}
+      @keyframes glow{0%,100%{opacity:.9}50%{opacity:1}}
+      @keyframes wiggle{0%,100%{transform:rotate(0)}40%{transform:rotate(-12deg)}60%{transform:rotate(8deg)}}
+      .sweep{animation:sweep 6s ease-in-out 4s infinite}
+      .tile{animation:glow 3s ease-in-out infinite}
+      .key{transform-origin:58px 78px;animation:wiggle 3.5s ease-in-out infinite}
+    </style>
+  </defs>
+  <rect x="1" y="1" width="638" height="174" rx="16" fill="url(#bg)" stroke="#262b36"/>
+  <g clip-path="url(#card)"><rect class="sweep" x="0" y="0" width="220" height="176" fill="url(#shine)"/></g>
+  <rect x="1" y="1" width="5" height="174" rx="3" fill="#e5a00d"/>
+
+  <!-- icon tile: key -->
+  <g class="tile">
+    <rect x="30" y="52" width="72" height="72" rx="16" fill="#241a08" stroke="#4a3a10"/>
+    <g class="key">
+      <circle cx="58" cy="78" r="11" fill="none" stroke="#e5a00d" stroke-width="3"/>
+      <path d="M66 86 l20 20 M80 100 l6 -6 M86 106 l6 -6" fill="none" stroke="#f0b429" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <text x="128" y="76" font-family="Segoe UI, Inter, sans-serif" font-size="25" font-weight="700" fill="#f0f2f8">One-click Plex sign-in</text>
+  <text x="128" y="106" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">Sign in through Plex in your browser — no hunting for tokens.</text>
+  <text x="128" y="128" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">Your libraries are detected and filled in automatically.</text>
+</svg>
