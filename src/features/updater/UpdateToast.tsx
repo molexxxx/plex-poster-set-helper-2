@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Download, RefreshCw, X, Loader2, Sparkles } from 'lucide-react'
+import { Download, RefreshCw, X, Loader2, Sparkles, Container, BookOpen } from 'lucide-react'
 import { useUpdater } from './UpdaterContext'
 import styles from './UpdateToast.module.css'
 
@@ -7,14 +7,46 @@ function fmtMB(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(1)
 }
 
+const DOCKER_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper/blob/main/docker/README.md#updating-to-a-new-version'
+
 export default function UpdateToast() {
-  const { status, info, progress, dismissed, download, restart, dismiss } = useUpdater()
+  const { status, info, progress, mode, dismissed, download, restart, dismiss } = useUpdater()
+
+  const isDocker = mode === 'docker'
 
   // The toast shows for available (until dismissed) and always for download/ready.
   const visible =
     (status === 'available' && !dismissed) ||
-    status === 'downloading' ||
-    status === 'ready'
+    (!isDocker && (status === 'downloading' || status === 'ready'))
+
+  // Docker can't self-update — show "pull a new image" guidance instead of Download.
+  if (isDocker) {
+    return (
+      <AnimatePresence>
+        {status === 'available' && !dismissed && (
+          <motion.div
+            className={styles.toast}
+            initial={{ opacity: 0, y: 16, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.97 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className={styles.icon}><Container size={16} /></div>
+            <div className={styles.body}>
+              <span className={styles.title}>New version{info?.version ? ` v${info.version}` : ''} available</span>
+              <span className={styles.sub}>You're running in Docker — pull the new image and recreate the container to update.</span>
+            </div>
+            <div className={styles.actions}>
+              <button className={styles.primary} onClick={() => window.api.app.openExternal(info?.releaseUrl || DOCKER_GUIDE)}>
+                <BookOpen size={13} /> How to update
+              </button>
+              <button className={styles.close} onClick={dismiss} title="Dismiss"><X size={14} /></button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    )
+  }
 
   return (
     <AnimatePresence>

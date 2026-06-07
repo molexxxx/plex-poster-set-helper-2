@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, ScheduledJob, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq } from './ipc/types'
 // (response types are inferred via the invoke return type)
 
 const api = {
@@ -84,9 +84,11 @@ const api = {
   // App / updater
   app: {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
+    getEnv: (): Promise<AppEnv> => ipcRenderer.invoke('app:getEnv'),
     checkUpdate: (): Promise<UpdateInfo> => ipcRenderer.invoke('app:checkUpdate'),
     installUpdate: () => ipcRenderer.invoke('app:installUpdate'),
     quitAndInstall: () => ipcRenderer.invoke('app:quitAndInstall'),
+    openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
     openLogFolder: () => ipcRenderer.invoke('app:openLogFolder'),
     onUpdateAvailable: (cb: (info: UpdateInfo) => void) => {
       const handler = (_: unknown, data: UpdateInfo) => cb(data)

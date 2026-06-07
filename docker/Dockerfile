@@ -67,6 +67,7 @@ RUN printf '\nencoding:\n  rect_encoding_mode:\n    min_quality: 10\n    max_qua
 ENV PLEX_HELPER_CONFIG_DIR=/config/app \
     PLEX_HELPER_NO_TRAY=1 \
     PLEX_HELPER_PROD=1 \
+    PLEX_HELPER_DOCKER=1 \
     TITLE="Plex Poster Helper"
 
 VOLUME /config

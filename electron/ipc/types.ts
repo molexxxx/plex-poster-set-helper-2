@@ -145,6 +145,16 @@ export interface UpdateInfo {
   available: boolean
   version?: string
   releaseNotes?: string
+  mode?: 'desktop' | 'docker'   // desktop = in-app auto-update; docker = manual container update
+  releaseUrl?: string           // link to the GitHub release (docker mode)
+}
+
+// Where/how the app is running, so the renderer can tailor the update UX.
+export interface AppEnv {
+  packaged: boolean
+  container: boolean
+  version: string
+  repoUrl: string
 }
 
 // Download progress pushed from electron-updater while a new version downloads.
@@ -279,7 +289,9 @@ export type IpcChannels = {
   'auth:plexStatus': { req: void; res: PlexAuthStatus }
   'auth:disconnect': { req: void; res: void }
   'app:getVersion': { req: void; res: string }
+  'app:getEnv': { req: void; res: AppEnv }
   'app:checkUpdate': { req: void; res: UpdateInfo }
+  'app:openExternal': { req: string; res: void }
   'app:installUpdate': { req: void; res: void }
   'app:quitAndInstall': { req: void; res: void }
   'app:openLogFolder': { req: void; res: void }

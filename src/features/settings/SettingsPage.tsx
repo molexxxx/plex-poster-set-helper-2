@@ -17,10 +17,13 @@ import styles from './SettingsPage.module.css'
 
 // --- Application / updates section --------------------------------------------
 
+const DOCKER_UPDATE_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper/blob/main/docker/README.md#updating-to-a-new-version'
+
 function ApplicationSection() {
-  const { status, info, version, lastChecked, check, download, restart } = useUpdater()
+  const { status, info, version, mode, env, lastChecked, check, download, restart } = useUpdater()
   const [checking, setChecking] = useState(false)
   const [noUpdate, setNoUpdate] = useState(false)
+  const isDocker = mode === 'docker'
 
   async function onCheck() {
     setChecking(true)
@@ -36,24 +39,32 @@ function ApplicationSection() {
 
   return (
     <Section icon={<Package size={15} />} title="Application">
-      <FieldRow label="Version" hint={lastText}>
+      <FieldRow label="Version" hint={env?.container ? 'Running in Docker' : lastText}>
         <span className={styles.versionTag}>v{version || '…'}</span>
       </FieldRow>
 
-      <FieldRow label="Updates" hint="Check GitHub for a newer release">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          {status === 'available' && (
+      <FieldRow label="Updates" hint={isDocker ? 'Docker is updated by pulling a new image' : 'Check GitHub for a newer release'}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+          {/* Docker: can't self-update — link to the pull-and-recreate guide */}
+          {isDocker && status === 'available' && (
+            <Button variant="primary" size="sm" icon={<ExternalLink size={13} />}
+              onClick={() => window.api.app.openExternal(info?.releaseUrl || DOCKER_UPDATE_GUIDE)}>
+              v{info?.version} available — how to update
+            </Button>
+          )}
+          {/* Desktop: in-app download/install */}
+          {!isDocker && status === 'available' && (
             <Button variant="primary" size="sm" icon={<Download size={13} />} onClick={download}>
               Download v{info?.version}
             </Button>
           )}
-          {status === 'downloading' && <span className={styles.updHint}><Spinner size="xs" /> Downloading…</span>}
-          {status === 'ready' && (
+          {!isDocker && status === 'downloading' && <span className={styles.updHint}><Spinner size="xs" /> Downloading…</span>}
+          {!isDocker && status === 'ready' && (
             <Button variant="primary" size="sm" icon={<RefreshCw size={13} />} onClick={restart}>
               Restart to update
             </Button>
           )}
-          {(status === 'idle' || status === 'checking') && (
+          {(status === 'idle' || status === 'checking' || (isDocker && status !== 'available')) && (
             <Button
               variant="ghost" size="sm"
               icon={checking ? <Spinner size="xs" color="current" /> : <RefreshCw size={13} />}
