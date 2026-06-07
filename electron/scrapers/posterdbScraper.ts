@@ -14,9 +14,9 @@ export function posterdbUrlType(url: string): 'set' | 'poster' | 'user' | 'unkno
   return 'unknown'
 }
 
-function posterDownloadUrl(posterId: string): string {
-  // PosterDB serves original-quality files via this endpoint
-  return `${BASE}/api/media/${posterId}/download`
+function posterAssetUrl(posterId: string): string {
+  // Original-quality image endpoint (matches the Python scraper: /api/assets/{id})
+  return `${BASE}/api/assets/${posterId}`
 }
 
 // --- Metadata parsing ---------------------------------------------------------
@@ -35,48 +35,61 @@ function parseYear(text: string): number | undefined {
   return m ? parseInt(m[1]) : undefined
 }
 
-function parseSeason(text: string): number | 'Cover' | 'Backdrop' | undefined {
-  if (/backdrop/i.test(text)) return 'Backdrop'
-  if (/cover/i.test(text) || /season 0/i.test(text)) return 'Cover'
-  const m = text.match(/season\s+(\d+)/i)
-  return m ? parseInt(m[1]) : undefined
+// Season for a TV show poster, derived from the title suffix the way ThePosterDB
+// formats it: "Title (Year) - Season N" / "- Specials" → 0, otherwise the show
+// cover poster. Movies/collections have no season.
+function parseShowSeason(text: string): number | 'Cover' | undefined {
+  if (text.includes(' - ')) {
+    const last = text.split(' - ').pop()!.trim()
+    if (/specials/i.test(last)) return 0
+    const m = last.match(/season\s+(\d+)/i)
+    if (m) return parseInt(m[1])
+  }
+  return 'Cover'
 }
 
+// ThePosterDB renders each poster as a grid cell containing a `div.overlay` that
+// carries `data-poster-id`, a tooltip anchor whose `title` is the media type
+// (Movie / Show / Collection), and a `p.text-break` title. We anchor on the
+// overlay (the most stable hook) and read the rest from its grid cell.
 function parseCards($: cheerio.CheerioAPI): RawCard[] {
   const cards: RawCard[] = []
 
-  // Cards are rendered as Bootstrap .card elements; poster links contain the ID
-  $('div.card, .overlay-container').each((_, el) => {
-    const $el = $(el)
+  $('div.overlay[data-poster-id]').each((_, el) => {
+    const $overlay = $(el)
+    const posterId = $overlay.attr('data-poster-id')
+    if (!posterId) return
 
-    // Poster ID from the anchor link e.g. /poster/12345
-    const href = $el.find('a[href*="/poster/"]').first().attr('href') ?? ''
-    const posterIdMatch = href.match(/\/poster\/(\d+)/)
-    if (!posterIdMatch) return
-    const posterId = posterIdMatch[1]
+    // The column wrapper that holds this poster's title + type label.
+    let $cell = $overlay.closest('div[class*="col-"]')
+    if (!$cell.length) $cell = $overlay.parent()
 
-    // Thumbnail URL - the img src already shown in the card grid
-    const imgEl = $el.find('img').first()
+    // The overlay exposes data-poster-type (movie/show/collection) directly; fall
+    // back to the tooltip anchor's title for older markup.
+    const mediaType = (
+      $overlay.attr('data-poster-type') ||
+      $cell.find('a.text-white[data-toggle="tooltip"]').attr('title') ||
+      $overlay.find('a[data-toggle="tooltip"]').attr('title') ||
+      'Movie'
+    ).trim()
+
+    const rawTitle = (
+      $cell.find('p.text-break').first().text() ||
+      $cell.find('p').first().text() ||
+      $cell.find('img').first().attr('alt') ||
+      ''
+    ).trim()
+    if (!rawTitle) return
+
+    const title = rawTitle.split(' (')[0].trim()
+    const year = parseYear(rawTitle)
+    const season = /show/i.test(mediaType) ? parseShowSeason(rawTitle) : undefined
+
+    const imgEl = $cell.find('img').first()
     const rawThumb = imgEl.attr('src') ?? imgEl.attr('data-src') ?? imgEl.attr('data-lazy-src') ?? ''
     const thumbUrl = rawThumb.startsWith('http') ? rawThumb : rawThumb ? `${BASE}${rawThumb}` : ''
 
-    // Title text - PosterDB puts it in an overlay paragraph or card-title
-    const titleEl = $el.find('[class*="title"], .card-title, .fs-6, .fw-bold').first()
-    const rawTitle = titleEl.text().trim() ||
-      $el.find('p').first().text().trim() ||
-      ($el.find('img').attr('alt') ?? '')
-
-    const title = rawTitle.replace(/\s*\(\d{4}\)\s*/, '').trim()
-    const year = parseYear(rawTitle)
-    const season = parseSeason(rawTitle)
-
-    // Media type from a badge/label element
-    const mediaTypeEl = $el.find('[class*="type"], [class*="badge"], small').first()
-    const mediaType = mediaTypeEl.text().trim() || 'Movie'
-
-    if (title) {
-      cards.push({ posterId, thumbUrl, title, mediaType, year, season })
-    }
+    cards.push({ posterId, thumbUrl, title, mediaType, year, season })
   })
 
   return cards
@@ -85,8 +98,8 @@ function parseCards($: cheerio.CheerioAPI): RawCard[] {
 function cardsToPosters(cards: RawCard[]): PosterInfo[] {
   return cards.map(c => ({
     title: c.title,
-    url: posterDownloadUrl(c.posterId),
-    thumbUrl: c.thumbUrl || posterDownloadUrl(c.posterId),
+    url: posterAssetUrl(c.posterId),
+    thumbUrl: c.thumbUrl || posterAssetUrl(c.posterId),
     source: 'posterdb' as const,
     year: c.year,
     season: c.season,
@@ -115,7 +128,7 @@ export class PosterdbScraper extends BaseScraper {
   async scrapeSet(url: string): Promise<PosterInfo[]> {
     const { context, page } = await this.newContext()
     try {
-      await this.navigate(page, url, 'div.card, .overlay-container')
+      await this.navigate(page, url, 'div.overlay[data-poster-id]')
       const html = await page.content()
       const $ = cheerio.load(html)
       const cards = parseCards($)
@@ -135,12 +148,15 @@ export class PosterdbScraper extends BaseScraper {
   async scrapeSinglePoster(url: string): Promise<PosterInfo[]> {
     const { context, page } = await this.newContext()
     try {
-      await this.navigate(page, url, 'a[href*="/set/"]')
+      await this.navigate(page, url, 'div.overlay[data-poster-id], a[title="View Set Page"]')
       const html = await page.content()
       const $ = cheerio.load(html)
 
-      // Find the "part of set" link on the poster detail page
-      const setHref = $('a[href*="/set/"]').first().attr('href')
+      // Find the "View Set Page" link (new layout), then older fallbacks.
+      const setHref =
+        $('a[data-toggle="tooltip"][title="View Set Page"]').first().attr('href') ||
+        $('a.rounded.view_all').first().attr('href') ||
+        $('a[href*="/set/"]').first().attr('href')
       if (!setHref) {
         // Fall back to parsing just this poster's detail page
         const cards = parseCards($)
@@ -166,12 +182,14 @@ export class PosterdbScraper extends BaseScraper {
     let page = 1
     let hasMore = true
 
+    const baseUrl = url.split('?')[0]
     while (hasMore && !this._aborted) {
-      const pageUrl = url.includes('?') ? `${url}&page=${page}` : `${url}?page=${page}`
+      // ThePosterDB user uploads live under the "uploads" section, paginated.
+      const pageUrl = `${baseUrl}?section=uploads&page=${page}`
       const { context, ctx: pageCtx } = await this._newUserPage()
 
       try {
-        await this.navigate(pageCtx, pageUrl, 'div.card, .overlay-container')
+        await this.navigate(pageCtx, pageUrl, 'div.overlay[data-poster-id]')
         const html = await pageCtx.content()
         const $ = cheerio.load(html)
         const cards = parseCards($)
@@ -180,9 +198,8 @@ export class PosterdbScraper extends BaseScraper {
           hasMore = false
         } else {
           allPosters.push(...cardsToPosters(cards))
-          // Check if there's a "next page" link
-          const nextLink = $('a[rel="next"], .pagination .next:not(.disabled)').attr('href')
-          hasMore = !!nextLink
+          // Keep going while the page is full (24 per page); a short page is the last.
+          hasMore = cards.length >= 24
           page++
           await sleepConfig('batch')
         }
