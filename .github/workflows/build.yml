@@ -48,3 +48,19 @@ jobs:
         run: npx electron-builder --linux --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # electron-builder uploads .blockmap files (for delta updates) we don't want in
+  # the release. Strip them once both build jobs have published their assets.
+  cleanup:
+    name: Strip .blockmap assets
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove .blockmap assets from the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for asset in $(gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets --jq '.assets[].name' | grep '\.blockmap$' || true); do
+            echo "Deleting $asset"
+            gh release delete-asset "${{ github.ref_name }}" "$asset" --repo "${{ github.repository }}" --yes
+          done
