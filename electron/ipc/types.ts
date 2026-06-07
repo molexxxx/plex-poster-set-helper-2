@@ -147,6 +147,14 @@ export interface UpdateInfo {
   releaseNotes?: string
 }
 
+// Download progress pushed from electron-updater while a new version downloads.
+export interface UpdateProgress {
+  percent: number          // 0-100
+  transferred: number      // bytes
+  total: number            // bytes
+  bytesPerSecond: number
+}
+
 export interface PlexAuthStatus {
   status: 'idle' | 'waiting' | 'authorized' | 'timeout' | 'error'
   pin?: string
@@ -273,7 +281,11 @@ export type IpcChannels = {
   'app:getVersion': { req: void; res: string }
   'app:checkUpdate': { req: void; res: UpdateInfo }
   'app:installUpdate': { req: void; res: void }
+  'app:quitAndInstall': { req: void; res: void }
   'app:openLogFolder': { req: void; res: void }
+  'app:updateAvailable': { event: UpdateInfo }
+  'app:downloadProgress': { event: UpdateProgress }
+  'app:updateReady': { event: void }
   'log:getHistory': { req: void; res: LogEntry[] }
   'log:stream': { event: LogEntry }
   'scrape:progress': { event: ScrapeProgress }

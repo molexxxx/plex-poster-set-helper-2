@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     # The Electron binary isn't needed to typecheck/build, and its postinstall is
-    # unreliable under Node 22 — skip the download for a fast, deterministic CI.
+    # unreliable under Node 22 - skip the download for a fast, deterministic CI.
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
 

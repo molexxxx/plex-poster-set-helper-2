@@ -81,3 +81,22 @@
 .connectBtn:hover .settingsIcon {
   color: var(--color-accent-error);
 }
+
+.updateBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-accent);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+.updateBadge:hover { background: var(--color-accent-soft-hover); }
+
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

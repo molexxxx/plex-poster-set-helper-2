@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, ScheduledJob, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, ScheduledJob, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq } from './ipc/types'
 // (response types are inferred via the invoke return type)
 
 const api = {
@@ -86,11 +86,17 @@ const api = {
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
     checkUpdate: (): Promise<UpdateInfo> => ipcRenderer.invoke('app:checkUpdate'),
     installUpdate: () => ipcRenderer.invoke('app:installUpdate'),
+    quitAndInstall: () => ipcRenderer.invoke('app:quitAndInstall'),
     openLogFolder: () => ipcRenderer.invoke('app:openLogFolder'),
     onUpdateAvailable: (cb: (info: UpdateInfo) => void) => {
       const handler = (_: unknown, data: UpdateInfo) => cb(data)
       ipcRenderer.on('app:updateAvailable', handler)
       return () => ipcRenderer.removeListener('app:updateAvailable', handler)
+    },
+    onDownloadProgress: (cb: (p: UpdateProgress) => void) => {
+      const handler = (_: unknown, data: UpdateProgress) => cb(data)
+      ipcRenderer.on('app:downloadProgress', handler)
+      return () => ipcRenderer.removeListener('app:downloadProgress', handler)
     },
     onUpdateReady: (cb: () => void) => {
       ipcRenderer.on('app:updateReady', cb)

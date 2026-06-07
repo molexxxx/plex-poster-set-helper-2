@@ -95,7 +95,7 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
   const cronExpr = buildCron(preset, hour, minute, day, custom)
   const urlList  = urls.split('\n').map(l => l.trim()).filter(Boolean)
 
-  // Only close on a true backdrop click — not when a text-selection drag that
+  // Only close on a true backdrop click - not when a text-selection drag that
   // started inside the drawer happens to release over the overlay.
   const downOnOverlay = useRef(false)
   const valid    = name.trim().length > 0 && urlList.length > 0
@@ -161,7 +161,7 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
                 const v = e.target.value
                 setUrls(v)
                 // Keep the auto-generated "Sync @user (N sets)" count in sync with
-                // the URL list — but only if the name is still that default form
+                // the URL list - but only if the name is still that default form
                 // (a custom name won't match the pattern, so it's left untouched).
                 const setCount = v.split('\n').map(l => l.trim()).filter(u => /\/sets\/\d+/.test(u)).length
                 setName(prev => {

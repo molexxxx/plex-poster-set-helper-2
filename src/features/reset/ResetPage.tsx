@@ -262,7 +262,7 @@ export default function ResetPage() {
                 transition={{ duration: 0.15 }}
                 layout
               >
-                {/* thumb — click to view full size */}
+                {/* thumb - click to view full size */}
                 <button
                   className={styles.thumb}
                   onClick={() => setLightbox(filtered.findIndex(f => f.key === item.key))}

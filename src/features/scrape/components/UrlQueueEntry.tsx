@@ -168,7 +168,7 @@ function PosterThumb({
         </div>
       )}
 
-      {/* applied indicator — exact poster (strong) vs same-title (soft) */}
+      {/* applied indicator - exact poster (strong) vs same-title (soft) */}
       {applied ? (
         <div className={styles.appliedBadge} title="This poster is already applied to your library">
           <BadgeCheck size={11} /> Applied
@@ -197,7 +197,7 @@ export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) 
 
   const doneCount = entry.posters.filter(p => p.uploadStatus === 'done').length
 
-  // MediUX set id for this entry (only for /sets/ links) — recorded on upload so
+  // MediUX set id for this entry (only for /sets/ links) - recorded on upload so
   // the Library Browser recognises it, and used to flag a re-scraped applied set.
   const entrySetId = entry.url.match(/\/sets\/(\d+)/)?.[1]
   const setAlreadyApplied = !!entrySetId && appliedIdx.setIds.has(entrySetId)
