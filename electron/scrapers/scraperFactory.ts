@@ -121,9 +121,9 @@ export const ScraperFactory = {
     return getMediux().browseSets(tmdbId, type)
   },
 
-  // -- Library browser: list a creator's recent sets -------------------------
-  async browseMediuxUser(username: string) {
-    return getMediux().browseUserSets(username)
+  // -- Library browser: list a creator's sets (cumulative page N = first N×12) -
+  async browseMediuxUser(username: string, page = 1) {
+    return getMediux().browseUserSets(username, page)
   },
 
   // -- Quick validation helper for the UI ------------------------------------

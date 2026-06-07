@@ -746,10 +746,16 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const { navigate } = useAppContext()
   const [sets, setSets]       = useState<MediuxUserSet[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage]       = useState(1)
+  const [hasMore, setHasMore] = useState(false)
   const [error, setError]     = useState<string | null>(null)
   const [applyMap, setApplyMap] = useState<Record<string, ApplyState>>({})
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [scheduledMsg, setScheduledMsg] = useState<string | null>(null)
+  const [tab, setTab]         = useState<'sets' | 'boxsets' | 'posters' | 'backdrops'>('sets')
+  const [query, setQuery]     = useState('')
+  const [fileLightbox, setFileLightbox] = useState<number | null>(null)
 
   // Which sets are already covered by a saved schedule (individually, or by a
   // whole-creator "/user/{name}/sets" sync job).
@@ -759,13 +765,24 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const allTypes = useMemo(() => new Set<FileType>(ALL_TYPES), [])
 
   const load = useCallback(() => {
-    setLoading(true); setError(null); setSelected(new Set())
-    window.api.library.userSets({ username }).then((res: UserSetsRes) => {
+    setLoading(true); setError(null); setSelected(new Set()); setPage(1)
+    window.api.library.userSets({ username, page: 1 }).then((res: UserSetsRes) => {
       if (res.error) setError(res.error)
       setSets(res.sets)
+      setHasMore(res.hasMore)
     }).catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false))
   }, [username])
+
+  // Cumulative pagination: fetch the next page (a superset) and replace the list.
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return
+    const next = page + 1
+    setLoadingMore(true)
+    window.api.library.userSets({ username, page: next }).then((res: UserSetsRes) => {
+      if (!res.error) { setSets(res.sets); setHasMore(res.hasMore); setPage(next) }
+    }).finally(() => setLoadingMore(false))
+  }, [username, page, hasMore, loadingMore])
 
   const loadSchedule = useCallback(() => {
     window.api.scheduler.list().then((jobs) => {
@@ -787,11 +804,34 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
 
   useEffect(() => { load(); loadSchedule() }, [load, loadSchedule])
 
-  // Sort: in-library matches first, then the rest (keeps newest order within each).
-  const sortedSets = useMemo(
-    () => [...sets].sort((a, b) => (a.matchedKey ? 0 : 1) - (b.matchedKey ? 0 : 1)),
-    [sets],
+  // In-library matches first, then the rest (keeps newest order within each).
+  const q = query.trim().toLowerCase()
+  const matchFirst = (a: MediuxUserSet, b: MediuxUserSet) => (a.matchedKey ? 0 : 1) - (b.matchedKey ? 0 : 1)
+  const isBoxset = (s: MediuxUserSet) => /collection|boxset/i.test(s.setName) || /collection/i.test(s.title)
+  const matchQuery = (s: MediuxUserSet) => !q || s.title.toLowerCase().includes(q) || s.setName.toLowerCase().includes(q)
+
+  // Tab data, all filtered by the title search and sorted matches-first.
+  const setsFiltered = useMemo(() => sets.filter(s => !isBoxset(s) && matchQuery(s)).sort(matchFirst), [sets, q])
+  const boxsetsFiltered = useMemo(() => sets.filter(s => isBoxset(s) && matchQuery(s)).sort(matchFirst), [sets, q])
+  const flatFiles = useMemo(() => sets.flatMap(s => s.posters.map(poster => ({ set: s, poster }))), [sets])
+  const posterItems = useMemo(
+    () => flatFiles.filter(f => posterFileType(f.poster) === 'poster' && matchQuery(f.set)).sort((a, b) => matchFirst(a.set, b.set)),
+    [flatFiles, q],
   )
+  const backdropItems = useMemo(
+    () => flatFiles.filter(f => posterFileType(f.poster) === 'backdrop' && matchQuery(f.set)).sort((a, b) => matchFirst(a.set, b.set)),
+    [flatFiles, q],
+  )
+
+  // Unfiltered counts for the tab labels.
+  const counts = useMemo(() => {
+    let p = 0, b = 0, box = 0
+    for (const s of sets) {
+      if (isBoxset(s)) box++
+      for (const f of s.posters) { const t = posterFileType(f); if (t === 'poster') p++; else if (t === 'backdrop') b++ }
+    }
+    return { sets: sets.length - box, boxsets: box, posters: p, backdrops: b }
+  }, [sets])
 
   function toggleSelect(id: string) {
     setSelected(prev => {
@@ -823,6 +863,23 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     }))
   }
 
+  // Apply a single poster/backdrop file (from the Posters/Backdrops tabs).
+  async function applySingle(s: MediuxUserSet, file: PosterInfo) {
+    if (!s.matchedKey) return
+    const key = `${s.id}:${file.url}`
+    setApplyMap(m => ({ ...m, [key]: { status: 'applying', done: 0, total: 1 } }))
+    const { done, appliedUrls } = await applyPosters(s.matchedKey, [file], allTypes, () => {})
+    if (done) {
+      void recordApplied({
+        itemKey: s.matchedKey, title: s.title, year: s.year, type: s.matchedType ?? 'movie',
+        source: 'mediux', thumb: file.thumbUrl ?? file.url, setId: s.id, uploader: s.uploader,
+        posterUrls: appliedUrls, appliedAt: new Date().toISOString(),
+      })
+      onApplied(s.id, s.matchedKey, s.title, s.year, appliedUrls)
+    }
+    setApplyMap(m => ({ ...m, [key]: { status: done ? 'done' : 'error', done, total: 1 } }))
+  }
+
   async function scheduleWeekly() {
     // Selected sets → sync just those; otherwise sync the creator's newest uploads.
     const useSelection = selected.size > 0
@@ -845,13 +902,52 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
 
   const matchCount = sets.filter(s => s.matchedKey).length
 
+  // Render one set as a SetCard (shared by the Sets + Boxsets tabs).
+  const renderSetCard = (s: MediuxUserSet) => {
+    const isCurrent    = !!s.matchedKey && appliedIdx.currentByItem.get(s.matchedKey) === s.id
+    const wasApplied   = appliedIdx.setIds.has(s.id)
+    const titleApplied = appliedIdx.titles.has(appliedKey(s.title, s.year))
+    const isScheduled  = creatorScheduled || scheduledSetIds.has(s.id)
+    const matchBadge = s.matchedKey
+      ? isCurrent
+        ? <span className={styles.matchBadge}><CheckCircle2 size={11} /> Applied</span>
+        : wasApplied
+          ? <span className={styles.downloadedBadge}><Download size={11} /> Downloaded</span>
+          : titleApplied
+            ? <span className={styles.scheduledBadge}><Library size={11} /> Has art</span>
+            : <span className={styles.matchBadge}><Check size={11} /> In library</span>
+      : <span className={styles.noMatchBadge}>Not in library</span>
+    return (
+      <SetCard
+        key={s.id}
+        set={s}
+        apply={applyMap[s.id]}
+        onApply={() => applySet(s)}
+        enabledTypes={allTypes}
+        title={s.year ? `${s.title} (${s.year})` : s.title}
+        badge={<span className={styles.badgeRow}>{matchBadge}{isScheduled && <span className={styles.scheduledBadge}><CalendarClock size={11} /> Scheduled</span>}</span>}
+        disabled={!s.matchedKey}
+        selectable={following}
+        checked={selected.has(s.id)}
+        onToggleSelect={() => toggleSelect(s.id)}
+      />
+    )
+  }
+
+  // Individual-file tabs (Posters / Backdrops)
+  const fileItems = tab === 'posters' ? posterItems : tab === 'backdrops' ? backdropItems : []
+  const fileLightboxImages = useMemo<LightboxImage[]>(
+    () => fileItems.map(({ set, poster }) => ({ url: poster.url, label: set.year ? `${set.title} (${set.year})` : set.title, caption: poster.episode != null ? `Episode ${poster.episode}` : undefined })),
+    [fileItems],
+  )
+
   return (
     <div className={styles.creatorSets}>
       <div className={styles.creatorBar}>
         <div className={styles.creatorBarInfo}>
           <span className={styles.creatorBarName}>{username}</span>
           {!loading && !error && (
-            <span className={styles.creatorBarMeta}>{sets.length} recent · {matchCount} in your library</span>
+            <span className={styles.creatorBarMeta}>{sets.length} sets loaded · {matchCount} in your library{hasMore ? ' · more available' : ''}</span>
           )}
         </div>
         <div className={styles.creatorBarActions}>
@@ -874,8 +970,37 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         </div>
       </div>
 
-      {/* Selection toolbar */}
-      {following && !loading && !error && sets.length > 0 && (
+      {/* Tabs + title filter */}
+      {!loading && !error && sets.length > 0 && (
+        <div className={styles.creatorTabsRow}>
+          <div className={styles.creatorTabs}>
+            {([['sets', 'Sets', counts.sets], ['boxsets', 'Boxsets', counts.boxsets], ['posters', 'Posters', counts.posters], ['backdrops', 'Backdrops', counts.backdrops]] as const).map(([k, label, n]) => (
+              <button
+                key={k}
+                className={`${styles.creatorTab} ${tab === k ? styles.creatorTabActive : ''}`}
+                onClick={() => setTab(k)}
+                disabled={n === 0}
+              >
+                {label}<span className={styles.creatorTabCount}>{n}</span>
+              </button>
+            ))}
+          </div>
+          <div className={styles.creatorSearch}>
+            <Search size={13} className={styles.creatorSearchIcon} />
+            <input
+              className={styles.creatorSearchInput}
+              placeholder="Filter loaded by title…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              spellCheck={false}
+            />
+            {query && <button className={styles.creatorSearchClear} onClick={() => setQuery('')}><X size={12} /></button>}
+          </div>
+        </div>
+      )}
+
+      {/* Selection toolbar (Sets / Boxsets only) */}
+      {following && !loading && !error && sets.length > 0 && (tab === 'sets' || tab === 'boxsets') && (
         <div className={styles.selectBar}>
           <span className={styles.selectCount}>
             {selected.size > 0 ? `${selected.size} of ${sets.length} selected` : 'Pick sets to sync, or sync all'}
@@ -911,43 +1036,59 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
           <div className={styles.panelNotice}><ImageIcon size={20} /><p>No sets found for this creator.</p></div>
         )}
 
-        {sortedSets.map(s => {
-          const isCurrent    = !!s.matchedKey && appliedIdx.currentByItem.get(s.matchedKey) === s.id
-          const wasApplied   = appliedIdx.setIds.has(s.id)
-          const titleApplied = appliedIdx.titles.has(appliedKey(s.title, s.year))
-          const isScheduled  = creatorScheduled || scheduledSetIds.has(s.id)
-          const matchBadge = s.matchedKey
-            ? isCurrent
-              ? <span className={styles.matchBadge}><CheckCircle2 size={11} /> Applied</span>
-              : wasApplied
-                ? <span className={styles.downloadedBadge}><Download size={11} /> Downloaded</span>
-                : titleApplied
-                  ? <span className={styles.scheduledBadge}><Library size={11} /> Has art</span>
-                  : <span className={styles.matchBadge}><Check size={11} /> In library</span>
-            : <span className={styles.noMatchBadge}>Not in library</span>
-          const badge = (
-            <span className={styles.badgeRow}>
-              {matchBadge}
-              {isScheduled && <span className={styles.scheduledBadge}><CalendarClock size={11} /> Scheduled</span>}
-            </span>
-          )
-          return (
-            <SetCard
-              key={s.id}
-              set={s}
-              apply={applyMap[s.id]}
-              onApply={() => applySet(s)}
-              enabledTypes={allTypes}
-              title={s.year ? `${s.title} (${s.year})` : s.title}
-              badge={badge}
-              disabled={!s.matchedKey}
-              selectable={following}
-              checked={selected.has(s.id)}
-              onToggleSelect={() => toggleSelect(s.id)}
-            />
-          )
-        })}
+        {/* Sets / Boxsets tabs → SetCards */}
+        {!loading && !error && sets.length > 0 && (tab === 'sets' || tab === 'boxsets') && (() => {
+          const list = tab === 'sets' ? setsFiltered : boxsetsFiltered
+          return list.length
+            ? list.map(renderSetCard)
+            : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? 'No matches for your filter.' : `No ${tab} loaded yet.`}</p></div>
+        })()}
+
+        {/* Posters / Backdrops tabs → individual files */}
+        {!loading && !error && (tab === 'posters' || tab === 'backdrops') && (
+          fileItems.length ? (
+            <div className={`${styles.fileGrid} ${tab === 'backdrops' ? styles.fileGridWide : ''}`}>
+              {fileItems.map(({ set, poster }, i) => {
+                const key = `${set.id}:${poster.url}`
+                const st = applyMap[key]?.status
+                const done = st === 'done' || appliedIdx.posterUrls.has(poster.url)
+                return (
+                  <div key={key} className={styles.fileTile}>
+                    <button className={styles.fileThumb} onClick={() => setFileLightbox(i)} title={set.title}>
+                      <img src={poster.thumbUrl ?? poster.url} alt={set.title} loading="lazy" draggable={false} />
+                    </button>
+                    <div className={styles.fileMeta}>
+                      <span className={styles.fileTitle} title={set.title}>{set.year ? `${set.title} (${set.year})` : set.title}</span>
+                      {!set.matchedKey
+                        ? <span className={styles.fileNoMatch}>Not in library</span>
+                        : done
+                          ? <span className={styles.fileApplied}><Check size={11} /> Applied</span>
+                          : st === 'applying'
+                            ? <span className={styles.fileApplied}><Loader2 size={11} className={styles.spin} /></span>
+                            : <button className={styles.fileApplyBtn} onClick={() => applySingle(set, poster)}><Upload size={11} /> Apply</button>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? 'No matches for your filter.' : `No ${tab} loaded yet.`}</p></div>
+        )}
+
+        {/* Load more (cumulative — fetches the next page of the creator's sets) */}
+        {!loading && !error && hasMore && (
+          <button className={styles.loadMoreBtn} onClick={loadMore} disabled={loadingMore}>
+            {loadingMore
+              ? <><Spinner size="xs" color="current" /> Loading more…</>
+              : <><ChevronDown size={14} /> Load more — {sets.length} sets loaded</>}
+          </button>
+        )}
       </div>
+
+      <AnimatePresence>
+        {fileLightbox !== null && (
+          <Lightbox images={fileLightboxImages} index={fileLightbox} onClose={() => setFileLightbox(null)} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

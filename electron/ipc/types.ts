@@ -253,11 +253,14 @@ export interface MediuxUserSet extends MediuxSetSummary {
 
 export interface UserSetsReq {
   username: string
+  page?: number            // cumulative page (N = first N×12 sets); default 1
 }
 
 export interface UserSetsRes {
   username: string
   sets: MediuxUserSet[]
+  page: number
+  hasMore: boolean         // a full page came back, so more likely exist
   error?: string
 }
 

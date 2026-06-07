@@ -356,21 +356,24 @@ export class MediuxScraper extends BaseScraper {
   // Returns their newest sets (the server-rendered first page) with a parsed
   // title/year per set so the caller can match them against the Plex library.
   // matchedKey is filled in later by the library handler.
-  async browseUserSets(username: string): Promise<MediuxUserSet[]> {
-    const url = `https://mediux.pro/user/${encodeURIComponent(username)}/sets`
+  // `page` maps to MediUX's cumulative pagination: page N server-renders the
+  // creator's first N×12 sets, so each higher page is a superset of the prior.
+  async browseUserSets(username: string, page = 1): Promise<MediuxUserSet[]> {
+    const base = `https://mediux.pro/user/${encodeURIComponent(username)}/sets`
+    const url = page > 1 ? `${base}?page=${page}` : base
     Logger.scrape('MediUX', `Browsing creator: ${url}`)
 
     const allTypes = new Set(['poster', 'backdrop', 'title_card'])
     let sets = (await this._fetchSets(url))?.sets
 
     if (!sets?.length) {
-      const { context, page } = await this.newContext()
+      const { context, page: pg } = await this.newContext()
       try {
         await sleepConfig('initial')
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 })
-        await page.waitForSelector('script', { timeout: 5_000 }).catch(() => {})
-        await page.waitForTimeout(1500)
-        sets = setsFromScripts(await this._readScripts(page))
+        await pg.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 })
+        await pg.waitForSelector('script', { timeout: 5_000 }).catch(() => {})
+        await pg.waitForTimeout(1500)
+        sets = setsFromScripts(await this._readScripts(pg))
       } finally {
         await context.close()
       }
@@ -381,7 +384,15 @@ export class MediuxScraper extends BaseScraper {
       return []
     }
 
-    const out = sets.map(s => {
+    // The page can include other creators' sets (recommendations) — keep only this
+    // creator's own (plus any set lacking a denormalised username, to be safe).
+    const target = username.toLowerCase()
+    const owned = sets.filter(s => {
+      const u = s.user_created?.username?.toLowerCase()
+      return !u || u === target
+    })
+
+    const out = owned.map(s => {
       const fb = deriveSetFallback(s)
       const summary = setToSummary(s, allTypes, fb)
       return {

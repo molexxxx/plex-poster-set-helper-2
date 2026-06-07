@@ -29,8 +29,9 @@ export function registerLibraryHandlers(ipcMain: IpcMain) {
   })
 
   ipcMain.handle('library:userSets', async (_e, req: UserSetsReq): Promise<UserSetsRes> => {
+    const page = Math.max(1, req.page ?? 1)
     try {
-      const sets = await ScraperFactory.browseMediuxUser(req.username)
+      const sets = await ScraperFactory.browseMediuxUser(req.username, page)
 
       // Resolve which of these titles exist in the user's Plex library
       const resolved = await Promise.all(sets.map(async s => {
@@ -39,10 +40,12 @@ export function registerLibraryHandlers(ipcMain: IpcMain) {
         return match ? { ...s, matchedKey: match.key, matchedType: match.type as 'movie' | 'show' } : s
       }))
 
-      return { username: req.username, sets: resolved }
+      // Cumulative pages return N×12; if we got a full page, more likely exist.
+      const hasMore = resolved.length >= page * 12
+      return { username: req.username, sets: resolved, page, hasMore }
     } catch (err) {
       Logger.error('Library', `browseMediuxUser failed: ${err instanceof Error ? err.message : err}`)
-      return { username: req.username, sets: [], error: err instanceof Error ? err.message : String(err) }
+      return { username: req.username, sets: [], page, hasMore: false, error: err instanceof Error ? err.message : String(err) }
     }
   })
 }
