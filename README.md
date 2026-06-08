@@ -24,6 +24,8 @@
 
 ---
 
+<div align="center">
+
 <img alt="Dashboard" src=".github/assets/gallery/library-browser.png" width="700" />
 
 <table>
@@ -41,6 +43,8 @@
     <td align="center"><a href=".github/assets/gallery/thumbs/9-settings-bottom.png"><img src=".github/assets/gallery/thumbs/9-settings-bottom.png" width="160" alt="Settings Bottom"/><br/><sub>Settings Bottom</sub></a></td>
   </tr>
 </table>
+
+</div>
 
 ---
 
