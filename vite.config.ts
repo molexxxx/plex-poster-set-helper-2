@@ -1,9 +1,3 @@
-// vite.config.ts
-// Vite configuration file for the Plex Poster Set Helper project. 
-
-// This configuration sets up the development environment with React and Tailwind CSS, 
-// defines the build output directory, and configures path aliases for easier imports.
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
