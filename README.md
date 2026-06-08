@@ -24,6 +24,23 @@
 
 ---
 
+## What it does
+
+Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and shows already in your Plex library and applies it with a click - posters, season posters, episode title cards, and backdrops, all routed to the right place automatically.
+
+<p align="center">
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-library.svg" alt="Library Browser" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-creators.svg" alt="Creators" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-manual.svg" alt="Manual Import" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-scheduler.svg" alt="Scheduler" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-reset.svg" alt="Reset Posters" />
+  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-signin.svg" alt="One-click Plex sign-in" />
+</p>
+
+> Runs as a desktop app on **Windows** and **Linux**, or in **Docker** (including unraid) for always‑on servers.
+
+---
+
 <div align="center">
 
 <img alt="Dashboard" src=".github/assets/gallery/library-browser.png" width="700" />
@@ -45,23 +62,6 @@
 </table>
 
 </div>
-
----
-
-## What it does
-
-Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and shows already in your Plex library and applies it with a click - posters, season posters, episode title cards, and backdrops, all routed to the right place automatically.
-
-<p align="center">
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-library.svg" alt="Library Browser" />
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-creators.svg" alt="Creators" />
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-manual.svg" alt="Manual Import" />
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-scheduler.svg" alt="Scheduler" />
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-reset.svg" alt="Reset Posters" />
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/.github/assets/card-signin.svg" alt="One-click Plex sign-in" />
-</p>
-
-> Runs as a desktop app on **Windows** and **Linux**, or in **Docker** (including unraid) for always‑on servers.
 
 ---
 
