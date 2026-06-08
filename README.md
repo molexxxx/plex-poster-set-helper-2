@@ -39,9 +39,13 @@ Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and 
 
 > Runs as a desktop app on **Windows** and **Linux**, or in **Docker** (including unraid) for always‑on servers.
 
+<br />
+
 <div align="center">
 
 <img alt="Dashboard" src=".github/assets/gallery/library-browser.png" width="700" />
+
+<br />
 
 <table>
   <tr>
