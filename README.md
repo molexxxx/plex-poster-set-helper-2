@@ -41,6 +41,8 @@ Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and 
 
 ---
 
+## Application Preview
+
 <div align="center">
 
 <img alt="Dashboard" src=".github/assets/gallery/library-browser.png" width="700" />
