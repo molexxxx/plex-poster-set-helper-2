@@ -20,16 +20,22 @@
   gap: var(--space-3);
 }
 
-/* Wrapper sizes itself to a poster shape before the image loads.
+/* slideStage holds the poster dimensions in the flex layout so absolutely-
+   placed slides inside it never cause layout shifts during transitions.
    Width is clamped so height never exceeds 82vh on any viewport. */
-.imageWrap {
+.slideStage {
   position: relative;
   width: min(min(82vw, 540px), calc(82vh * 2 / 3));
   aspect-ratio: 2 / 3;
+  flex-shrink: 0;
+}
+
+.imageWrap {
+  position: absolute;
+  inset: 0;
   border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
-  flex-shrink: 0;
 }
 
 .shimmer {

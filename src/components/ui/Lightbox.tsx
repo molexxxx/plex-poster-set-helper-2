@@ -17,17 +17,16 @@ interface LightboxProps {
   onClose: () => void
 }
 
-// Each slide owns its own loaded state so the exiting slide never flickers a shimmer
 function LightboxSlide({ image, dir }: { image: LightboxImage; dir: number }) {
   const [loaded, setLoaded] = useState(false)
   return (
     <motion.div
       className={styles.imageWrap}
       custom={dir}
-      initial={{ opacity: 0, x: dir * 40 }}
+      initial={{ opacity: 0, x: dir * 56 }}
       animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: dir * -40 }}
-      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      exit={{ opacity: 0, x: dir * -56 }}
+      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
     >
       <div className={styles.shimmer} style={{ opacity: loaded ? 0 : 1 }} aria-hidden="true" />
       <img
@@ -91,9 +90,11 @@ export default function Lightbox({ images, index, onClose }: LightboxProps) {
       )}
 
       <div className={styles.stage} onClick={e => e.stopPropagation()}>
-        <AnimatePresence initial={false} custom={dir} mode="popLayout">
-          <LightboxSlide key={cur.url} image={cur} dir={dir} />
-        </AnimatePresence>
+        <div className={styles.slideStage}>
+          <AnimatePresence initial={false} custom={dir} mode="sync">
+            <LightboxSlide key={cur.url} image={cur} dir={dir} />
+          </AnimatePresence>
+        </div>
 
         {(cur.label || cur.badge || many) && (
           <div className={styles.caption} onClick={e => e.stopPropagation()}>
