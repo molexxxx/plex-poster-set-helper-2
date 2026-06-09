@@ -63,15 +63,18 @@ function MyLibraryView({ subs }: { subs: string[] }) {
   const [loading, setLoading] = useState(false)
   const [search, setSearch]   = useState('')
 
+  // Cross-library search state
+  const [globalResults, setGlobalResults] = useState<{ section: LibrarySection; items: LibraryItem[] }[]>([])
+  const [globalLoading, setGlobalLoading] = useState(false)
+
   const [selected, setSelected] = useState<LibraryItem | null>(null)
 
   const offsetRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  const isGlobalSearch = search.trim().length > 0
+
   // -- Load sections (on mount + whenever the Plex connection becomes ready) ---
-  // On boot the saved token marks us "authorized" before the server connection
-  // finishes, so the first sections call can come back empty. Reload when the
-  // post-connect auth event fires so the library populates without navigating.
   const loadSections = useCallback(() => {
     window.api.library.sections().then((s: LibrarySection[]) => {
       setSections(s)
@@ -87,7 +90,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
     return () => { unsub() }
   }, [loadSections])
 
-  // -- Load items when section / search changes -------------------------------
+  // -- Single-tab load (only when not in global search mode) ------------------
   const loadItems = useCallback(async (key: string, q: string, append: boolean) => {
     if (!key) return
     setLoading(true)
@@ -103,31 +106,61 @@ function MyLibraryView({ subs }: { subs: string[] }) {
   }, [])
 
   useEffect(() => {
-    if (!activeKey) return
+    if (!activeKey || isGlobalSearch) return
     offsetRef.current = 0
-    const t = setTimeout(() => loadItems(activeKey, search, false), search ? 300 : 0)
+    const t = setTimeout(() => loadItems(activeKey, '', false), 0)
     return () => clearTimeout(t)
-  }, [activeKey, search, loadItems])
+  }, [activeKey, isGlobalSearch, loadItems])
 
-  // -- Infinite scroll --------------------------------------------------------
+  // -- Cross-library search: fire all sections in parallel with debounce ------
+  useEffect(() => {
+    if (!isGlobalSearch || !sections.length) { setGlobalResults([]); return }
+    setGlobalLoading(true)
+    const q = search.trim()
+    let cancelled = false
+    const t = setTimeout(() => {
+      Promise.all(
+        sections.map(s =>
+          window.api.library.items({ sectionKey: s.key, offset: 0, limit: 24, search: q })
+            .then(res => ({ section: s, items: res.items }))
+            .catch(() => ({ section: s, items: [] as LibraryItem[] }))
+        )
+      ).then(results => {
+        if (cancelled) return
+        setGlobalResults(results.filter(r => r.items.length > 0))
+        setGlobalLoading(false)
+      })
+    }, 300)
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [search, isGlobalSearch, sections])
+
+  // -- Infinite scroll (single-tab mode only) ---------------------------------
   function onScroll() {
     const el = scrollRef.current
-    if (!el || loading) return
+    if (!el || loading || isGlobalSearch) return
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 400 && items.length < total) {
-      loadItems(activeKey, search, true)
+      loadItems(activeKey, '', true)
     }
   }
+
+  const totalGlobalHits = globalResults.reduce((n, g) => n + g.items.length, 0)
 
   return (
     <>
       {/* -- Controls -------------------------------------------------------- */}
       <div className={styles.controls}>
-        <div className={styles.sectionTabs}>
+        <div className={`${styles.sectionTabs} ${isGlobalSearch ? styles.sectionTabsDimmed : ''}`}>
+          {isGlobalSearch && (
+            <span className={styles.allLibsChip}>
+              <Library size={12} />
+              All libraries
+            </span>
+          )}
           {sections.map(s => (
             <button
               key={s.key}
-              className={`${styles.sectionTab} ${activeKey === s.key ? styles.sectionTabActive : ''}`}
-              onClick={() => { setActiveKey(s.key); setSelected(null) }}
+              className={`${styles.sectionTab} ${!isGlobalSearch && activeKey === s.key ? styles.sectionTabActive : ''}`}
+              onClick={() => { setSearch(''); setActiveKey(s.key); setSelected(null) }}
             >
               {s.title}
               <span className={styles.sectionType}>{s.type === 'movie' ? 'Movies' : 'TV'}</span>
@@ -138,8 +171,8 @@ function MyLibraryView({ subs }: { subs: string[] }) {
         <div className={styles.searchBox}>
           <Search size={14} className={styles.searchIcon} />
           <input
-            className={styles.searchInput}
-            placeholder="Search this library…"
+            className={`${styles.searchInput} ${isGlobalSearch ? styles.searchInputActive : ''}`}
+            placeholder={isGlobalSearch ? 'Searching all libraries…' : 'Search…'}
             value={search}
             onChange={e => setSearch(e.target.value)}
             spellCheck={false}
@@ -150,30 +183,66 @@ function MyLibraryView({ subs }: { subs: string[] }) {
         </div>
       </div>
 
-      {/* -- Item grid ------------------------------------------------------- */}
+      {/* -- Grid area ------------------------------------------------------- */}
       <div className={styles.gridScroll} ref={scrollRef} onScroll={onScroll}>
-        {items.length === 0 && !loading ? (
-          <div className={styles.emptyGrid}>
-            <ImageIcon size={32} />
-            <p>{search ? 'No matches in this library.' : 'This library is empty.'}</p>
-          </div>
+        {isGlobalSearch ? (
+          // Cross-library results
+          globalLoading ? (
+            <div className={styles.gridLoading}><Spinner size="sm" /><span>Searching all libraries…</span></div>
+          ) : globalResults.length === 0 ? (
+            <div className={styles.emptyGrid}>
+              <ImageIcon size={32} />
+              <p>No results across any library.</p>
+            </div>
+          ) : (
+            <div className={styles.globalResults}>
+              {globalResults.map(({ section, items: hits }) => (
+                <div key={section.key} className={styles.globalGroup}>
+                  <div className={styles.globalGroupHeader}>
+                    <span className={styles.globalGroupTitle}>{section.title}</span>
+                    <span className={styles.globalGroupMeta}>
+                      <span className={styles.sectionType}>{section.type === 'movie' ? 'Movies' : 'TV'}</span>
+                      {hits.length} result{hits.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className={styles.itemGrid}>
+                    {hits.map(item => (
+                      <ItemCard
+                        key={item.key}
+                        item={item}
+                        active={selected?.key === item.key}
+                        onClick={() => setSelected(item)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div className={styles.gridCount}>{totalGlobalHits} result{totalGlobalHits !== 1 ? 's' : ''} across {globalResults.length} librar{globalResults.length !== 1 ? 'ies' : 'y'}</div>
+            </div>
+          )
         ) : (
-          <div className={styles.itemGrid}>
-            {items.map(item => (
-              <ItemCard
-                key={item.key}
-                item={item}
-                active={selected?.key === item.key}
-                onClick={() => setSelected(item)}
-              />
-            ))}
-          </div>
-        )}
-        {loading && (
-          <div className={styles.gridLoading}><Spinner size="sm" /> <span>Loading…</span></div>
-        )}
-        {!loading && items.length > 0 && (
-          <div className={styles.gridCount}>{items.length} of {total}</div>
+          // Single-tab browsing
+          <>
+            {items.length === 0 && !loading ? (
+              <div className={styles.emptyGrid}>
+                <ImageIcon size={32} />
+                <p>This library is empty.</p>
+              </div>
+            ) : (
+              <div className={styles.itemGrid}>
+                {items.map(item => (
+                  <ItemCard
+                    key={item.key}
+                    item={item}
+                    active={selected?.key === item.key}
+                    onClick={() => setSelected(item)}
+                  />
+                ))}
+              </div>
+            )}
+            {loading && <div className={styles.gridLoading}><Spinner size="sm" /><span>Loading…</span></div>}
+            {!loading && items.length > 0 && <div className={styles.gridCount}>{items.length} of {total}</div>}
+          </>
         )}
       </div>
 

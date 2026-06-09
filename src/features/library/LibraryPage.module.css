@@ -138,6 +138,66 @@
 
 .searchClear:hover { color: var(--color-text-primary); }
 
+/* -- Cross-library search -------------------------------------------------- */
+
+.sectionTabsDimmed .sectionTab {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.allLibsChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.searchInputActive { border-color: var(--color-accent-border) !important; }
+
+.globalResults {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-bottom: var(--space-4);
+}
+
+.globalGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.globalGroupHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.globalGroupTitle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.globalGroupMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
 /* -- Item grid ------------------------------------------------------------- */
 
 .gridScroll {
