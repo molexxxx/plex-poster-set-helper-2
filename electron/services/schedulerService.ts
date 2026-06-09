@@ -100,7 +100,6 @@ export const SchedulerService = {
     this._updateStatus(job.id, { lastRun: new Date().toISOString(), lastStatus: 'running' })
 
     try {
-      const cfg = ConfigService.get()
       let uploaded = 0
       let errors = 0
       const appliedItems = new Map<string, { key: string; title: string; year?: number; type: 'movie' | 'show'; libraryTitle: string; source: 'mediux' | 'posterdb' }>()
