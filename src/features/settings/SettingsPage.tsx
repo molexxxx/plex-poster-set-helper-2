@@ -137,7 +137,7 @@ function FieldRow({ label, hint, children }: { label: string; hint?: string; chi
 
 type StepState = 'done' | 'active' | 'waiting'
 
-function SetupFlow({ step1, step2, step3 }: { step1: StepState; step2: StepState; step3: StepState }) {
+function SetupFlow({ step1, step2 }: { step1: StepState; step2: StepState }) {
   const steps: Array<{ label: string; sub: string; state: StepState }> = [
     {
       label: 'Authenticate',
@@ -148,11 +148,6 @@ function SetupFlow({ step1, step2, step3 }: { step1: StepState; step2: StepState
       label: 'Connect Server',
       sub: step2 === 'done' ? 'Server connected' : step2 === 'active' ? 'Enter URL below' : 'Waiting…',
       state: step2,
-    },
-    {
-      label: 'Select Libraries',
-      sub: step3 === 'done' ? 'Libraries selected' : step3 === 'active' ? 'Choose below' : 'Waiting…',
-      state: step3,
     },
   ]
 
@@ -298,8 +293,8 @@ export default function SettingsPage() {
 
   async function disconnect() {
     await window.api.auth.disconnect()
-    await window.api.config.set({ movieLibraries: [], tvLibraries: [], plexServerName: '' })
-    setCfg(prev => prev ? { ...prev, movieLibraries: [], tvLibraries: [], plexServerName: '' } : prev)
+    await window.api.config.set({ excludedLibraries: [], plexServerName: '' })
+    setCfg(prev => prev ? { ...prev, excludedLibraries: [], plexServerName: '' } : prev)
     setAuthStatus({ status: 'idle' })
     setLibraries([])
     setServerConnected(false)
@@ -334,16 +329,15 @@ export default function SettingsPage() {
     setTesting(false)
   }
 
-  // -- Library toggle ---------------------------------------------------------
+  // -- Library exclusion toggle -----------------------------------------------
 
-  function toggleLibrary(key: string, type: 'movie' | 'show') {
+  function toggleExcludeLibrary(title: string) {
     if (!merged) return
-    const field = type === 'movie' ? 'movieLibraries' : 'tvLibraries'
-    const current = merged[field] as string[]
-    const next = current.includes(key)
-      ? current.filter(k => k !== key)
-      : [...current, key]
-    autosave(field as keyof AppConfig, next as AppConfig[keyof AppConfig])
+    const current = merged.excludedLibraries ?? []
+    const next = current.includes(title)
+      ? current.filter(t => t !== title)
+      : [...current, title]
+    autosave('excludedLibraries', next)
   }
 
   // -- Browser install --------------------------------------------------------
@@ -377,13 +371,11 @@ export default function SettingsPage() {
   const connected = authStatus.status === 'authorized'
   const movieLibs = libraries.filter(l => l.type === 'movie')
   const showLibs  = libraries.filter(l => l.type === 'show')
-  const libsSelected = serverConnected && (merged.movieLibraries.length + merged.tvLibraries.length) > 0
 
-  // Setup flow state
+  // Setup flow state — only 2 steps; libraries default to all-included
   const step1: StepState = connected ? 'done' : 'active'
   const step2: StepState = serverConnected ? 'done' : connected ? 'active' : 'waiting'
-  const step3: StepState = libsSelected ? 'done' : serverConnected ? 'active' : 'waiting'
-  const setupDone = step1 === 'done' && step2 === 'done' && step3 === 'done'
+  const setupDone = step1 === 'done' && step2 === 'done'
 
   return (
     <div className={styles.page}>
@@ -418,7 +410,7 @@ export default function SettingsPage() {
               transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.28 }}
               style={{ overflow: 'hidden' }}
             >
-              <SetupFlow step1={step1} step2={step2} step3={step3} />
+              <SetupFlow step1={step1} step2={step2} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -581,7 +573,7 @@ export default function SettingsPage() {
           <Section
             icon={<SlidersHorizontal size={15} />}
             title="Libraries"
-            description="Choose which Plex libraries to include when matching titles for poster uploads."
+            description="All libraries are included by default. Uncheck any library to exclude it from scraping, matching, and the library browser."
             action={
               <button
                 className={styles.refreshBtn}
@@ -607,8 +599,8 @@ export default function SettingsPage() {
                       <Checkbox
                         key={lib.key}
                         label={lib.title}
-                        checked={merged.movieLibraries.includes(lib.title)}
-                        onChange={() => toggleLibrary(lib.title, 'movie')}
+                        checked={!(merged.excludedLibraries ?? []).includes(lib.title)}
+                        onChange={() => toggleExcludeLibrary(lib.title)}
                       />
                     ))}
                   </div>
@@ -620,8 +612,8 @@ export default function SettingsPage() {
                       <Checkbox
                         key={lib.key}
                         label={lib.title}
-                        checked={merged.tvLibraries.includes(lib.title)}
-                        onChange={() => toggleLibrary(lib.title, 'show')}
+                        checked={!(merged.excludedLibraries ?? []).includes(lib.title)}
+                        onChange={() => toggleExcludeLibrary(lib.title)}
                       />
                     ))}
                   </div>

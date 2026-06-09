@@ -90,7 +90,7 @@ The **Docker GUI** and **Docker headless** images are two different things: the 
    - **Windows** → the `.exe` installer
    - **Linux** → the `.AppImage` or `.deb`
 3. Install and launch it.
-4. On first run, open **Settings → Sign in with Plex**, click the link, approve in your browser - done. Your libraries appear automatically.
+4. On first run, open **Settings → Sign in with Plex**, click the link, approve in your browser - done. Your server connects automatically and all libraries are included by default.
 
 > The app checks GitHub for new versions and can update itself with one click.
 
@@ -116,7 +116,7 @@ Run the full app in your browser, or a lightweight headless scheduler that keeps
 ## First‑run setup
 
 1. **Sign in to Plex** - Settings → *Sign in with Plex* → click the link → approve. (No token copy‑paste needed.)
-2. **Confirm your libraries** - they're detected automatically after sign‑in.
+2. **Connect your server** - auto‑detected after sign‑in. All libraries are included by default. To exclude a specific library from matching and the browser, uncheck it in **Settings → Libraries**.
 3. *(Optional)* **Anime / non‑TMDB libraries** - if your library uses an agent without TMDB IDs (e.g. HAMA), add a free **TMDB API key** in Settings so titles can be matched.
 
 That's it - head to the **Library Browser** and start applying posters.

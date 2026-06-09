@@ -66,7 +66,9 @@ When it finishes it prints a link. Open it in your browser:
 1. In the app, go to **Settings -> Sign in with Plex**.
 2. It shows a **sign-in link**. Click **Copy**, paste it into a browser on your own
    computer or phone, sign in, and click **Approve**.
-3. Back in the app it connects automatically and finds your server + libraries.
+3. Back in the app it connects automatically. All your libraries are included by default.
+   To exclude a specific library from matching, scraping, and the browser, uncheck it in
+   **Settings → Libraries**.
 
 That's it - open **Library Browser** and start applying posters.
 
@@ -103,8 +105,8 @@ lighter, window-less version for people who want the scheduler running on its ow
 **Workflow:**
 
 1. **First, build your schedules in the GUI** (Scheduler tab) and sign in to Plex there.
-2. Then start the headless container pointing at the **same data folder** so it sees
-   those jobs:
+2. Then start the headless container pointing at the **same data folder** - it picks up
+   your saved Plex credentials and jobs automatically:
 
 ```bash
 docker compose -f docker/docker-compose.yml --profile headless up -d --build headless
@@ -113,20 +115,23 @@ docker compose -f docker/docker-compose.yml --profile headless up -d --build hea
 Or with plain Docker:
 ```bash
 docker run -d --name ppsh-scheduler \
-  -e PLEX_BASEURL=http://192.168.1.10:32400 \
-  -e PLEX_TOKEN=YOUR_PLEX_TOKEN \
   -e TZ=America/New_York \
   -v /path/to/your/config:/config \
   --shm-size=1g --restart unless-stopped \
   plex-poster-helper:headless
 ```
 
+> **Tip:** If the headless container shares the same `/config` volume as the GUI, it
+> automatically reuses the Plex credentials you signed in with — no env vars needed.
+> `PLEX_BASEURL` and `PLEX_TOKEN` are optional overrides useful for first-run or
+> environments where you can't share a volume.
+
 **Settings explained:**
 
 | Setting | Needed? | What it does |
 | --- | --- | --- |
-| `PLEX_BASEURL` | **Required** | Your Plex server address, e.g. `http://192.168.1.10:32400`. (A container can't reuse the GUI's saved login, so you provide it directly.) |
-| `PLEX_TOKEN` | **Required** | Your Plex token - [how to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/). |
+| `PLEX_BASEURL` | Optional | Override the Plex server address (e.g. `http://192.168.1.10:32400`). Not needed when sharing a config volume with the GUI. |
+| `PLEX_TOKEN` | Optional | Override the Plex token. Not needed when sharing a config volume with the GUI. [How to find it](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/). |
 | `TZ` | Recommended | Your timezone, so jobs run at the right *local* time (see below). |
 
 ### How scheduling & timezone work
@@ -197,8 +202,10 @@ crashes with Docker's tiny default shared memory.
 <details>
 <summary><b>Headless can't connect to Plex.</b></summary>
 
-It needs `PLEX_BASEURL` and `PLEX_TOKEN` env vars. A login saved by the GUI is encrypted
-and won't transfer into a plain container, so the headless one needs them directly.
+If the headless container shares the same `/config` volume as the GUI it will
+automatically pick up the saved credentials — no env vars needed. If you're running
+headless standalone (separate volume or no GUI), set `PLEX_BASEURL` and `PLEX_TOKEN`
+environment variables so it knows where to connect.
 </details>
 
 <details>

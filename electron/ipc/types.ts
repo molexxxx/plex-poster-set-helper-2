@@ -130,6 +130,7 @@ export interface AppConfig {
   appliedSetIds?: string[]        // (legacy) set ids already applied
   appliedPosters?: AppliedRecord[] // local history of applied poster sets (source of truth for Reset)
   trayNotice?: boolean            // show the "minimized to tray" notification (default true)
+  excludedLibraries?: string[]    // library titles excluded from all operations (empty = include all)
 }
 
 // One applied poster-set, recorded locally so tracking/reset never depends on

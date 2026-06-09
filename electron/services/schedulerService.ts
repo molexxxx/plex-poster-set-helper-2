@@ -113,7 +113,7 @@ export const SchedulerService = {
               const item = await PlexService.findInLibrary({
                 title: poster.title,
                 year: poster.year,
-                libraries: cfg.movieLibraries.concat(cfg.tvLibraries),
+                libraries: [],
               })
               if (!item) continue
               const res = await PlexService.uploadPoster({

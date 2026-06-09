@@ -28,6 +28,7 @@ const DEFAULTS: AppConfig = {
   appliedSetIds: [],
   appliedPosters: [],
   trayNotice: true,
+  excludedLibraries: [],
 }
 
 const store = new Store<Record<string, unknown>>({ name: 'app-config' })

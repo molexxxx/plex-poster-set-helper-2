@@ -224,6 +224,9 @@ function createWindow() {
           serverName: result.serverName,
         })
         Logger.info('App', 'Auto-reconnected to Plex from saved config')
+      } else if (result.tokenInvalid) {
+        // Token was revoked - reset renderer auth state so user sees the sign-in prompt
+        mainWindow?.webContents.send('auth:statusChange', { status: 'idle' })
       }
     }).catch(() => {})
   })
@@ -349,10 +352,13 @@ async function runHeadless() {
     }
   }
 
+  // Env vars override stored config (useful for first-run or debugging).
+  // If env vars are absent, credentials come from the shared config volume.
   const envBase  = process.env.PLEX_BASEURL?.trim()
   const envToken = process.env.PLEX_TOKEN?.trim()
   if (envBase && envToken) {
     ConfigService.set({ baseUrl: envBase, token: envToken })
+    Logger.info('Headless', 'Using Plex credentials from environment variables (PLEX_BASEURL / PLEX_TOKEN)')
   }
 
   const cfg = ConfigService.get()
@@ -364,7 +370,8 @@ async function runHeadless() {
     if (res.success) Logger.success('Headless', `Connected to Plex "${res.serverName}"`)
     else Logger.error('Headless', `Plex connection failed: ${res.error}`)
   } else {
-    Logger.warn('Headless', 'No Plex credentials - set PLEX_BASEURL and PLEX_TOKEN env vars')
+    Logger.warn('Headless', 'No Plex credentials found in config or environment variables. ' +
+      'Either mount a config volume with existing credentials, or set PLEX_BASEURL and PLEX_TOKEN.')
   }
 
   SchedulerService.init(null)

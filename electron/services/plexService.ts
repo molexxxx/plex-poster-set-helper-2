@@ -126,9 +126,13 @@ export const PlexService = {
     const { baseUrl, token, libraries: allLibs } = _conn
     const { title, year, libraries: filterNames, type: mediaType } = req
 
+    const excluded = ConfigService.get().excludedLibraries ?? []
+
     const candidates: PlexItem[] = []
     for (const lib of allLibs) {
+      // When an explicit include-list is given, honour it; otherwise apply exclusions
       if (filterNames.length && !filterNames.includes(lib.title)) continue
+      if (!filterNames.length && excluded.includes(lib.title)) continue
       // Restrict to the requested media type so a TV show set never matches a
       // same-named movie (e.g. the "Sugar" 2024 show vs the "Sugar" 2008 movie).
       if (mediaType && lib.type !== mediaType) continue
@@ -222,8 +226,9 @@ export const PlexService = {
   // -- Library browser: sections ------------------------------------------------
   async getSections(): Promise<LibrarySection[]> {
     if (!_conn) return []
+    const excluded = ConfigService.get().excludedLibraries ?? []
     return _conn.libraries
-      .filter(l => l.type === 'movie' || l.type === 'show')
+      .filter(l => (l.type === 'movie' || l.type === 'show') && !excluded.includes(l.title))
       .map(l => ({ key: l.key, title: l.title, type: l.type as 'movie' | 'show' }))
   },
 
@@ -508,10 +513,16 @@ export const PlexService = {
   },
 
   // -- Auto-reconnect from saved config -----------------------------------------
-  async tryRestoreFromConfig(): Promise<{ success: boolean; serverName?: string }> {
+  async tryRestoreFromConfig(): Promise<{ success: boolean; serverName?: string; tokenInvalid?: boolean }> {
     const cfg = ConfigService.get()
     if (!cfg.baseUrl || !cfg.token) return { success: false }
     const result = await PlexService.connect({ baseUrl: cfg.baseUrl, token: cfg.token })
+    if (!result.success && result.error?.includes('401')) {
+      // Token was revoked (e.g. password change) - clear it so the UI prompts re-auth
+      ConfigService.set({ token: '', plexAccountName: '', plexAccountEmail: '', plexAccountThumb: '' })
+      Logger.warn('Plex', 'Stored token rejected (401) - cleared. Please sign in again.')
+      return { success: false, tokenInvalid: true }
+    }
     return { success: result.success, serverName: result.serverName }
   },
 }
