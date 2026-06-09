@@ -296,23 +296,23 @@ export default function LibraryPage() {
             className={`${styles.tabBarBtn} ${mode === 'library' ? styles.tabBarBtnActive : ''}`}
             onClick={() => setMode('library')}
           >
-            <LayoutGrid size={14} />
-            <span>My Library</span>
             {mode === 'library' && (
               <motion.span className={styles.tabBarIndicator} layoutId="libTabIndicator" transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} />
             )}
+            <LayoutGrid size={14} />
+            <span>My Library</span>
           </button>
           <button
             className={`${styles.tabBarBtn} ${mode === 'creators' ? styles.tabBarBtnActive : ''}`}
             onClick={() => setMode('creators')}
           >
+            {mode === 'creators' && (
+              <motion.span className={styles.tabBarIndicator} layoutId="libTabIndicator" transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} />
+            )}
             <Users size={14} />
             <span>Creators</span>
             {subs.length > 0 && (
               <span className={styles.tabBadge}>{subs.length}</span>
-            )}
-            {mode === 'creators' && (
-              <motion.span className={styles.tabBarIndicator} layoutId="libTabIndicator" transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} />
             )}
           </button>
         </div>
