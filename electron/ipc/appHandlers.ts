@@ -81,8 +81,9 @@ export function registerAppHandlers(_ipcMain: IpcMain) {
   })
 
   ipcMain.handle('app:quitAndInstall', () => {
-    // Restart the app and apply the downloaded update.
-    autoUpdater.quitAndInstall()
+    // isSilent=true: no installer UI (NSIS /S flag on Windows; AppImage replaces in-place on Linux)
+    // isForceRunAfter=true: relaunch the app after install completes
+    autoUpdater.quitAndInstall(true, true)
   })
 
   ipcMain.handle('app:openLogFolder', () => {

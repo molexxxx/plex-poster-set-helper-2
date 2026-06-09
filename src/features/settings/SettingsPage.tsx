@@ -70,7 +70,7 @@ function ApplicationSection() {
           {!isDocker && status === 'downloading' && <span className={styles.updHint}><Spinner size="xs" /> Downloading…</span>}
           {!isDocker && status === 'ready' && (
             <Button variant="primary" size="sm" icon={<RefreshCw size={13} />} onClick={restart}>
-              Restart to update
+              Relaunch to update
             </Button>
           )}
           {(status === 'idle' || status === 'checking' || (isDocker && status !== 'available')) && (

@@ -68,9 +68,9 @@ export default function UpdateToast() {
           : status === 'ready'
             ? shell(
                 <RefreshCw size={15} />,
-                'Update ready',
-                <>Restart the app to finish installing.</>,
-                <button className={styles.primary} onClick={restart}><RefreshCw size={13} /> Restart now</button>,
+                'Update ready to install',
+                <>The app will install silently and relaunch.</>,
+                <button className={styles.primary} onClick={restart}><RefreshCw size={13} /> Relaunch</button>,
               )
             : shell(
                 <Sparkles size={15} />,
