@@ -71,3 +71,21 @@ jobs:
             echo "Deleting $asset"
             gh release delete-asset "${{ github.ref_name }}" "$asset" --repo "${{ github.repository }}" --yes
           done
+
+  # Ping the profile repo so the build / release / downloads badges refresh
+  # immediately after a tagged build instead of waiting on its 2-hour cron.
+  # Runs last (even if a build job failed) so the badge reflects reality.
+  notify-badges:
+    name: Refresh profile badges
+    needs: [build, cleanup]
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.BADGES_DISPATCH_TOKEN }}
+    steps:
+      - name: Dispatch refresh-badges
+        if: env.GH_TOKEN != ''
+        run: |
+          gh api -X POST repos/tonywied17/tonywied17/dispatches \
+            -f event_type=refresh-badges \
+            -f "client_payload[repo]=${{ github.repository }}"

@@ -45,3 +45,21 @@ jobs:
 
       - name: Build main process
         run: npx tsc -p tsconfig.electron.json
+
+  # Ping the profile repo so the CI / last-commit badges refresh immediately
+  # instead of waiting on its 2-hour cron. Runs on pushes only (not PRs) and
+  # even if CI failed, so the badge reflects the real conclusion.
+  notify-badges:
+    name: Refresh profile badges
+    needs: [ci]
+    if: github.event_name != 'pull_request' && always()
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.BADGES_DISPATCH_TOKEN }}
+    steps:
+      - name: Dispatch refresh-badges
+        if: env.GH_TOKEN != ''
+        run: |
+          gh api -X POST repos/tonywied17/tonywied17/dispatches \
+            -f event_type=refresh-badges \
+            -f "client_payload[repo]=${{ github.repository }}"
