@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Reorder, AnimatePresence, motion } from 'framer-motion'
-import { Link2, Play, Square, Trash2, ListPlus } from 'lucide-react'
+import { Link2, Play, Square, Trash2, ListPlus, Zap } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
@@ -233,6 +233,29 @@ export default function ScrapePage() {
           </div>
         </div>
       )}
+
+      {/* -- Run gate: shown when queue has idle items and isn't running ------ */}
+      <AnimatePresence>
+        {entries.length > 0 && !isRunning && idleCount > 0 && (
+          <motion.div
+            className={styles.runGate}
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className={styles.runGateInfo}>
+              <span className={styles.runGateDot} aria-hidden="true" />
+              <span>
+                <strong>{idleCount}</strong> URL{idleCount !== 1 ? 's' : ''} queued and ready — click Run to begin scraping
+              </span>
+            </div>
+            <Button variant="primary" size="sm" icon={<Zap size={13} />} onClick={runQueue}>
+              Run Queue
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* -- Queue ------------------------------------------------------------ */}
       <div className={styles.queue}>

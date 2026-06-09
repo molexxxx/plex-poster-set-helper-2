@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo, createContext, useContext } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download } from 'lucide-react'
+import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users } from 'lucide-react'
 import type { ScheduledJob } from '../../../electron/ipc/types'
 import Button from '../../components/ui/Button'
 import Select from '../../components/ui/Select'
@@ -286,20 +286,35 @@ export default function LibraryPage() {
         <div className={styles.header}>
           <div>
             <h1 className="page-title">Library Browser</h1>
-            <p className="page-subtitle">
-              {mode === 'library'
-                ? 'Browse your Plex library and apply MediUX poster sets - filter by uploader.'
-                : 'Follow MediUX creators and apply their newest art to matching titles in your library.'}
-            </p>
+            <p className="page-subtitle">Browse your Plex library and apply MediUX poster sets.</p>
           </div>
-          <div className={styles.modeSwitch}>
-            <button className={`${styles.modeBtn} ${mode === 'library' ? styles.modeBtnActive : ''}`} onClick={() => setMode('library')}>
-              My Library
-            </button>
-            <button className={`${styles.modeBtn} ${mode === 'creators' ? styles.modeBtnActive : ''}`} onClick={() => setMode('creators')}>
-              Creators
-            </button>
-          </div>
+        </div>
+
+        {/* -- Mode tab bar -------------------------------------------------- */}
+        <div className={styles.tabBar}>
+          <button
+            className={`${styles.tabBarBtn} ${mode === 'library' ? styles.tabBarBtnActive : ''}`}
+            onClick={() => setMode('library')}
+          >
+            <LayoutGrid size={14} />
+            <span>My Library</span>
+            {mode === 'library' && (
+              <motion.span className={styles.tabBarIndicator} layoutId="libTabIndicator" transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} />
+            )}
+          </button>
+          <button
+            className={`${styles.tabBarBtn} ${mode === 'creators' ? styles.tabBarBtnActive : ''}`}
+            onClick={() => setMode('creators')}
+          >
+            <Users size={14} />
+            <span>Creators</span>
+            {subs.length > 0 && (
+              <span className={styles.tabBadge}>{subs.length}</span>
+            )}
+            {mode === 'creators' && (
+              <motion.span className={styles.tabBarIndicator} layoutId="libTabIndicator" transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }} />
+            )}
+          </button>
         </div>
 
         {!plexConnected ? (
