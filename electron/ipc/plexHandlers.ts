@@ -1,6 +1,6 @@
 import type { IpcMain } from 'electron'
 import { PlexService } from '../services/plexService'
-import type { ConnectReq, FindItemReq, UploadReq, LabelReq, ResetReq } from './types'
+import type { ConnectReq, FindItemReq, FindCollectionReq, UploadReq, LabelReq, ResetReq } from './types'
 
 export function registerPlexHandlers(ipcMain: IpcMain) {
   ipcMain.handle('plex:connect', (_e, req: ConnectReq) =>
@@ -15,6 +15,10 @@ export function registerPlexHandlers(ipcMain: IpcMain) {
 
   ipcMain.handle('plex:findItem', (_e, req: FindItemReq) =>
     PlexService.findInLibrary(req)
+  )
+
+  ipcMain.handle('plex:findCollection', (_e, req: FindCollectionReq) =>
+    PlexService.findCollection(req)
   )
 
   ipcMain.handle('plex:uploadPoster', (_e, req: UploadReq) =>

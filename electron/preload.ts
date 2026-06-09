@@ -17,6 +17,8 @@ const api = {
     getLibraries: () => ipcRenderer.invoke('plex:getLibraries'),
     findItem: (title: string, year?: number, libraries?: string[]) =>
       ipcRenderer.invoke('plex:findItem', { title, year, libraries: libraries ?? [] }),
+    findCollection: (title: string) =>
+      ipcRenderer.invoke('plex:findCollection', { title }),
     uploadPoster: (
       itemKey: string,
       imageUrl: string,

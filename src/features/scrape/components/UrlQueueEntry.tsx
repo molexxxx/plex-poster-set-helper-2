@@ -57,6 +57,36 @@ async function uploadPoster(
 ) {
   patchPoster(entryId, poster.url, { uploadStatus: 'matching' })
   try {
+    // Collection art (e.g. a boxset's "Toy Story Collection" set) applies to a
+    // Plex Collection object, matched by name - not an individual movie/show.
+    if (poster.isCollection) {
+      const coll = await window.api.plex.findCollection(poster.title)
+      if (!coll) {
+        patchPoster(entryId, poster.url, { uploadStatus: 'no_match' })
+        return
+      }
+      patchPoster(entryId, poster.url, { uploadStatus: 'uploading' })
+      const res = await window.api.plex.uploadPoster(coll.key, poster.url, poster.source, poster.season, poster.episode)
+      if (res.success) {
+        void recordApplied({
+          itemKey: coll.key,
+          title: coll.title,
+          type: 'collection',
+          source: poster.source,
+          libraryTitle: coll.libraryTitle,
+          thumb: poster.thumbUrl ?? poster.url,
+          setId,
+          posterUrls: [poster.url],
+          appliedAt: new Date().toISOString(),
+        })
+      }
+      patchPoster(entryId, poster.url, {
+        uploadStatus: res.success ? 'done' : 'error',
+        uploadError: res.success ? undefined : res.error,
+      })
+      return
+    }
+
     const item = await window.api.plex.findItem(poster.title, poster.year)
     if (!item) {
       patchPoster(entryId, poster.url, { uploadStatus: 'no_match' })
@@ -119,8 +149,8 @@ function PosterThumb({
   const overlayIcon =
     us === 'matching' || us === 'uploading' ? <Loader2 size={14} className={styles.spin} /> :
     us === 'done'     ? <CheckCircle2 size={14} /> :
-    us === 'error'    ? <AlertCircle size={14} /> :
-    us === 'no_match' ? <AlertCircle size={14} /> :
+    us === 'error'    ? <AlertCircle size={13} /> :
+    us === 'no_match' ? <AlertCircle size={13} /> :
     null
 
   const overlayClass =
@@ -129,10 +159,29 @@ function PosterThumb({
     us === 'matching' || us === 'uploading' ? styles.overlayPending :
     ''
 
+  // Human-readable error reason shown in tooltip and inside the overlay
+  const errorReason =
+    us === 'no_match' ? 'Not in library' :
+    us === 'error'    ? (poster.uploadError ?? 'Upload failed') :
+    null
+
+  // Condense common error strings to something short enough to fit in the overlay
+  function shortReason(r: string): string {
+    if (/not connected/i.test(r)) return 'Not connected'
+    if (/403/.test(r))            return 'Auth error (403)'
+    if (/404/.test(r))            return 'Not found (404)'
+    if (/download failed/i.test(r)) return r.replace(/.*:\s*/, '').slice(0, 18)
+    return r.slice(0, 18)
+  }
+
+  const thumbTitle = errorReason
+    ? `${posterLabel(poster)}\n${errorReason}`
+    : posterLabel(poster)
+
   return (
     <div
       className={styles.thumb}
-      title={posterLabel(poster)}
+      title={thumbTitle}
       onClick={() => {
         if (us === 'idle' || us === 'error' || us === 'no_match') {
           uploadPoster(entryId, poster, patchPoster, setId)
@@ -158,8 +207,11 @@ function PosterThumb({
 
       {/* upload status overlay */}
       {overlayIcon && (
-        <div className={[styles.overlay, overlayClass].filter(Boolean).join(' ')}>
+        <div className={[styles.overlay, overlayClass, errorReason ? styles.overlayErrorState : ''].filter(Boolean).join(' ')}>
           {overlayIcon}
+          {errorReason && (
+            <span className={styles.overlayErrorText}>{shortReason(errorReason)}</span>
+          )}
         </div>
       )}
 

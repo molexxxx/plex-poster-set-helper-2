@@ -188,9 +188,13 @@ export default function BulkPage() {
         for (const poster of posters) {
           if (abortRef.current) break
           try {
-            const item = await window.api.plex.findItem(poster.title, poster.year)
-            if (!item) continue
-            const res = await window.api.plex.uploadPoster(item.key, poster.url, poster.source, poster.season, poster.episode) as { success: boolean; error?: string }
+            // Collection art applies to a Plex Collection object (matched by name);
+            // everything else to an individual movie/show.
+            const targetKey = poster.isCollection
+              ? (await window.api.plex.findCollection(poster.title))?.key
+              : (await window.api.plex.findItem(poster.title, poster.year))?.key
+            if (!targetKey) continue
+            const res = await window.api.plex.uploadPoster(targetKey, poster.url, poster.source, poster.season, poster.episode) as { success: boolean; error?: string }
             if (res.success) uploaded++
           } catch {
             // per-poster errors are silent - just skip

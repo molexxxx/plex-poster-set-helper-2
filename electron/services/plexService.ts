@@ -4,6 +4,7 @@ import { ConfigService } from './config'
 import type {
   ConnectReq, ConnectRes, Library,
   FindItemReq, PlexItem, UploadReq, UploadRes,
+  FindCollectionReq, PlexCollection,
   LabelReq, ResetReq,
   LibrarySection, SectionItemsReq, SectionItemsRes, LibraryItem,
 } from '../ipc/types'
@@ -123,11 +124,14 @@ export const PlexService = {
   async findInLibrary(req: FindItemReq): Promise<PlexItem | null> {
     if (!_conn) return null
     const { baseUrl, token, libraries: allLibs } = _conn
-    const { title, year, libraries: filterNames } = req
+    const { title, year, libraries: filterNames, type: mediaType } = req
 
     const candidates: PlexItem[] = []
     for (const lib of allLibs) {
       if (filterNames.length && !filterNames.includes(lib.title)) continue
+      // Restrict to the requested media type so a TV show set never matches a
+      // same-named movie (e.g. the "Sugar" 2024 show vs the "Sugar" 2008 movie).
+      if (mediaType && lib.type !== mediaType) continue
       const type = lib.type === 'movie' ? 1 : 2
       try {
         const data = await plexFetch(
@@ -143,14 +147,75 @@ export const PlexService = {
     }
     if (!candidates.length) return null
 
-    // Exact match first
+    // Exact title + year match
     const exact = candidates.find(
       i => i.title.toLowerCase() === title.toLowerCase() && (!year || i.year === year),
     )
     if (exact) return exact
 
-    // Fuzzy fallback
-    const fuse = new Fuse(candidates, { keys: ['title'], threshold: 0.35 })
+    // Exact title only (when no year given or source year is unreliable)
+    if (!year) {
+      const exactTitle = candidates.find(i => i.title.toLowerCase() === title.toLowerCase())
+      if (exactTitle) return exactTitle
+    }
+
+    // Fuzzy fallback: when a year is provided, only consider candidates within ±1
+    // year so that e.g. "Toy Story (1995)" never fuzzy-matches "Toy Story 2 (1999)".
+    const pool = year
+      ? candidates.filter(c => c.year != null && Math.abs(c.year - year) <= 1)
+      : candidates
+    if (!pool.length) return null
+    const fuse = new Fuse(pool, { keys: ['title'], threshold: 0.35 })
+    return fuse.search(title)[0]?.item ?? null
+  },
+
+  // -- Find a Plex Collection by name (for boxset collection art) ----------------
+  // MediUX boxsets include "collection sets" (e.g. "Toy Story Collection") whose
+  // posters apply to a Plex Collection object, not an individual movie. Plex
+  // auto-names these collections after the TMDB collection, so we match by title.
+  async findCollection(req: FindCollectionReq): Promise<PlexCollection | null> {
+    if (!_conn) return null
+    const { baseUrl, token, libraries: allLibs } = _conn
+    const title = req.title.trim()
+    if (!title) return null
+
+    // Also try a "<name>" without a trailing "Collection" word, since some users
+    // rename Plex collections (e.g. "Toy Story" instead of "Toy Story Collection").
+    const altTitle = title.replace(/\s+Collection$/i, '').trim()
+
+    const candidates: PlexCollection[] = []
+    for (const lib of allLibs) {
+      if (lib.type !== 'movie' && lib.type !== 'show') continue
+      try {
+        const data = await plexFetch(
+          baseUrl, token,
+          `/library/sections/${lib.key}/collections`,
+        ) as { MediaContainer?: { Metadata?: Array<{ ratingKey?: string; title?: string; childCount?: number; thumb?: string }> } }
+        for (const c of data?.MediaContainer?.Metadata ?? []) {
+          if (!c.ratingKey || !c.title) continue
+          candidates.push({
+            key: c.ratingKey,
+            title: c.title,
+            libraryTitle: lib.title,
+            childCount: c.childCount,
+            thumb: c.thumb,
+          })
+        }
+      } catch {
+        // section may not support collections - skip silently
+      }
+    }
+    if (!candidates.length) return null
+
+    const lc = title.toLowerCase()
+    const lcAlt = altTitle.toLowerCase()
+    // Exact match on the full name, then on the suffix-stripped name.
+    const exact = candidates.find(c => c.title.toLowerCase() === lc)
+      ?? candidates.find(c => c.title.toLowerCase() === lcAlt)
+    if (exact) return exact
+
+    // Fuzzy fallback on the full collection name.
+    const fuse = new Fuse(candidates, { keys: ['title'], threshold: 0.3 })
     return fuse.search(title)[0]?.item ?? null
   },
 
@@ -269,7 +334,7 @@ export const PlexService = {
     showKey: string,
     season?: number | 'Cover' | 'Backdrop',
     episode?: number,
-  ): Promise<{ key: string; kind: 'poster' | 'art' }> {
+  ): Promise<{ key: string; kind: 'poster' | 'art' } | { kind: 'skip'; reason: string }> {
     if (!_conn) return { key: showKey, kind: 'poster' }
     const { baseUrl, token } = _conn
 
@@ -286,9 +351,11 @@ export const PlexService = {
       }
       const seasons = seasonData?.MediaContainer?.Metadata ?? []
       const seasonNode = seasons.find(s => s.index === season)
+      // Season not in this library → skip rather than clobbering the show poster
+      // with a season poster / title card the user can't actually use.
       if (!seasonNode) {
-        Logger.warn('Plex', `Season ${season} not found under show ${showKey} - using show poster`)
-        return { key: showKey, kind: 'poster' }
+        Logger.warn('Plex', `Season ${season} not found under show ${showKey} - skipping`)
+        return { kind: 'skip', reason: `Season ${season} not in library` }
       }
 
       // No episode → the season poster
@@ -300,9 +367,12 @@ export const PlexService = {
       }
       const episodes = epData?.MediaContainer?.Metadata ?? []
       const epNode = episodes.find(e => e.index === episode)
+      // Episode not in this library → skip rather than overwriting the season
+      // poster with this episode's title card (the cause of "all cards on the
+      // season poster" when a set has more episodes than Plex has).
       if (!epNode) {
-        Logger.warn('Plex', `S${season}E${episode} not found - using season poster`)
-        return { key: seasonNode.ratingKey, kind: 'poster' }
+        Logger.warn('Plex', `S${season}E${episode} not found - skipping`)
+        return { kind: 'skip', reason: `S${season}E${episode} not in library` }
       }
       return { key: epNode.ratingKey, kind: 'poster' }
     } catch (err) {
@@ -321,6 +391,12 @@ export const PlexService = {
     try {
       // Resolve the real target (season/episode) before uploading
       const target = await PlexService.resolveTarget(itemKey, season, episode)
+      // The requested season/episode doesn't exist in this library - skip cleanly
+      // instead of misapplying the art to a parent (season/show) poster.
+      if (target.kind === 'skip') {
+        Logger.scrape('Plex', `Skipped upload - ${target.reason} (key ${itemKey})`)
+        return { success: false, error: target.reason }
+      }
       const endpoint = target.kind === 'art' ? 'arts' : 'posters'
 
       // Download image from source URL

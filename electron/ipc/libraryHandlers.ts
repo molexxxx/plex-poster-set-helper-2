@@ -33,10 +33,11 @@ export function registerLibraryHandlers(ipcMain: IpcMain) {
     try {
       const sets = await ScraperFactory.browseMediuxUser(req.username, page)
 
-      // Resolve which of these titles exist in the user's Plex library
+      // Resolve which of these titles exist in the user's Plex library, restricting
+      // to the set's detected media type so TV shows never match same-named movies.
       const resolved = await Promise.all(sets.map(async s => {
         if (!s.title) return s
-        const match = await PlexService.findInLibrary({ title: s.title, year: s.year, libraries: [] })
+        const match = await PlexService.findInLibrary({ title: s.title, year: s.year, libraries: [], type: s.mediaType })
         return match ? { ...s, matchedKey: match.key, matchedType: match.type as 'movie' | 'show' } : s
       }))
 

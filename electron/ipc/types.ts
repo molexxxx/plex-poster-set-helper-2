@@ -20,6 +20,19 @@ export interface FindItemReq {
   title: string
   year?: number
   libraries: string[]
+  type?: 'movie' | 'show'   // restrict search to this library type (avoids show↔movie cross-matches)
+}
+
+export interface FindCollectionReq {
+  title: string
+}
+
+export interface PlexCollection {
+  key: string                 // collection ratingKey
+  title: string
+  libraryTitle: string
+  thumb?: string
+  childCount?: number
 }
 
 export interface PlexItem {
@@ -71,6 +84,8 @@ export interface PosterInfo {
   year?: number
   season?: number | 'Cover' | 'Backdrop'
   episode?: number
+  isCollectionMember?: boolean  // poster belongs to an individual movie inside a boxset/collection set
+  isCollection?: boolean        // poster is art for a Plex Collection object (match by collection name, not a movie/show)
 }
 
 export interface ScrapeProgress {
@@ -123,7 +138,7 @@ export interface AppliedRecord {
   itemKey: string
   title: string
   year?: number
-  type: 'movie' | 'show'
+  type: 'movie' | 'show' | 'collection'
   source: 'mediux' | 'posterdb'
   libraryTitle?: string
   thumb?: string
@@ -233,6 +248,7 @@ export interface MediuxSetSummary {
   titleCardCount: number
   previewUrl?: string         // representative poster thumbnail
   posters: PosterInfo[]       // every file in the set, ready to apply
+  mediaType?: 'movie' | 'show' // detected from the set's files (title cards/seasons → show)
 }
 
 export interface BrowseSetsReq {
@@ -281,6 +297,7 @@ export type IpcChannels = {
   'plex:connect': { req: ConnectReq; res: ConnectRes }
   'plex:getLibraries': { req: void; res: Library[] }
   'plex:findItem': { req: FindItemReq; res: PlexItem | null }
+  'plex:findCollection': { req: FindCollectionReq; res: PlexCollection | null }
   'plex:uploadPoster': { req: UploadReq; res: UploadRes }
   'plex:getLabeledItems': { req: LabelReq; res: PlexItem[] }
   'plex:resetPoster': { req: ResetReq; res: void }

@@ -594,6 +594,34 @@
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* -- Skeleton shimmer -------------------------------------------------------- */
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-bg-elevated);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.07) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.imgPending { opacity: 0; }
+
 /* -- SetCard title mode (Creators) ---------------------------------------- */
 
 .setHeadingRow {
@@ -841,7 +869,10 @@
 
 .selectCount { font-size: var(--text-sm); font-weight: 500; color: var(--color-text-secondary); }
 
-.selectActions { display: flex; gap: var(--space-2); }
+.selectActions { display: flex; gap: var(--space-2); align-items: center; }
+
+/* Sync button sits with the selection actions; nudge it apart from the toggles. */
+.syncWeeklyBtn { margin-left: var(--space-2); }
 
 .selectBtn {
   padding: 4px 10px;
@@ -1075,6 +1106,31 @@
   color: var(--color-accent-success);
 }
 .fileNoMatch { font-size: 10px; color: var(--color-text-disabled); }
+.fileEpBadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+.fileError {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-accent-error);
+  cursor: help;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .loadMoreBtn {
   display: inline-flex;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  RotateCcw, RefreshCw, Film, Tv2, AlertTriangle,
+  RotateCcw, RefreshCw, Film, Tv2, Layers, AlertTriangle,
   CheckCircle2,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
@@ -279,7 +279,7 @@ export default function ResetPage() {
                     />
                   ) : (
                     <div className={styles.thumbFallback}>
-                      {item.type === 'movie' ? <Film size={14} /> : <Tv2 size={14} />}
+                      {item.type === 'movie' ? <Film size={14} /> : item.type === 'collection' ? <Layers size={14} /> : <Tv2 size={14} />}
                     </div>
                   )}
                 </button>
@@ -291,7 +291,7 @@ export default function ResetPage() {
                     {item.year && <span className={styles.itemYear}>{item.year}</span>}
                     <Badge variant={item.source}>{item.source === 'mediux' ? 'MediUX' : 'PosterDB'}</Badge>
                     <Badge variant={item.type === 'movie' ? 'movie' : 'show'}>
-                      {item.type === 'movie' ? 'Movie' : 'Show'}
+                      {item.type === 'movie' ? 'Movie' : item.type === 'collection' ? 'Collection' : 'Show'}
                     </Badge>
                     <span className={styles.libraryName}>{item.libraryTitle}</span>
                     {item.appliedAt && <span className={styles.appliedAt}>· applied {timeAgo(item.appliedAt)}</span>}

@@ -32,6 +32,17 @@ let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let forceQuit = false
 
+// Single-instance lock: if a second instance tries to launch while the app is
+// running (e.g. the user clicks the shortcut while it's minimised to tray),
+// bring the existing window to the foreground instead of opening a new one.
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) showWindow()
+  })
+}
+
 // Containers have no GPU/display and run as root - relax accordingly.
 if (HEADLESS) {
   app.disableHardwareAcceleration()

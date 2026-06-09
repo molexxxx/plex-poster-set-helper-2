@@ -368,6 +368,24 @@
   color: #fff;
 }
 
+.overlayErrorState {
+  flex-direction: column;
+  gap: 3px;
+}
+
+.overlayErrorText {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: center;
+  line-height: 1.2;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.95;
+}
+
 .overlayPending {
   background: rgba(0, 0, 0, 0.6);
   color: var(--color-accent-primary);

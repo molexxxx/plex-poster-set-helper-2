@@ -170,8 +170,40 @@ function extractYear(d?: string | null): number | undefined {
 function parseEpisodeFromTitle(title?: string | null): number | undefined {
   if (!title) return undefined
   // Python: title.rsplit(" E", 1)[1]
-  const m = title.match(/ E(\d{1,4})\b/i) ?? title.match(/S\d{1,3}E(\d{1,4})/i)
+  const m = title.match(/S\d{1,3}\s*E(\d{1,4})/i) ?? title.match(/ E(\d{1,4})\b/i)
   return m ? parseInt(m[1]) : undefined
+}
+
+// Parse a movie poster's "Title (Year)" file name, e.g. "Toy Story 2 (1999)" →
+// { title: "Toy Story 2", year: 1999 }. Used for collection-member posters where
+// the only per-movie signal is the file title.
+function parseTitleYear(raw?: string | null): { title: string; year?: number } | null {
+  if (!raw) return null
+  const clean = raw.trim()
+  if (!clean) return null
+  const m = clean.match(/^(.*?)\s*\((\d{4})\)\s*$/)
+  if (m) return { title: m[1].trim(), year: parseInt(m[2]) }
+  return { title: clean }
+}
+
+// Parse the season number from a title-card title like "Show (2026) - S1 E1".
+// Creator-page title cards lack structured episode_id refs, so the "S<n>" token
+// in the file title is the only season signal available.
+function parseSeasonFromTitle(title?: string | null): number | undefined {
+  if (!title) return undefined
+  const m = title.match(/\bS(\d{1,3})\s*E\d{1,4}/i)
+  return m ? parseInt(m[1]) : undefined
+}
+
+// Parse the season number from a season-poster title like "Show (2026) - Season 1"
+// (creator-page posters carry the season in the title, not a season_id). Returns
+// undefined for a show-level poster ("Show (2026)") so it stays the main poster.
+function parseSeasonPosterFromTitle(title?: string | null): number | undefined {
+  if (!title) return undefined
+  const m = title.match(/-\s*Season\s+(\d{1,3})\b/i)
+  if (m) return parseInt(m[1])
+  if (/-\s*Specials\b/i.test(title)) return 0
+  return undefined
 }
 
 function seasonNumberFor(file: MediuxFile, set: MediuxSet): number | undefined {
@@ -207,9 +239,16 @@ function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: 
   const url = `${ASSET_BASE}/${file.id}`
   const thumbUrl = `${ASSET_BASE}/${file.id}?width=300&quality=80&format=webp`
 
+  // A poster inside a TMDB-collection set that targets one specific movie carries
+  // its "Title (Year)" in file.title and a file.movie_id, but no denormalised movie
+  // title. Parse the file title so it routes to that movie, not the collection.
+  const collectionMoviePoster = ft === 'poster' && !!file.movie_id && !!set.collection
+  const fileParsed = collectionMoviePoster ? parseTitleYear(file.title) : null
+
   const title =
     file.movie_id?.title ??
     file.show_id?.name ?? file.show_id?.title ??
+    fileParsed?.title ??                // collection-member movie poster ("Toy Story 2")
     set.show?.name ?? set.show?.title ??
     set.movie?.title ??
     file.collection_id?.collection_name ??
@@ -221,7 +260,7 @@ function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: 
     file.movie_id?.release_date ??
     set.movie?.release_date ??
     set.show?.first_air_date,
-  ) ?? fb.year
+  ) ?? fileParsed?.year ?? fb.year
 
   let season: PosterInfo['season'] | undefined
   let episode: number | undefined
@@ -229,18 +268,33 @@ function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: 
   if (ft === 'backdrop') {
     season = 'Backdrop'
   } else if (ft === 'title_card') {
-    season  = file.episode_id?.season_id?.season_number ?? seasonNumberFor(file, set)
+    // Prefer structured refs; fall back to the "S<n> E<n>" tokens in file.title
+    // (creator-page title cards have no episode_id, only the title string).
+    season  = file.episode_id?.season_id?.season_number ?? seasonNumberFor(file, set) ?? parseSeasonFromTitle(file.title)
     episode = file.episode_id?.episode_number ?? parseEpisodeFromTitle(file.title)
   } else if (ft === 'poster') {
     if (file.season_id != null) {
-      // Season-level poster → keep the raw season number (0 = Specials in Plex)
       const sn = seasonNumberFor(file, set)
       if (sn != null) season = sn
+    } else {
+      // Creator-page season posters encode the season in the title
+      // ("Show (2026) - Season 1"); a bare "Show (2026)" stays the show poster.
+      const sn = parseSeasonPosterFromTitle(file.title)
+      if (sn != null) season = sn
     }
-    // else: show-level / movie / collection poster → season undefined (show poster)
   }
 
-  return { title, url, thumbUrl, source: 'mediux', year, season, episode }
+  // A "collection set" (e.g. "Toy Story Collection" inside a boxset) carries a
+  // set.collection but NO per-file movie/show ref - its posters apply to a Plex
+  // Collection object, matched by the collection name (= title), not a movie/show.
+  const isCollection =
+    !!set.collection && !set.movie && !set.show &&
+    !file.movie_id && !file.show_id
+
+  return {
+    title, url, thumbUrl, source: 'mediux', year, season, episode,
+    ...(isCollection ? { isCollection: true } : {}),
+  }
 }
 
 // --- Set → summary (for the library browser) ----------------------------------
@@ -258,13 +312,24 @@ function setToSummary(set: MediuxSet, allowed: Set<string>, fb: Fallback): Mediu
 
   let posterCount = 0, backdropCount = 0, titleCardCount = 0
   let preview: string | undefined
+  let hasEpisodic = false, hasMovieRef = false
   for (const f of set.files ?? []) {
     const ft = (f.fileType ?? '').toLowerCase().replace(/[-\s]/g, '_')
     if (ft === 'poster') { posterCount++; if (!preview) preview = `${ASSET_BASE}/${f.id}?width=200&quality=80&format=webp` }
     else if (ft === 'backdrop') backdropCount++
     else if (ft === 'title_card') titleCardCount++
+    if (ft === 'title_card' || f.episode_id != null || f.season_id != null || f.show_id != null) hasEpisodic = true
+    if (f.movie_id != null) hasMovieRef = true
   }
   if (!preview && posters[0]) preview = posters[0].thumbUrl
+
+  // Detect media type so library matching only considers same-type items.
+  // Title cards / season / episode / show refs ⇒ a TV show; otherwise a movie
+  // reference (set.movie or a file movie_id) ⇒ a movie. Unknown stays undefined.
+  const mediaType: 'movie' | 'show' | undefined =
+    (set.show || hasEpisodic) ? 'show'
+    : (set.movie || hasMovieRef) ? 'movie'
+    : undefined
 
   return {
     id: String(set.id),
@@ -276,6 +341,7 @@ function setToSummary(set: MediuxSet, allowed: Set<string>, fb: Fallback): Mediu
     titleCardCount,
     previewUrl: preview,
     posters,
+    ...(mediaType ? { mediaType } : {}),
   }
 }
 
@@ -306,12 +372,48 @@ export class MediuxScraper extends BaseScraper {
 
     // -- 1. Plain HTTP fetch - RSC payload is server-rendered into the HTML ----
     const result = await this._fetchSets(url)
-    if (result?.sets.length) return this._emit(result.sets, allowed, url, result.fallback)
+    if (result?.sets.length) {
+      // Boxset pages strip per-file metadata (no movie_id / file titles), so a
+      // collection set's posters can't be told apart. Re-fetch each collection
+      // set's own /sets/{id} page, which carries the full per-movie metadata.
+      const sets = /\/boxsets\//i.test(url)
+        ? await this._enrichCollectionSets(result.sets)
+        : result.sets
+      return this._emit(sets, allowed, url, result.fallback)
+    }
 
     Logger.warn('MediUX', `HTTP fetch found no set data, trying browser: ${url}`)
 
     // -- 2. Browser fallback (JS-rendered, anti-bot, or slow hydration) --------
     return this._scrapeViaBrowser(url, allowed)
+  }
+
+  // Boxset constituent sets come back stripped: a collection set ("Toy Story
+  // Collection") lists several posters but no movie_id / file titles to tell which
+  // movie each targets. The set's own /sets/{id} page DOES carry that metadata, so
+  // re-fetch just the collection sets (movie/show sets already resolve fine).
+  private async _enrichCollectionSets(sets: MediuxSet[]): Promise<MediuxSet[]> {
+    const out: MediuxSet[] = []
+    for (const s of sets) {
+      if (this._aborted) { out.push(s); continue }
+      const posters = (s.files ?? []).filter(f => (f.fileType ?? '').toLowerCase().includes('poster'))
+      const needsEnrich = !!s.collection && posters.length > 1 && !posters.some(f => f.movie_id)
+      if (!needsEnrich) { out.push(s); continue }
+      try {
+        const full = await this._fetchSets(`https://mediux.pro/sets/${s.id}`)
+        const fullSet = full?.sets.find(x => String(x.id) === String(s.id))
+        if (fullSet?.files?.some(f => f.movie_id)) {
+          Logger.scrape('MediUX', `Enriched collection set ${s.id} (${s.collection?.collection_name}) via /sets/${s.id}`)
+          out.push(fullSet)
+        } else {
+          out.push(fullSet ?? s)
+        }
+      } catch (err) {
+        Logger.warn('MediUX', `Enrich failed for set ${s.id}: ${err instanceof Error ? err.message : err}`)
+        out.push(s)
+      }
+    }
+    return out
   }
 
   // -- Browse: list all sets for a TMDB title with uploader metadata ----------
