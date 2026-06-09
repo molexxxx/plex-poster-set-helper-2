@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LogIn, LogOut, RefreshCw, ServerCrash, Pencil, X,
   Server, User, Sliders, SlidersHorizontal, Filter, Wrench,
-  CheckCircle2, Circle, Globe, Download, RotateCcw, AlertTriangle, Film, Copy, ExternalLink,
-  Package, FolderOpen, Sparkles,
+  CheckCircle2, Circle, Globe, Download, RotateCcw, AlertTriangle, Film, Tv, Copy, ExternalLink,
+  Package, FolderOpen, Sparkles, MinusCircle,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
@@ -18,6 +18,15 @@ import styles from './SettingsPage.module.css'
 // --- Application / updates section --------------------------------------------
 
 const DOCKER_UPDATE_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper/blob/main/docker/README.md#updating-to-a-new-version'
+
+function agentLabel(agent: string | undefined): string {
+  if (!agent) return ''
+  if (agent.includes('hama'))         return 'HAMA'
+  if (agent.includes('themoviedb'))   return 'TMDb agent'
+  if (agent.includes('thetvdb'))      return 'TheTVDB agent'
+  if (agent.includes('plex'))         return 'Plex'
+  return agent.split('.').pop() ?? ''
+}
 
 function ApplicationSection() {
   const { status, info, version, mode, env, lastChecked, check, download, restart } = useUpdater()
@@ -200,6 +209,7 @@ export default function SettingsPage() {
   // libraries
   const [libraries, setLibraries]       = useState<Library[]>([])
   const [refreshingLibs, setRefreshLibs] = useState(false)
+  const [libCounts, setLibCounts]       = useState<Record<string, number>>({})
 
   // browser
   const [browserStatus,    setBrowserStatus]    = useState<BrowserStatus | null>(null)
@@ -238,6 +248,18 @@ export default function SettingsPage() {
     const s = await window.api.browser.getStatus() as BrowserStatus
     setBrowserStatus(s)
   }, [])
+
+  useEffect(() => {
+    if (!libraries.length) return
+    setLibCounts({})
+    Promise.all(
+      libraries.map(lib =>
+        (window.api.plex.getLibraryCount as (k: string, t: 'movie' | 'show') => Promise<number>)(lib.key, lib.type as 'movie' | 'show')
+          .then(count => [lib.key, count] as const)
+          .catch(() => [lib.key, 0] as const)
+      )
+    ).then(entries => setLibCounts(Object.fromEntries(entries)))
+  }, [libraries])
 
   useEffect(() => {
     loadConfig()
@@ -591,32 +613,56 @@ export default function SettingsPage() {
                 <span>No libraries loaded - ensure your server URL is connected above.</span>
               </div>
             ) : (
-              <div className={styles.libsGrid}>
+              <div className={styles.libList}>
                 {movieLibs.length > 0 && (
-                  <div className={styles.libGroup}>
+                  <>
                     <span className={styles.libGroupLabel}>Movies</span>
-                    {movieLibs.map(lib => (
-                      <Checkbox
-                        key={lib.key}
-                        label={lib.title}
-                        checked={!(merged.excludedLibraries ?? []).includes(lib.title)}
-                        onChange={() => toggleExcludeLibrary(lib.title)}
-                      />
-                    ))}
-                  </div>
+                    {movieLibs.map(lib => {
+                      const included = !(merged.excludedLibraries ?? []).includes(lib.title)
+                      const count = libCounts[lib.key]
+                      const agent = agentLabel(lib.agent)
+                      const meta = [count != null ? `${count.toLocaleString()} movies` : null, agent || null].filter(Boolean).join(' · ')
+                      return (
+                        <button key={lib.key} className={`${styles.libCard} ${included ? styles.libCardOn : styles.libCardOff}`} onClick={() => toggleExcludeLibrary(lib.title)}>
+                          <div className={`${styles.libCardIcon} ${styles.libCardIconMovie}`}><Film size={15} /></div>
+                          <div className={styles.libCardBody}>
+                            <span className={styles.libCardName}>{lib.title}</span>
+                            {meta && <span className={styles.libCardMeta}>{meta}</span>}
+                          </div>
+                          <div className={styles.libCardStatus}>
+                            {included
+                              ? <CheckCircle2 size={15} className={styles.libCardStatusOn} />
+                              : <MinusCircle  size={15} className={styles.libCardStatusOff} />}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </>
                 )}
                 {showLibs.length > 0 && (
-                  <div className={styles.libGroup}>
-                    <span className={styles.libGroupLabel}>TV Shows</span>
-                    {showLibs.map(lib => (
-                      <Checkbox
-                        key={lib.key}
-                        label={lib.title}
-                        checked={!(merged.excludedLibraries ?? []).includes(lib.title)}
-                        onChange={() => toggleExcludeLibrary(lib.title)}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <span className={`${styles.libGroupLabel} ${movieLibs.length > 0 ? styles.libGroupLabelSpaced : ''}`}>TV Shows</span>
+                    {showLibs.map(lib => {
+                      const included = !(merged.excludedLibraries ?? []).includes(lib.title)
+                      const count = libCounts[lib.key]
+                      const agent = agentLabel(lib.agent)
+                      const meta = [count != null ? `${count.toLocaleString()} shows` : null, agent || null].filter(Boolean).join(' · ')
+                      return (
+                        <button key={lib.key} className={`${styles.libCard} ${included ? styles.libCardOn : styles.libCardOff}`} onClick={() => toggleExcludeLibrary(lib.title)}>
+                          <div className={`${styles.libCardIcon} ${styles.libCardIconShow}`}><Tv size={15} /></div>
+                          <div className={styles.libCardBody}>
+                            <span className={styles.libCardName}>{lib.title}</span>
+                            {meta && <span className={styles.libCardMeta}>{meta}</span>}
+                          </div>
+                          <div className={styles.libCardStatus}>
+                            {included
+                              ? <CheckCircle2 size={15} className={styles.libCardStatusOn} />
+                              : <MinusCircle  size={15} className={styles.libCardStatusOff} />}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </>
                 )}
               </div>
             )}

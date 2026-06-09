@@ -32,6 +32,8 @@ const api = {
     resetPoster: (itemKey: string, hierarchical?: boolean) =>
       ipcRenderer.invoke('plex:resetPoster', { itemKey, hierarchical }),
     getStats: () => ipcRenderer.invoke('plex:getStats'),
+    getLibraryCount: (key: string, type: 'movie' | 'show') =>
+      ipcRenderer.invoke('plex:getLibraryCount', key, type),
   },
 
   // Library browser (AURA-style)

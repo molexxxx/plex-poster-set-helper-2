@@ -113,11 +113,22 @@ export const PlexService = {
   // -- Libraries ----------------------------------------------------------------
   async fetchLibraries(baseUrl: string, token: string): Promise<Library[]> {
     const data = await plexFetch(baseUrl, token, '/library/sections') as {
-      MediaContainer?: { Directory?: Array<{ key: string; title: string; type: string }> }
+      MediaContainer?: { Directory?: Array<{ key: string; title: string; type: string; agent?: string }> }
     }
     return (data?.MediaContainer?.Directory ?? [])
       .filter(d => d.type === 'movie' || d.type === 'show')
-      .map(d => ({ key: d.key, title: d.title, type: d.type as 'movie' | 'show' }))
+      .map(d => ({ key: d.key, title: d.title, type: d.type as 'movie' | 'show', agent: d.agent }))
+  },
+
+  async getLibraryCount(key: string, type: 'movie' | 'show'): Promise<number> {
+    if (!_conn) return 0
+    const { baseUrl, token } = _conn
+    const plexType = type === 'movie' ? 1 : 2
+    const data = await plexFetch(
+      baseUrl, token,
+      `/library/sections/${key}/all?X-Plex-Container-Start=0&X-Plex-Container-Size=0&type=${plexType}`,
+    ) as { MediaContainer?: { totalSize?: number; size?: number } }
+    return data?.MediaContainer?.totalSize ?? data?.MediaContainer?.size ?? 0
   },
 
   // -- Find item (fuzzy) --------------------------------------------------------

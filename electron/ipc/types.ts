@@ -14,6 +14,7 @@ export interface Library {
   key: string
   title: string
   type: 'movie' | 'show' | 'artist' | 'photo'
+  agent?: string
 }
 
 export interface FindItemReq {

@@ -518,17 +518,10 @@
   color: var(--color-text-disabled);
 }
 
-.libsGrid {
-  display: flex;
-  gap: var(--space-8);
-  flex-wrap: wrap;
-}
-
-.libGroup {
+.libList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  min-width: 160px;
+  gap: var(--space-2);
 }
 
 .libGroupLabel {
@@ -536,10 +529,88 @@
   font-weight: var(--font-medium);
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding-bottom: var(--space-1);
-  border-bottom: 1px solid var(--color-border-subtle);
+  letter-spacing: 0.08em;
+  padding: var(--space-1) 0;
 }
+
+.libGroupLabelSpaced { margin-top: var(--space-3); }
+
+.libCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--duration-fast), opacity var(--duration-fast), background var(--duration-fast);
+}
+
+.libCard:hover { border-color: rgba(255, 255, 255, 0.11); background: #1e2230; }
+
+.libCardOn  { opacity: 1; }
+
+.libCardOff {
+  opacity: 0.45;
+  border-style: dashed;
+}
+
+.libCardIcon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.libCardIconMovie {
+  background: rgba(229, 160, 13, 0.14);
+  color: #e5a00d;
+}
+
+.libCardIconShow {
+  background: rgba(96, 165, 250, 0.14);
+  color: #60a5fa;
+}
+
+.libCardBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.libCardName {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.libCardMeta {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.libCardStatus {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.libCardStatusOn  { color: var(--color-accent-success); }
+.libCardStatusOff { color: var(--color-text-muted); }
 
 /* -- Checkbox group -------------------------------------------------------- */
 

@@ -13,6 +13,10 @@ export function registerPlexHandlers(ipcMain: IpcMain) {
     return PlexService.fetchLibraries(conn.baseUrl, conn.token)
   })
 
+  ipcMain.handle('plex:getLibraryCount', (_e, key: string, type: 'movie' | 'show') =>
+    PlexService.getLibraryCount(key, type)
+  )
+
   ipcMain.handle('plex:findItem', (_e, req: FindItemReq) =>
     PlexService.findInLibrary(req)
   )
