@@ -18,6 +18,23 @@ import styles from './LibraryPage.module.css'
 
 const PAGE_SIZE = 60
 
+// Session cache for a creator's fully-paginated sets, so flipping between
+// creators (or re-opening one) is instant instead of re-scraping every time.
+// Lives for the renderer process lifetime; a manual Refresh or a stale entry
+// (older than the TTL) triggers a re-fetch.
+interface CreatorCacheEntry { sets: MediuxUserSet[]; capped: boolean; fetchedAt: number }
+const creatorSetsCache = new Map<string, CreatorCacheEntry>()
+const CREATOR_CACHE_TTL = 30 * 60 * 1000   // 30 minutes
+
+// Compact relative time for the "last checked" stamp.
+function timeAgo(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000)
+  if (s < 45) return 'just now'
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
 // Apply progress for a single set
 interface ApplyState { status: 'idle' | 'applying' | 'done' | 'error'; done: number; total: number; error?: string }
 
@@ -998,6 +1015,9 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const [fileLightbox, setFileLightbox] = useState<number | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [capped, setCapped]   = useState(false)
+  const [lastChecked, setLastChecked] = useState<number | null>(null)
+  const [refreshing, setRefreshing]   = useState(false)
+  const [, setNowTick] = useState(0)   // ticks the "checked Xm ago" stamp
   const [searchResults, setSearchResults] = useState<MediuxUserSet[]>([])
   const [searching, setSearching] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -1020,29 +1040,76 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   // cumulative page (N = first N×12) but caps the creator's own sets after a
   // couple of pages, so we keep fetching higher pages until a page adds nothing
   // new (the cap), then stop. Cancels cleanly when switching creators.
+  //
+  // Backed by a session cache: a fresh cached entry is served instantly with no
+  // network. A manual Refresh (reloadKey > 0) or a stale entry re-fetches; when
+  // we already have cached sets to show, the re-fetch happens quietly in the
+  // background so the list never blanks or visibly re-sorts.
   useEffect(() => {
     let cancelled = false
     const MAX_PAGES = 12   // safety bound on the cumulative re-fetch
-    setLoading(true); setLoadingMore(false); setError(null)
-    setSelected(new Set()); setSets([]); setCapped(false)
+    const cached = creatorSetsCache.get(username)
+    const forced = reloadKey > 0
+    const fresh  = !!cached && Date.now() - cached.fetchedAt < CREATOR_CACHE_TTL
+
+    setError(null)
+    setSelected(new Set())
+
+    if (cached) {
+      setSets(cached.sets); setCapped(cached.capped); setLastChecked(cached.fetchedAt)
+      setLoading(false); setLoadingMore(false)
+    } else {
+      setSets([]); setCapped(false); setLoading(true); setLoadingMore(false)
+    }
+
+    // Fresh cache and not an explicit refresh → no network at all.
+    if (fresh && !forced) return
+
+    const hasCache = !!cached
+    if (hasCache) setRefreshing(true)
+
     ;(async () => {
       let prev = -1
+      let latest: MediuxUserSet[] = []
       for (let n = 1; n <= MAX_PAGES && !cancelled; n++) {
         let res: UserSetsRes
         try { res = await window.api.library.userSets({ username, page: n }) }
-        catch (e) { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLoading(false) } return }
+        catch (e) {
+          if (!cancelled) {
+            if (!hasCache) setError(e instanceof Error ? e.message : String(e))
+            setLoading(false); setLoadingMore(false); setRefreshing(false)
+          }
+          return
+        }
         if (cancelled) return
-        if (res.error) { setError(res.error); setLoading(false); setLoadingMore(false); return }
-        setSets(res.sets); setLoading(false)
+        if (res.error) {
+          if (!hasCache) setError(res.error)
+          setLoading(false); setLoadingMore(false); setRefreshing(false)
+          return
+        }
+        latest = res.sets
+        if (!hasCache) { setSets(res.sets); setLoading(false) }  // progressive only when nothing is shown yet
         if (res.sets.length <= prev) break      // no growth → MediUX cap reached
         prev = res.sets.length
         if (!res.hasMore) break                 // server says no full page → done
-        setLoadingMore(true)
+        if (!hasCache) setLoadingMore(true)
       }
-      if (!cancelled) { setLoadingMore(false); setCapped(true) }
+      if (cancelled) return
+      const now = Date.now()
+      setSets(latest); setCapped(true)
+      setLoading(false); setLoadingMore(false); setRefreshing(false)
+      setLastChecked(now)
+      creatorSetsCache.set(username, { sets: latest, capped: true, fetchedAt: now })
     })()
     return () => { cancelled = true }
   }, [username, reloadKey])
+
+  // Keep the "checked Xm ago" stamp honest while sitting on a creator.
+  useEffect(() => {
+    if (!lastChecked) return
+    const id = setInterval(() => setNowTick(t => t + 1), 60_000)
+    return () => clearInterval(id)
+  }, [lastChecked])
 
   const loadSchedule = useCallback(() => {
     window.api.scheduler.list().then((jobs) => {
@@ -1281,7 +1348,16 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
           <span className={styles.creatorBarName}>{username}</span>
           {!loading && !error && (
             <span className={styles.creatorBarMeta}>
-              {loadingMore ? `Loading… ${sets.length} sets` : `${sets.length} sets · ${matchCount} in your library`}
+              {loadingMore ? (
+                `Loading… ${sets.length} sets`
+              ) : (
+                <>
+                  {sets.length} sets · {matchCount} in your library
+                  {refreshing
+                    ? <span className={styles.lastChecked}>· refreshing…</span>
+                    : lastChecked && <span className={styles.lastChecked}>· checked {timeAgo(lastChecked)}</span>}
+                </>
+              )}
             </span>
           )}
         </div>
@@ -1291,7 +1367,15 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
           ) : (
             <Button variant="primary" size="sm" icon={<UserPlus size={12} />} onClick={onFollow}>Follow</Button>
           )}
-          <Button variant="ghost" size="sm" icon={<RefreshCw size={12} />} onClick={refresh} disabled={loading}>Refresh</Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<RefreshCw size={12} className={refreshing ? styles.spin : ''} />}
+            onClick={refresh}
+            disabled={loading || loadingMore || refreshing}
+          >
+            Refresh
+          </Button>
         </div>
       </div>
 
