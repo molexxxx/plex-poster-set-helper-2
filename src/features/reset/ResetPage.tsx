@@ -44,14 +44,36 @@ interface TrackedItem extends AppliedRecord {
   resetStatus: ItemStatus
 }
 
-// --- Stats card ---------------------------------------------------------------
+// --- Stats strip --------------------------------------------------------------
 
-function StatCard({ label, value, sub }: { label: string; value: number; sub?: string }) {
+function StatStrip({ stats, total }: { stats: Record<string, number>; total: number }) {
   return (
-    <div className={styles.statCard}>
-      <span className={styles.statVal}>{value}</span>
-      <span className={styles.statLabel}>{label}</span>
-      {sub && <span className={styles.statSub}>{sub}</span>}
+    <div className={styles.statsStrip}>
+      <span className={styles.stripStat}>
+        <Layers size={13} className={styles.stripIcon} />
+        <strong>{total}</strong>
+        <span>tracked</span>
+      </span>
+      <span className={styles.stripDiv} />
+      <span className={styles.stripStat}>
+        <span className={`${styles.sourceChip} ${styles.sourceChipMx}`}>MX</span>
+        <strong>{stats.mediux ?? 0}</strong>
+      </span>
+      <span className={styles.stripStat}>
+        <span className={`${styles.sourceChip} ${styles.sourceChipPdb}`}>PDB</span>
+        <strong>{stats.posterdb ?? 0}</strong>
+      </span>
+      <span className={styles.stripDiv} />
+      <span className={styles.stripStat}>
+        <Film size={12} className={styles.stripIcon} />
+        <strong>{stats.movies ?? 0}</strong>
+        <span>movies</span>
+      </span>
+      <span className={styles.stripStat}>
+        <Tv2 size={12} className={styles.stripIcon} />
+        <strong>{stats.shows ?? 0}</strong>
+        <span>shows</span>
+      </span>
     </div>
   )
 }
@@ -185,15 +207,9 @@ export default function ResetPage() {
         </div>
       </div>
 
-      {/* -- Stats row -------------------------------------------------------- */}
+      {/* -- Stats strip ------------------------------------------------------ */}
       {!loading && items.length > 0 && (
-        <div className={styles.statsRow}>
-          <StatCard label="Total" value={stats.total ?? items.length} />
-          <StatCard label="MediUX" value={stats.mediux ?? 0} />
-          <StatCard label="PosterDB" value={stats.posterdb ?? 0} />
-          <StatCard label="Movies" value={stats.movies ?? 0} />
-          <StatCard label="Shows" value={stats.shows ?? 0} />
-        </div>
+        <StatStrip stats={stats} total={stats.total ?? items.length} />
       )}
 
       {/* -- Filters ---------------------------------------------------------- */}

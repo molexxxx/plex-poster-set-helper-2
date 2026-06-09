@@ -229,6 +229,31 @@
 
 .itemCard:hover { transform: translateY(-3px); }
 
+.itemOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.18) 50%, transparent 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--space-2);
+  opacity: 0;
+  border-radius: calc(var(--radius-md) - 2px);
+  transition: opacity var(--duration-fast);
+  pointer-events: none;
+}
+
+.itemCard:hover .itemOverlay { opacity: 1; }
+.itemCardActive .itemOverlay { opacity: 0; }
+
+.itemOverlayHint {
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
 .itemPoster {
   position: relative;
   width: 100%;
@@ -391,25 +416,32 @@
   cursor: pointer;
 }
 
-.typeToggles { display: flex; gap: var(--space-2); }
+.typeToggles { display: flex; }
 
 .typeToggle {
   flex: 1;
   padding: 4px 8px;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: 0;
+  margin-left: -1px;
   color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--duration-fast);
+  position: relative;
+  transition: color var(--duration-fast), background var(--duration-fast), border-color var(--duration-fast);
 }
+
+.typeToggle:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); margin-left: 0; }
+.typeToggle:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.typeToggle:hover       { color: var(--color-text-primary); z-index: 1; }
 
 .typeToggleOn {
   background: var(--color-accent-soft);
   border-color: var(--color-accent, #e5a00d);
   color: var(--color-text-primary);
+  z-index: 2;
 }
 
 .panelBody {

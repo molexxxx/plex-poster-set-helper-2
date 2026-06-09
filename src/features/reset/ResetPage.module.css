@@ -23,49 +23,54 @@
   flex-shrink: 0;
 }
 
-/* -- Stats row ------------------------------------------------------------- */
+/* -- Stats strip ----------------------------------------------------------- */
 
-.statsRow {
+.statsStrip {
   display: flex;
+  align-items: center;
   gap: var(--space-3);
   flex-shrink: 0;
-  flex-wrap: wrap;
-}
-
-.statCard {
-  flex: 1;
-  min-width: 72px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-4);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  flex-wrap: wrap;
 }
 
-.statVal {
-  font-size: var(--text-xl);
+.stripStat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.stripStat strong {
   font-weight: var(--font-semibold);
-  color: var(--color-accent-primary);
+  color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
-  line-height: 1;
 }
 
-.statLabel {
-  font-size: var(--text-2xs);
-  color: var(--color-text-muted);
-  font-weight: var(--font-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.stripIcon { color: var(--color-text-muted); flex-shrink: 0; }
+
+.stripDiv {
+  width: 1px;
+  height: 14px;
+  background: var(--color-border);
+  flex-shrink: 0;
 }
 
-.statSub {
-  font-size: 10px;
-  color: var(--color-text-disabled);
+.sourceChip {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  letter-spacing: 0.04em;
 }
+
+.sourceChipMx  { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+.sourceChipPdb { background: rgba(229, 160, 13, 0.15);  color: #e5a00d; }
 
 /* -- Filters --------------------------------------------------------------- */
 

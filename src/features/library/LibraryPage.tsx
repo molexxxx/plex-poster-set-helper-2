@@ -335,6 +335,9 @@ function ItemCard({ item, active, onClick }: { item: LibraryItem; active: boolea
         ) : (
           <div className={styles.itemPosterFallback}>{item.title.charAt(0)}</div>
         )}
+        <div className={styles.itemOverlay} aria-hidden="true">
+          <span className={styles.itemOverlayHint}>Browse Sets</span>
+        </div>
       </div>
       <div className={styles.itemMeta}>
         <span className={styles.itemTitle}>{item.title}</span>
