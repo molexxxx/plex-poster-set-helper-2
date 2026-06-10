@@ -66,6 +66,14 @@ COPY --from=build /build /app
 COPY docker/autostart /defaults/autostart
 RUN chmod +x /defaults/autostart
 
+# Make the browser actually ask for clipboard permission. The KasmVNC web client
+# never triggers the Chrome/Edge permission prompt on its own (it only checks the
+# state), leaving seamless clipboard dead until users dig into site settings.
+# This script requests clipboard-read on the first click inside the client.
+COPY docker/clipboard-prompt.js /usr/local/share/kasmvnc/www/clipboard-prompt.js
+RUN printf '<script src="clipboard-prompt.js"></script>' \
+      >> /usr/local/share/kasmvnc/www/index.html
+
 # KasmVNC tuning: lossless encoding, native desktop resolution, max FPS, clipboard.
 # The base image copies this .lsio template over the active kasmvnc.yaml on every
 # start; we append only the sections we want to override.

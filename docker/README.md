@@ -203,7 +203,16 @@ mapping (`8095:3000`).
 Open the app over **https** - `https://YOUR-SERVER-IP:3940` (note the `https://` prefix).
 Browsers only allow clipboard access on secure pages, so on the plain http port the
 clipboard is blocked and the permission prompt never appears. Accept the self-signed
-certificate warning once (**Advanced → Proceed**) and clipboard works from then on.
+certificate warning once (**Advanced → Proceed**), then click anywhere in the app -
+your browser asks for clipboard permission. Click **Allow** and copy & paste works
+both ways from then on.
+
+Per-browser notes:
+- **Chrome / Edge / Brave** - the permission prompt appears on your first click.
+- **Vivaldi** - a Vivaldi bug suppresses the prompt. Allow it manually: padlock icon
+  in the address bar → **Site settings → Clipboard → Allow**, then reload.
+- **Firefox / Safari** - no seamless clipboard support (a KasmVNC limitation). Use the
+  clipboard panel in the side bar (arrow on the left edge) to transfer text manually.
 </details>
 
 <details>
