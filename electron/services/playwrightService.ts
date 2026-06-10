@@ -144,10 +144,15 @@ export const PlaywrightService = {
       })
 
       // Fallback: in containers the utility process exit event can silently drop.
-      // Poll the browsers dir every 3 s; if the binary appears, we're done.
+      // Poll the browsers dir every 3 s; if a binary appears that wasn't there
+      // before (first install or version upgrade), we're done. On a same-version
+      // reinstall the path never changes, so the exit event stays authoritative
+      // and the poll can't resolve early while the download is still running.
       const browsersPath = this.getBrowsersPath()
+      const preExisting = findBrowserExec(browsersPath)
       const poll = setInterval(() => {
-        if (findBrowserExec(browsersPath)) {
+        const found = findBrowserExec(browsersPath)
+        if (found && found !== preExisting) {
           Logger.success('Playwright', 'Chromium detected on disk (exit event fallback)')
           done()
         }

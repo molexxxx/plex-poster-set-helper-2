@@ -119,6 +119,13 @@ accept the self-signed certificate warning once).
 
 ## First‑run setup
 
+On first launch the app downloads a Chromium browser (~115 MB) it uses for scraping - a
+progress screen shows the download and the app opens when it's done.
+
+> If the download finishes but the setup screen never moves on, just restart the app -
+> the browser is already on disk and gets picked up immediately. The download is one-time;
+> it never runs again once installed.
+
 1. **Sign in to Plex** - Settings → *Sign in with Plex* → click the link → approve. (No token copy‑paste needed.)
 2. **Connect your server** - auto‑detected after sign‑in. All libraries are included by default. To exclude a specific library from matching and the browser, uncheck it in **Settings → Libraries**.
 3. *(Optional)* **Anime / non‑TMDB libraries** - if your library uses an agent without TMDB IDs (e.g. HAMA), add a free **TMDB API key** in Settings so titles can be matched.

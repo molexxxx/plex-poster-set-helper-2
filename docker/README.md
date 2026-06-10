@@ -231,6 +231,14 @@ Chromium). Refresh the page. Make sure the port is mapped and not already in use
 </details>
 
 <details>
+<summary><b>The first-run Chromium download finished but the setup screen is stuck.</b></summary>
+
+Restart the container (`docker restart plex-poster-helper`) - the browser is already
+downloaded to the config volume and gets picked up immediately on the next start. The
+download is one-time; it never runs again once installed.
+</details>
+
+<details>
 <summary><b>Sign-in says "we were unable to complete this request."</b></summary>
 
 Use the **Copy** button on the link in the app and open that exact link - don't retype
