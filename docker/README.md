@@ -109,19 +109,37 @@ docker compose -f docker/docker-compose.yml --profile headless up -d --build    
 cd /path/to/plex-poster-set-helper
 git pull
 docker build -f docker/Dockerfile -t plex-poster-helper:gui .
+docker build -f docker/Dockerfile.headless -t plex-poster-helper:headless .   # only if you use the scheduler
 ```
-Then restart the container from the **Docker** tab - it picks up the rebuilt image.
+Then restart the container(s) from the **Docker** tab - they pick up the rebuilt images.
 
 ---
 
 ## unraid
 
-1. **Docker -> Add Container -> Template:** import
+1. **Build the image** on your unraid box (Terminal, from the cloned repo - see Step 1):
+   ```bash
+   docker build -f docker/Dockerfile -t plex-poster-helper:gui .
+   ```
+2. **Docker -> Add Container -> Template:** import
    [`docker/unraid-template.xml`](unraid-template.xml).
-2. Map a host path (e.g. `/mnt/user/appdata/plex-poster-helper`) to **/config**.
-3. Leave the web port at **3939** (change it only if that port is taken).
-4. Set **TZ** to your timezone.
-5. Start it and click **WebUI**, then do Step 3 above.
+3. Map a host path (e.g. `/mnt/user/appdata/plex-poster-helper`) to **/config**.
+4. Leave the web port at **3939** (change it only if that port is taken).
+5. Set **TZ** to your timezone.
+6. Start it and click **WebUI**, then do Step 3 above.
+
+**Optional - add the 24/7 scheduler.** A second template runs the headless scheduler as
+its own unraid container. Keep its **Config path identical to the GUI's** - that's the
+whole trick: same folder, so it reuses your Plex sign-in and schedules automatically.
+
+```bash
+docker build -f docker/Dockerfile.headless -t plex-poster-helper:headless .
+```
+
+Then import [`docker/unraid-template-headless.xml`](unraid-template-headless.xml), leave
+the Config path at the same `/mnt/user/appdata/plex-poster-helper`, set **TZ**, and start
+it. No ports, no WebUI - check it with the container's log button. (`PLEX_BASEURL` /
+`PLEX_TOKEN` in Advanced are only for running it *without* the GUI - leave them empty.)
 
 ---
 
@@ -141,10 +159,13 @@ and the schedules you built in the GUI. Nothing to copy, no tokens to hunt down.
 ```powershell
 ./docker/run.ps1 headless
 ```
-**Mac / Linux / unraid:**
+**Mac / Linux:**
 ```bash
 ./docker/run.sh headless
 ```
+**unraid:** import the dedicated
+[scheduler template](unraid-template-headless.xml) instead - see the
+[unraid section](#unraid).
 
 Want everything up in one go (fresh server, after a reboot)? Use `both`:
 

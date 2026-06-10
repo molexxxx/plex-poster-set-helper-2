@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>PlexPosterHelper-Scheduler</Name>
+  <Repository>plex-poster-helper:headless</Repository>
+  <Registry/>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/tonywied17/plex-poster-set-helper/issues</Support>
+  <Project>https://github.com/tonywied17/plex-poster-set-helper</Project>
+  <Overview>Headless 24/7 scheduler for Plex Poster Helper - no window, no web UI. Point /config at the SAME path as the PlexPosterHelper (GUI) container and it automatically reuses the Plex sign-in and the schedules you built in the GUI. Build the image first from the cloned repo: docker build -f docker/Dockerfile.headless -t plex-poster-helper:headless .</Overview>
+  <Category>MediaApp:Video Tools:Utilities</Category>
+  <WebUI/>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/resources/icon.png</Icon>
+  <ExtraParams>--shm-size=1g</ExtraParams>
+  <PostArgs/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Description>24/7 scheduler companion to PlexPosterHelper. Shares the GUI's /config so your Plex sign-in and schedules carry over automatically.</Description>
+
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/plex-poster-helper" Mode="rw" Description="Must match the GUI container's Config path - that's how the scheduler picks up your Plex sign-in and schedules automatically" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/plex-poster-helper</Config>
+  <Config Name="TZ" Target="TZ" Default="America/New_York" Mode="" Description="Timezone - schedule times fire in this zone" Type="Variable" Display="always" Required="true" Mask="false">America/New_York</Config>
+  <Config Name="PLEX_BASEURL" Target="PLEX_BASEURL" Default="" Mode="" Description="Optional override (e.g. http://192.168.1.10:32400). Leave empty when sharing /config with the GUI" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="PLEX_TOKEN" Target="PLEX_TOKEN" Default="" Mode="" Description="Optional override. Leave empty when sharing /config with the GUI" Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+</Container>
