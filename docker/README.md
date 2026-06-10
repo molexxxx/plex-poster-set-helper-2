@@ -20,7 +20,7 @@ sign-in and schedules automatically. Most users can ignore it.
 
 **In this guide:**
 [Setup](#step-1---get-the-files) ·
-[24/7 scheduler](#optional---keep-schedules-running-247-headless) ·
+[Headless scheduler](#optional---run-the-scheduler-without-the-desktop-headless) ·
 [unraid](#unraid) ·
 [Updating](#updating-to-a-new-version) ·
 [Everyday commands](#everyday-commands) ·
@@ -93,13 +93,13 @@ When it finishes it prints a link. Open it in your browser:
    To exclude a specific library from matching, scraping, and the browser, uncheck it in
    **Settings → Libraries**.
 
-That's it - open **Library Browser** and start applying posters. When you've built some
-schedules and want them running around the clock, add the
-[24/7 scheduler](#optional---keep-schedules-running-247-headless) below.
+That's it - open **Library Browser** and start applying posters. Your schedules already
+run 24/7 from this GUI container. If you'd rather offload them to a lighter, desktop-free
+container, there's an optional [headless scheduler](#optional---run-the-scheduler-without-the-desktop-headless) below.
 
 ---
 
-## Optional - keep schedules running 24/7 without the desktop (headless)
+## Optional - run the scheduler without the desktop (headless)
 
 **You can skip this whole section.** The GUI container already runs your schedules 24/7
 while it's up - it's a complete solution on its own. The **headless** image is just a
@@ -196,8 +196,8 @@ docker run -d --name plex-poster-helper-scheduler \
 **`TZ` examples:** `America/New_York`, `America/Los_Angeles`, `Europe/London`,
 `Australia/Sydney` ([full list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)).
 
-> The GUI and headless containers are designed to run side by side against the same
-> `/config` - use the GUI to manage, the headless one to run.
+> You don't need both containers - the GUI already runs your schedules 24/7. Add the
+> headless one only if you want a lighter, always-on runner; they share the same `/config`.
 
 ---
 
@@ -214,7 +214,7 @@ docker run -d --name plex-poster-helper-scheduler \
 5. Set **TZ** to your timezone.
 6. Start it and click **WebUI**, then do [Step 3](#step-3---sign-in-to-plex) above.
 
-**Optional - add the 24/7 scheduler.** A second template runs the headless scheduler as
+**Optional - add the headless scheduler.** A second template runs the headless scheduler as
 its own unraid container. Keep its **Config path identical to the GUI's** - that's the
 whole trick: same folder, so it reuses your Plex sign-in and schedules automatically.
 
@@ -274,7 +274,7 @@ One reference for the run scripts (Windows: same commands with `./docker/run.ps1
 
 ```bash
 ./docker/run.sh                  # start (or restart) the GUI
-./docker/run.sh headless         # add the 24/7 scheduler
+./docker/run.sh headless         # add the optional headless scheduler
 ./docker/run.sh both             # start GUI + scheduler together
 ./docker/run.sh both --build     # rebuild after an update
 ./docker/run.sh --stop           # stop & remove both (your data stays)

@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/tonywied17/plex-poster-set-helper/issues</Support>
   <Project>https://github.com/tonywied17/plex-poster-set-helper</Project>
-  <Overview>Headless 24/7 scheduler for Plex Poster Helper - no window, no web UI. Point /config at the SAME path as the PlexPosterHelper (GUI) container and it automatically reuses the Plex sign-in and the schedules you built in the GUI. Build the image first from the cloned repo: docker build -f docker/Dockerfile.headless -t plex-poster-helper:headless .</Overview>
+  <Overview>Optional headless scheduler for Plex Poster Helper - no window, no web UI. The GUI container already runs your schedules 24/7; add this only if you want a lighter, desktop-free runner. Point /config at the SAME path as the PlexPosterHelper (GUI) container and it automatically reuses the Plex sign-in and the schedules you built in the GUI. Build the image first from the cloned repo: docker build -f docker/Dockerfile.headless -t plex-poster-helper:headless .</Overview>
   <Category>MediaApp:Video Tools:Utilities</Category>
   <WebUI/>
   <TemplateURL/>
@@ -19,7 +19,7 @@
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Description>24/7 scheduler companion to PlexPosterHelper. Shares the GUI's /config so your Plex sign-in and schedules carry over automatically.</Description>
+  <Description>Optional headless scheduler companion to PlexPosterHelper. Shares the GUI's /config so your Plex sign-in and schedules carry over automatically.</Description>
 
   <Config Name="Config" Target="/config" Default="/mnt/user/appdata/plex-poster-helper" Mode="rw" Description="Must match the GUI container's Config path - that's how the scheduler picks up your Plex sign-in and schedules automatically" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/plex-poster-helper</Config>
   <Config Name="TZ" Target="TZ" Default="America/New_York" Mode="" Description="Timezone - schedule times fire in this zone" Type="Variable" Display="always" Required="true" Mask="false">America/New_York</Config>

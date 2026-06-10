@@ -2,7 +2,7 @@
 # Plex Poster Helper - one-command Docker launcher (Linux / macOS / unraid).
 #
 #   ./docker/run.sh                    build (if needed) + start the GUI on :3939
-#   ./docker/run.sh headless           start the 24/7 scheduler (no window)
+#   ./docker/run.sh headless           start the optional headless scheduler (no window)
 #   ./docker/run.sh both               start the GUI and the scheduler together
 #   ./docker/run.sh --build [target]   force a rebuild first
 #   ./docker/run.sh --stop  [target]   stop & remove container(s); default: both

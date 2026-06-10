@@ -1,7 +1,7 @@
 # Plex Poster Helper - one-command Docker launcher (Windows / PowerShell).
 #
 #   ./docker/run.ps1                    build (if needed) + start the GUI on :3939
-#   ./docker/run.ps1 headless           start the 24/7 scheduler (no window)
+#   ./docker/run.ps1 headless           start the optional headless scheduler (no window)
 #   ./docker/run.ps1 both               start the GUI and the scheduler together
 #   ./docker/run.ps1 [target] -Build    force a rebuild first
 #   ./docker/run.ps1 [target] -Stop     stop & remove container(s); default: both

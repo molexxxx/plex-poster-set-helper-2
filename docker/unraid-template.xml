@@ -22,7 +22,7 @@
   <Description>Browse your Plex library and apply MediUX / ThePosterDB poster sets. Full GUI in your browser.</Description>
 
   <Config Name="WebUI" Target="3000" Default="3939" Mode="tcp" Description="Web interface port (open this in your browser)" Type="Port" Display="always" Required="true" Mask="false">3939</Config>
-  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/plex-poster-helper" Mode="rw" Description="Config, schedules, applied-poster history and installed Chromium. Use this same path in the PlexPosterHelper-Scheduler template to share your sign-in and schedules with the 24/7 scheduler" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/plex-poster-helper</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/plex-poster-helper" Mode="rw" Description="Config, schedules, applied-poster history and installed Chromium. Use this same path in the PlexPosterHelper-Scheduler template to share your sign-in and schedules with the optional headless scheduler" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/plex-poster-helper</Config>
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID" Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
   <Config Name="TZ" Target="TZ" Default="America/New_York" Mode="" Description="Timezone (matches scheduler cron times)" Type="Variable" Display="always" Required="true" Mask="false">America/New_York</Config>
