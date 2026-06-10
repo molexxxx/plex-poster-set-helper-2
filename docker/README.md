@@ -138,6 +138,11 @@ dashboard**: schedule changes you make there are picked up by the engine within 
 no restart. The Scheduler tab shows a banner when an engine is running. Manual **Run now**
 in the GUI always runs locally, on demand.
 
+**Going back to GUI-only is just stopping the headless container** (`--stop headless`, see
+[Everyday commands](#everyday-commands)) - no need to delete the image. Within ~90s its
+heartbeat goes stale, the banner clears, and the GUI quietly takes the schedules back over.
+Nothing is lost; the jobs live in the shared config and keep firing, just from the GUI again.
+
 <details>
 <summary><b>Docker Compose instead</b></summary>
 
