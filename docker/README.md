@@ -147,9 +147,9 @@ One reference for the run scripts (Windows: same commands with `./docker/run.ps1
 `-Build` / `-Stop` / `-Port 8095` instead of the `--flags`):
 
 ```bash
-./docker/run.sh              # start (or restart) the GUI
-./docker/run.sh --stop       # stop & remove the container (your data stays)
-PORT=8095 ./docker/run.sh    # use a different web port
+./docker/run.sh                           # start (or restart) the GUI
+./docker/run.sh --stop                    # stop & remove the container (your data stays)
+PORT=8095 HTTPS_PORT=8096 ./docker/run.sh # use different web ports (http / https)
 ```
 
 And the underlying container, if you prefer plain Docker:
@@ -190,11 +190,12 @@ stick with one going forward.
 </details>
 
 <details>
-<summary><b>Port 3939 is taken / I want a different port.</b></summary>
+<summary><b>Port 3939 or 3940 is taken / I want different ports.</b></summary>
 
-Windows: `./docker/run.ps1 -Port 8095` → open `http://localhost:8095`.
-Mac/Linux: `PORT=8095 ./docker/run.sh`. Compose/unraid: change the host side of the port
-mapping (`8095:3000`).
+Windows: `./docker/run.ps1 -Port 8095 -HttpsPort 8096` → open `http://localhost:8095`
+(or `https://localhost:8096` for clipboard support).
+Mac/Linux: `PORT=8095 HTTPS_PORT=8096 ./docker/run.sh`. Compose/unraid: change the host
+side of the port mappings (`8095:3000` for http, `8096:3001` for https).
 </details>
 
 <details>

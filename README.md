@@ -109,6 +109,10 @@ Run the full app in your browser - schedules keep firing 24/7 as long as the con
 ./docker/run.sh    # start the GUI in your browser   (Windows: ./docker/run.ps1)
 ```
 
+Then open `http://localhost:3939` - or `https://localhost:3940` to enable copy & paste
+between your machine and the app (browsers require a secure page for clipboard access;
+accept the self-signed certificate warning once).
+
 👉 **[Read the Docker guide →](docker/README.md)**
 
 ---
