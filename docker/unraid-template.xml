@@ -7,13 +7,13 @@
   <MyIP/>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/tonywied17/plex-poster-set-helper/issues</Support>
-  <Project>https://github.com/tonywied17/plex-poster-set-helper</Project>
+  <Support>https://github.com/tonywied17/plex-poster-set-helper-2/issues</Support>
+  <Project>https://github.com/tonywied17/plex-poster-set-helper-2</Project>
   <Overview>Browse your Plex library and apply MediUX / ThePosterDB poster sets - follow creators, schedule weekly syncs, and reset posters. The full desktop GUI, accessible from your browser via KasmVNC.</Overview>
   <Category>MediaApp:Video Tools:Utilities</Category>
   <WebUI>https://[IP]:[PORT:3940]</WebUI>
   <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper/main/resources/icon.png</Icon>
+  <Icon>https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/resources/icon.png</Icon>
   <ExtraParams>--shm-size=1g</ExtraParams>
   <PostArgs/>
   <DateInstalled/>

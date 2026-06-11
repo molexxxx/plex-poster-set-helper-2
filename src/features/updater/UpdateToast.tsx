@@ -13,7 +13,7 @@ function fmtMB(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(1)
 }
 
-const DOCKER_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper/blob/main/docker/README.md#updating-to-a-new-version'
+const DOCKER_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper-2/blob/main/docker/README.md#updating-to-a-new-version'
 
 /** Corner toast announcing updates with download/restart actions. */
 export default function UpdateToast() {

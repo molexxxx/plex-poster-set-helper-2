@@ -15,7 +15,7 @@ import { useUpdater } from '../updater/UpdaterContext'
 import type { AppConfig, Library, PlexAuthStatus, BrowserStatus } from '../../../electron/ipc/types'
 import styles from './SettingsPage.module.css'
 
-const DOCKER_UPDATE_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper/blob/main/docker/README.md#updating-to-a-new-version'
+const DOCKER_UPDATE_GUIDE = 'https://github.com/tonywied17/plex-poster-set-helper-2/blob/main/docker/README.md#updating-to-a-new-version'
 
 /**
  * Maps a Plex agent identifier to a short display label.

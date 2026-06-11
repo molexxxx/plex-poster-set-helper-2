@@ -29,8 +29,8 @@ You'll also want your **Plex login** ready (you sign in during setup - no token 
 Open a terminal (PowerShell on Windows) and run:
 
 ```bash
-git clone https://github.com/tonywied17/plex-poster-set-helper.git
-cd plex-poster-set-helper
+git clone https://github.com/tonywied17/plex-poster-set-helper-2.git
+cd plex-poster-set-helper-2
 ```
 
 > No git? Download the project ZIP from GitHub (green **Code** button → **Download ZIP**),
@@ -133,7 +133,7 @@ docker compose -f docker/docker-compose.yml up -d --build gui
 
 **unraid (template install):**
 ```bash
-cd /path/to/plex-poster-set-helper
+cd /path/to/plex-poster-set-helper-2
 git pull
 docker build -f docker/Dockerfile -t plex-poster-helper .
 ```
