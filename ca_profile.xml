@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<CommunityApplications>
+  <Profile>Plex Poster Helper 2 lets you browse your Plex library and apply custom poster artwork from MediUX and ThePosterDB. Features include following creators, scheduling weekly automated syncs, and resetting posters to Plex defaults. Runs as a full Electron desktop GUI accessible from your browser via KasmVNC. Support is handled through GitHub Issues.</Profile>
+  <Icon>https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/resources/icon.png</Icon>
+  <WebPage>https://github.com/tonywied17/plex-poster-set-helper-2</WebPage>
+</CommunityApplications>
