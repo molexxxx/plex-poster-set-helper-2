@@ -3,7 +3,7 @@ import { autoUpdater } from 'electron-updater'
 import type { IpcMain } from 'electron'
 import { ConfigService } from '../services/config'
 
-const REPO = 'tonywied17/plex-poster-set-helper'
+const REPO = 'tonywied17/plex-poster-set-helper-2'
 const REPO_URL = `https://github.com/${REPO}`
 
 /** Running inside our Docker images (they set PLEX_HELPER_PROD=1 but aren't packaged). */
@@ -39,7 +39,7 @@ function isNewer(latest: string, current: string): boolean {
 async function checkGithubRelease(): Promise<{ version?: string; notes?: string; url?: string } | null> {
   try {
     const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-      headers: { 'User-Agent': 'plex-poster-set-helper', Accept: 'application/vnd.github+json' },
+      headers: { 'User-Agent': 'plex-poster-set-helper-2', Accept: 'application/vnd.github+json' },
     })
     if (!r.ok) return null
     const j = await r.json() as { tag_name?: string; body?: string; html_url?: string }

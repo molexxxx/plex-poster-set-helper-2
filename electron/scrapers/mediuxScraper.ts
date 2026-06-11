@@ -11,7 +11,7 @@ import type { Page } from 'playwright'
  * into the raw HTML, so a plain fetch works; a browser is only a fallback.
  *
  * Approach ported from the Python project:
- * github.com/tonywied17/plex-poster-set-helper (src/scrapers/mediux_scraper.py)
+ * github.com/tonywied17/plex-poster-set-helper-2 (src/scrapers/mediux_scraper.py)
  */
 
 const ASSET_BASE = 'https://api.mediux.pro/assets'

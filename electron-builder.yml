@@ -1,4 +1,4 @@
-appId: com.tonywied17.plex-poster-set-helper
+appId: com.tonywied17.plex-poster-set-helper-2
 productName: Plex Poster Set Helper
 copyright: Copyright © 2026 tonywied17
 
@@ -56,6 +56,6 @@ linux:
 publish:
   provider: github
   owner: tonywied17
-  repo: plex-poster-set-helper
+  repo: plex-poster-set-helper-2
   releaseType: release
   publishAutoUpdate: true
