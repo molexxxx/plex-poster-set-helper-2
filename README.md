@@ -216,4 +216,4 @@ Issues and pull requests are welcome. Please run `npm run lint` and `npm run typ
 ## Credits
 
 - **[MediUX](https://mediux.pro)** and **[ThePosterDB](https://theposterdb.com)** - the communities behind the artwork.
-- Originally inspired by [**bbrown430/plex-poster-set-helper-2**](https://github.com/bbrown430/plex-poster-set-helper-2) (the Python original); rebuilt from the ground up as a cross‑platform desktop app.
+- Originally inspired by [**bbrown430/plex-poster-set-helper-**](https://github.com/bbrown430/plex-poster-set-helper) (the Python original); rebuilt from the ground up as a cross‑platform desktop app.
