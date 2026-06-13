@@ -4,7 +4,7 @@ import {
   LogIn, LogOut, RefreshCw, ServerCrash, Pencil, X,
   Server, User, Sliders, SlidersHorizontal, Filter, Wrench,
   CheckCircle2, Circle, Globe, Download, RotateCcw, AlertTriangle, Film, Tv, Copy, ExternalLink,
-  Package, FolderOpen, Sparkles, MinusCircle,
+  Package, FolderOpen, Sparkles, MinusCircle, Trash2,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
@@ -12,6 +12,7 @@ import Switch from '../../components/ui/Switch'
 import Slider from '../../components/ui/Slider'
 import Checkbox from '../../components/ui/Checkbox'
 import { useUpdater } from '../updater/UpdaterContext'
+import { useNavStore } from '../../app/navStore'
 import type { AppConfig, Library, PlexAuthStatus, BrowserStatus } from '../../../electron/ipc/types'
 import styles from './SettingsPage.module.css'
 
@@ -52,7 +53,7 @@ function ApplicationSection() {
     : 'Not checked yet'
 
   return (
-    <Section icon={<Package size={15} />} title="Application">
+    <Section icon={<Package size={15} />} title="Application" anchor="application">
       <FieldRow label="Version" hint={env?.container ? 'Running in Docker' : lastText}>
         <span className={styles.versionTag}>v{version || '…'}</span>
       </FieldRow>
@@ -108,16 +109,19 @@ function Section({
   title,
   description,
   action,
+  anchor,
   children,
 }: {
   icon: React.ReactNode
   title: string
   description?: string
   action?: React.ReactNode
+  /** Deep-link target id used by the command palette to scroll here. */
+  anchor?: string
   children: React.ReactNode
 }) {
   return (
-    <div className={styles.section}>
+    <div className={styles.section} data-anchor={anchor}>
       <div className={styles.sectionHead}>
         <span className={styles.sectionIcon}>{icon}</span>
         <div style={{ flex: 1 }}>
@@ -215,6 +219,31 @@ export default function SettingsPage() {
 
   // cfg is the single source of truth - no draft layer
   const merged = cfg
+
+  // Command-palette deep link: scroll to and briefly pulse the requested section.
+  const settingsAnchor = useNavStore(s => s.settingsAnchor)
+  const clearSettings   = useNavStore(s => s.clearSettings)
+  useEffect(() => {
+    if (!settingsAnchor || !cfg) return
+    const id = settingsAnchor
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-anchor="${id}"]`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        el.classList.add(styles.anchorPulse)
+        setTimeout(() => el.classList.remove(styles.anchorPulse), 1600)
+      }
+      clearSettings()
+    }, 120)
+    return () => clearTimeout(t)
+  }, [settingsAnchor, cfg, clearSettings])
+
+  const [logsCleared, setLogsCleared] = useState(false)
+  async function clearLogs() {
+    await window.api.log.clear()
+    setLogsCleared(true)
+    setTimeout(() => setLogsCleared(false), 1800)
+  }
 
   function autosave<K extends keyof AppConfig>(key: K, value: AppConfig[K]) {
     setCfg(prev => prev ? { ...prev, [key]: value } : prev)
@@ -422,7 +451,7 @@ export default function SettingsPage() {
         </AnimatePresence>
 
         {/* Plex account */}
-        <Section icon={<User size={15} />} title="Plex Account" description="Authenticate with your plex.tv account to enable automatic library matching.">
+        <Section icon={<User size={15} />} title="Plex Account" anchor="plex-account" description="Authenticate with your plex.tv account to enable automatic library matching.">
           {connected ? (
             <div className={styles.accountCard}>
               {merged.plexAccountThumb && (
@@ -507,7 +536,7 @@ export default function SettingsPage() {
 
         {/* Plex server - only shown once authenticated */}
         {connected && (
-        <Section icon={<Server size={15} />} title="Plex Server" description="Your local Plex Media Server address - auto-detected after sign-in.">
+        <Section icon={<Server size={15} />} title="Plex Server" anchor="plex-server" description="Your local Plex Media Server address - auto-detected after sign-in.">
           {serverConnected && !editingServer ? (
             /* Connected card */
             <div className={styles.serverCard}>
@@ -579,6 +608,7 @@ export default function SettingsPage() {
           <Section
             icon={<SlidersHorizontal size={15} />}
             title="Libraries"
+            anchor="libraries"
             description="All libraries are included by default. Uncheck any library to exclude it from scraping, matching, and the library browser."
             action={
               <button
@@ -665,7 +695,7 @@ export default function SettingsPage() {
         </div>
 
         {/* MediUX filters */}
-        <Section icon={<Filter size={15} />} title="MediUX Asset Types" description="When applying a MediUX set, only these asset types are uploaded to Plex. Unchecked types are skipped everywhere - scrape, bulk, and scheduled syncs.">
+        <Section icon={<Filter size={15} />} title="MediUX Asset Types" anchor="mediux-filters" description="When applying a MediUX set, only these asset types are uploaded to Plex. Unchecked types are skipped everywhere - scrape, bulk, and scheduled syncs.">
           <div className={styles.filterOptions}>
             {([
               { type: 'poster',     name: 'Posters',     desc: 'Show, movie, season & collection cover art (portrait).' },
@@ -695,7 +725,7 @@ export default function SettingsPage() {
         </Section>
 
         {/* Scraper */}
-        <Section icon={<Sliders size={15} />} title="Scraper" description="Timing and anti-detection are tuned automatically. The only knob is how many sets are fetched in parallel - higher is faster but heavier on the source sites.">
+        <Section icon={<Sliders size={15} />} title="Scraper" anchor="scraper" description="Timing and anti-detection are tuned automatically. The only knob is how many sets are fetched in parallel - higher is faster but heavier on the source sites.">
           <FieldRow label="Max Workers" hint="Sets fetched at the same time (1 = safest, 8 = fastest)">
             <Slider
               min={1} max={8} step={1}
@@ -710,18 +740,34 @@ export default function SettingsPage() {
         <Section
           icon={<Film size={15} />}
           title="Library Browser"
-          description="MediUX matches titles by TMDB ID. For libraries using TVDB/IMDb agents (e.g. anime via HAMA), add a free TMDB API key to auto-resolve them."
+          anchor="tmdb"
+          description="MediUX matches titles by TMDB ID. A free TMDB API key is optional but recommended: it lets the tool match your library by ID instead of guessing by title and year, which fixes most matching and title-mapping issues automatically (and resolves TVDB/IMDb-agent libraries such as anime via HAMA)."
         >
-          <FieldRow label="TMDB API Key" hint="Optional - themoviedb.org → Settings → API (v3 key)">
-            <input
-              className={styles.textInput}
-              type="password"
-              value={merged.tmdbApiKey ?? ''}
-              onChange={e => setCfg(prev => prev ? { ...prev, tmdbApiKey: e.target.value } : prev)}
-              onBlur={e => autosave('tmdbApiKey', e.target.value.trim())}
-              placeholder="Paste TMDB v3 API key…"
-              spellCheck={false}
-            />
+          <FieldRow label="TMDB API Key" hint="Optional but recommended - paste your themoviedb.org v3 API key">
+            <div className={styles.inputWithAction}>
+              <input
+                className={styles.textInput}
+                type="password"
+                value={merged.tmdbApiKey ?? ''}
+                onChange={e => setCfg(prev => prev ? { ...prev, tmdbApiKey: e.target.value } : prev)}
+                onBlur={e => autosave('tmdbApiKey', e.target.value.trim())}
+                placeholder="Paste TMDB v3 API key…"
+                spellCheck={false}
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<ExternalLink size={12} />}
+                onClick={() => window.api.app.openExternal('https://www.themoviedb.org/settings/api')}
+              >
+                Get key
+              </Button>
+            </div>
+            <p className={styles.browserNotice}>
+              {(merged.tmdbApiKey ?? '').trim()
+                ? 'Key saved. Library matching now prefers exact TMDB IDs.'
+                : 'Without a key, matching falls back to title and year, which can miss renamed or subtitled titles.'}
+            </p>
           </FieldRow>
         </Section>
 
@@ -729,6 +775,7 @@ export default function SettingsPage() {
         <Section
           icon={<Globe size={15} />}
           title="Browser Engine"
+          anchor="browser"
           description="Playwright Chromium is used for scraping poster sets from MediUX and ThePosterDB."
           action={browserStatus && (
             <span className={browserStatus.installed ? styles.browserBadgeOk : styles.browserBadgeWarn}>
@@ -804,18 +851,22 @@ export default function SettingsPage() {
         </div>
 
         {/* General */}
-        <Section icon={<Wrench size={15} />} title="General">
+        <Section icon={<Wrench size={15} />} title="General" anchor="general">
           <FieldRow label="Tray Notification" hint="Show a notice when the app minimizes to the system tray">
             <Switch
               checked={merged.trayNotice ?? true}
               onChange={v => autosave('trayNotice', v)}
             />
           </FieldRow>
-          <FieldRow label="Append Logs" hint="Add to existing log file on restart (vs. overwrite)">
-            <Switch
-              checked={merged.logAppend}
-              onChange={v => autosave('logAppend', v)}
-            />
+          <FieldRow label="Log File" hint="Logs rotate automatically at 10 MB, keeping the 3 most recent files. Clear empties the current log.">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={logsCleared ? <CheckCircle2 size={13} /> : <Trash2 size={13} />}
+              onClick={clearLogs}
+            >
+              {logsCleared ? 'Cleared' : 'Clear logs'}
+            </Button>
           </FieldRow>
         </Section>
 

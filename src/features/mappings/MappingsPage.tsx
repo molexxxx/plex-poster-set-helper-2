@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Plus, Trash2, Save, ArrowRight, Info } from 'lucide-react'
+import { Plus, Trash2, Save, ArrowRight, Info, KeyRound } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import EmptyState from '../../components/ui/EmptyState'
+import { useAppContext } from '../../app/AppContext'
+import { useNavStore } from '../../app/navStore'
 import styles from './MappingsPage.module.css'
 
 
@@ -19,8 +21,16 @@ export default function MappingsPage() {
   const [saved, setSaved]     = useState<MappingRow[]>([])
   const [saving, setSaving]   = useState(false)
   const newPlexRef = useRef<HTMLInputElement>(null)
+  const { navigate } = useAppContext()
+  const goSettings = useNavStore(s => s.goSettings)
 
   const isDirty = JSON.stringify(rows) !== JSON.stringify(saved)
+
+  /** Jumps to the Settings TMDB key section, which fixes most matching issues. */
+  function openTmdbSettings() {
+    goSettings('tmdb')
+    navigate('settings')
+  }
 
 
   useEffect(() => {
@@ -107,6 +117,17 @@ export default function MappingsPage() {
         <span>
           The <strong>Plex Title</strong> must match exactly as it appears in your Plex library.
           The <strong>Scraper Title</strong> is what the tool searches for on PosterDB / MediUX.
+        </span>
+      </div>
+
+      {/* TMDB tip - most mapping issues disappear once matching is ID-based */}
+      <div className={styles.tipBanner}>
+        <KeyRound size={13} />
+        <span>
+          Most mappings become unnecessary with a free <strong>TMDB API key</strong>: the app then
+          matches your library by ID instead of by title, so renamed and subtitled titles resolve
+          automatically.{' '}
+          <button className={styles.tipLink} onClick={openTmdbSettings}>Add a TMDB key in Settings</button>.
         </span>
       </div>
 

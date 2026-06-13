@@ -6,6 +6,7 @@
   gap: var(--space-5);
   height: 100%;
   padding: var(--content-padding);
+  padding-bottom: var(--dock-clearance);
   overflow-y: auto;
 }
 
@@ -71,9 +72,10 @@
 /* --- Job list -------------------------------------------------------------- */
 
 .list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: var(--space-3);
+  align-content: start;
 }
 
 /* --- Job card -------------------------------------------------------------- */
@@ -89,6 +91,16 @@
   border-radius: var(--radius-md);
   transition: border-color var(--duration-fast) var(--ease-in-out),
               background var(--duration-fast) var(--ease-in-out);
+}
+
+/* Brief highlight when the command palette jumps to a job. */
+.jobPulse {
+  animation: jobPulse 1.6s var(--ease-out-expo);
+}
+
+@keyframes jobPulse {
+  0%   { border-color: var(--color-accent-border); box-shadow: 0 0 0 1px var(--color-accent-border), 0 0 22px var(--color-accent-soft); }
+  100% { border-color: var(--color-border); box-shadow: none; }
 }
 
 .card:hover {

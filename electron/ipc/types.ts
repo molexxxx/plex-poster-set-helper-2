@@ -23,6 +23,8 @@ export interface FindItemReq {
   libraries: string[]
   /** Restrict search to this library type (avoids show/movie cross-matches). */
   type?: 'movie' | 'show'
+  /** When set, match by TMDB id first - reliable even when Plex renamed the title. */
+  tmdbId?: string
 }
 
 export interface FindCollectionReq {
@@ -48,6 +50,10 @@ export interface PlexItem {
   labels: string[]
   season?: number
   episode?: number
+  /** External ids parsed from the item's Plex guids, when available. */
+  tmdbId?: string
+  tvdbId?: string
+  imdbId?: string
 }
 
 export interface UploadReq {
@@ -98,6 +104,8 @@ export interface PosterInfo {
   episode?: number
   /** Poster belongs to an individual movie inside a boxset/collection set. */
   isCollectionMember?: boolean
+  /** TMDB id of the movie a collection-member poster targets, for exact item matching. */
+  tmdbId?: string
   /** Poster is art for a Plex Collection object (match by collection name, not a movie/show). */
   isCollection?: boolean
 }
@@ -377,6 +385,7 @@ export type IpcChannels = {
   'app:downloadProgress': { event: UpdateProgress }
   'app:updateReady': { event: void }
   'log:getHistory': { req: void; res: LogEntry[] }
+  'log:clear': { req: void; res: void }
   'log:stream': { event: LogEntry }
   'scrape:progress': { event: ScrapeProgress }
   'auth:statusChange': { event: PlexAuthStatus }

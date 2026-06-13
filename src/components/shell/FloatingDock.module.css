@@ -1,0 +1,153 @@
+.wrap {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  z-index: 30;
+  /* Only the dock itself should capture clicks; the area around it stays passthrough. */
+  pointer-events: none;
+}
+
+.dock {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-overlay);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--color-border-accent);
+  box-shadow: var(--shadow-xl);
+  transition: padding var(--duration-base) var(--ease-out-expo);
+}
+
+/* Condensed layout while the log drawer is open. */
+.dockCompact {
+  gap: 1px;
+  padding: 4px var(--space-2);
+}
+
+.dockCompact .item {
+  width: 34px;
+  height: 34px;
+}
+
+.dockCompact .divider {
+  height: 20px;
+}
+
+.dockCompact .cmdBtn {
+  height: 30px;
+  padding: 0 var(--space-2);
+}
+
+.item {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  /* Fades only - no transform, scale, or movement. */
+  transition: color var(--duration-fast), background var(--duration-fast), box-shadow var(--duration-fast),
+              width var(--duration-base) var(--ease-out-expo), height var(--duration-base) var(--ease-out-expo);
+}
+
+/* Neutral glass fill that fades in under the cursor, in place. */
+.item:hover {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Active section: amber glyph on a lit amber backplate. */
+.itemActive,
+.itemActive:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--color-accent-border), 0 0 16px var(--color-accent-soft);
+}
+
+.iconWrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.dot {
+  position: absolute;
+  z-index: 1;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  box-shadow: var(--shadow-glow-interactive);
+}
+
+.label {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+
+.divider {
+  width: 1px;
+  height: 26px;
+  align-self: center;
+  flex-shrink: 0;
+  background: var(--color-border);
+  margin: 0 var(--space-1);
+}
+
+.cmdBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  align-self: center;
+  flex-shrink: 0;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color var(--duration-fast), background var(--duration-fast), border-color var(--duration-fast);
+}
+
+.cmdBtn:hover {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--color-border-accent);
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}

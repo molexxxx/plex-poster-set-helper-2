@@ -49,7 +49,7 @@ export default function UpdateToast() {
         {status === 'available' && !dismissed && shell(
           <Container size={15} />,
           `New version ${info?.version ? `v${info.version} ` : ''}available`,
-          <>You're running in Docker — pull the new image and recreate the container to update.</>,
+          <>You're running in Docker. Pull the new image and recreate the container to update.</>,
           <button className={styles.primary} onClick={() => window.api.app.openExternal(info?.releaseUrl || DOCKER_GUIDE)}>
             <BookOpen size={13} /> How to update
           </button>,
@@ -81,7 +81,7 @@ export default function UpdateToast() {
               )
             : shell(
                 <Sparkles size={15} />,
-                `Update available${info?.version ? ` — v${info.version}` : ''}`,
+                `Update available${info?.version ? ` - v${info.version}` : ''}`,
                 <>A new version is ready to download.</>,
                 <>
                   <button className={styles.primary} onClick={download}><Download size={13} /> Download</button>

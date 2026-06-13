@@ -147,6 +147,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  padding-bottom: var(--dock-clearance);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);

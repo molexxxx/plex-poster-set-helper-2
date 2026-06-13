@@ -256,10 +256,12 @@ container uses UTC and "9:00" fires at 9:00 UTC.
 </details>
 
 <details>
-<summary><b>Posters apply to the wrong title (anime / HAMA libraries).</b></summary>
+<summary><b>Posters apply to the wrong title, or a title is "not in library".</b></summary>
 
-MediUX matches by TMDB id. For libraries using a TVDB/IMDb agent (e.g. anime via HAMA),
-add a free TMDB API key in **Settings → Library Browser**.
+MediUX matches by TMDB id. Adding a free [TMDB API key](https://www.themoviedb.org/settings/api)
+in **Settings → Library Browser** is optional but recommended: it matches your library by ID
+instead of guessing by title and year, which fixes most matching and title-mapping issues
+automatically (and is required for TVDB/IMDb-agent libraries such as anime via HAMA).
 </details>
 
 <details>

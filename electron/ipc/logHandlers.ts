@@ -8,4 +8,5 @@ import { Logger } from '../services/logger'
  */
 export function registerLogHandlers(ipcMain: IpcMain) {
   ipcMain.handle('log:getHistory', () => Logger.getHistory())
+  ipcMain.handle('log:clear', () => Logger.clear())
 }

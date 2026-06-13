@@ -10,6 +10,7 @@ import Switch from '../../components/ui/Switch'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
 import type { ScheduledJob, SchedulerEngineStatus, AppEnv } from '../../../electron/ipc/types'
+import { useNavStore } from '../../app/navStore'
 import styles from './SchedulerPage.module.css'
 
 
@@ -316,7 +317,7 @@ interface JobCardProps {
 /** Card for one scheduled job with enable toggle, run-now, edit, and delete. */
 function JobCard({ job, running, onEdit, onDelete, onToggle, onRunNow }: JobCardProps) {
   return (
-    <div className={`${styles.card} ${!job.enabled ? styles.cardOff : ''}`}>
+    <div className={`${styles.card} ${!job.enabled ? styles.cardOff : ''}`} data-job-id={job.id}>
       <div className={styles.cardLeft}>
         <button
           className={`${styles.toggle} ${job.enabled ? styles.toggleOn : ''}`}
@@ -410,6 +411,24 @@ export default function SchedulerPage() {
     }, 30_000)
     return () => { off(); clearInterval(poll) }
   }, [load])
+
+  // Command-palette deep link: scroll to and briefly highlight the requested job.
+  const schedulerJobId = useNavStore(s => s.schedulerJobId)
+  const clearScheduler  = useNavStore(s => s.clearScheduler)
+  useEffect(() => {
+    if (!schedulerJobId || jobs.length === 0) return
+    const id = schedulerJobId
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-job-id="${id}"]`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        el.classList.add(styles.jobPulse)
+        setTimeout(() => el.classList.remove(styles.jobPulse), 1600)
+      }
+      clearScheduler()
+    }, 120)
+    return () => clearTimeout(t)
+  }, [schedulerJobId, jobs, clearScheduler])
 
   async function saveJob(job: ScheduledJob) {
     await window.api.scheduler.save(job)

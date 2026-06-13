@@ -281,6 +281,7 @@ export const SchedulerService = {
                 title: poster.title,
                 year: poster.year,
                 libraries: [],
+                tmdbId: poster.tmdbId,
               })
               if (!item) continue
               const res = await PlexService.uploadPoster({

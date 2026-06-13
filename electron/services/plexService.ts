@@ -109,7 +109,40 @@ function mapMetadata(m: any, libraryTitle: string, libraryType: 'movie' | 'show'
     thumb: m.thumb as string | undefined,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     labels: ((m.Label ?? []) as any[]).map(l => l.tag as string),
+    ...extractGuids(m),
   }
+}
+
+/**
+ * Normalises a title for tolerant comparison: lowercased, diacritics stripped,
+ * and all punctuation collapsed to single spaces. Lets "The Librarian: ..." and
+ * "The Librarian - ..." compare equal regardless of how Plex stored the title.
+ *
+ * @param s - Raw title.
+ * @returns The normalised form.
+ */
+function normTitle(s: string): string {
+  return s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+/**
+ * Reduces a title to a broader query for a second-pass library lookup: the part
+ * before a subtitle separator (colon, then a spaced dash), or the first few
+ * words. Recovers franchise entries Plex's relevance search drops for the full
+ * title (e.g. "The Librarian: The Curse of the Judas Chalice").
+ *
+ * @param title - Full title.
+ * @returns A shorter query, or null when no useful reduction exists.
+ */
+function broadenTitle(title: string): string | null {
+  const t = title.trim()
+  const colon = t.indexOf(':')
+  if (colon > 1) return t.slice(0, colon).trim()
+  const dash = t.indexOf(' - ')
+  if (dash > 1) return t.slice(0, dash).trim()
+  const words = t.split(/\s+/)
+  if (words.length > 3) return words.slice(0, 3).join(' ')
+  return null
 }
 
 /** Talks to the connected Plex Media Server: lookups, poster upload/reset, and stats. */
@@ -187,51 +220,84 @@ export const PlexService = {
   async findInLibrary(req: FindItemReq): Promise<PlexItem | null> {
     if (!_conn) return null
     const { baseUrl, token, libraries: allLibs } = _conn
-    const { title, year, libraries: filterNames, type: mediaType } = req
+    const { title, year, libraries: filterNames, type: mediaType, tmdbId } = req
 
     const excluded = ConfigService.get().excludedLibraries ?? []
 
-    const candidates: PlexItem[] = []
-    for (const lib of allLibs) {
-      // When an explicit include-list is given, honour it; otherwise apply exclusions
-      if (filterNames.length && !filterNames.includes(lib.title)) continue
-      if (!filterNames.length && excluded.includes(lib.title)) continue
-      // Restrict to the requested media type so a TV show set never matches a
-      // same-named movie (e.g. the "Sugar" 2024 show vs the "Sugar" 2008 movie).
-      if (mediaType && lib.type !== mediaType) continue
-      const type = lib.type === 'movie' ? 1 : 2
-      try {
-        const data = await plexFetch(
-          baseUrl, token,
-          `/library/sections/${lib.key}/search?query=${encodeURIComponent(title)}&type=${type}&limit=20`,
-        ) as { MediaContainer?: { Metadata?: unknown[] } }
-        for (const m of data?.MediaContainer?.Metadata ?? []) {
-          candidates.push(mapMetadata(m, lib.title, lib.type as 'movie' | 'show'))
-        }
-      } catch {
-        // section may not support the search type - skip silently
-      }
-    }
-    if (!candidates.length) return null
+    // Libraries eligible for this lookup: an explicit include-list wins, else
+    // exclusions apply, and the requested media type is honoured so a TV show set
+    // never matches a same-named movie ("Sugar" 2024 show vs "Sugar" 2008 movie).
+    const searchLibs = allLibs.filter(lib => {
+      if (filterNames.length && !filterNames.includes(lib.title)) return false
+      if (!filterNames.length && excluded.includes(lib.title)) return false
+      if (mediaType && lib.type !== mediaType) return false
+      return true
+    })
 
-    const exact = candidates.find(
-      i => i.title.toLowerCase() === title.toLowerCase() && (!year || i.year === year),
-    )
+    // Runs Plex's relevance search for one query across every eligible library.
+    const gather = async (query: string): Promise<PlexItem[]> => {
+      const found: PlexItem[] = []
+      for (const lib of searchLibs) {
+        const type = lib.type === 'movie' ? 1 : 2
+        try {
+          const data = await plexFetch(
+            baseUrl, token,
+            `/library/sections/${lib.key}/search?query=${encodeURIComponent(query)}&type=${type}&limit=20&includeGuids=1`,
+          ) as { MediaContainer?: { Metadata?: unknown[] } }
+          for (const m of data?.MediaContainer?.Metadata ?? []) {
+            found.push(mapMetadata(m, lib.title, lib.type as 'movie' | 'show'))
+          }
+        } catch {
+          // section may not support the search type - skip silently
+        }
+      }
+      return found
+    }
+
+    const candidates = await gather(title)
+
+    // TMDB id is exact and survives Plex renames (e.g. "The Librarian III" vs
+    // TMDB's "The Librarian: ..."), so prefer it when the candidates include the
+    // right item under a different name.
+    if (tmdbId) {
+      const byTmdb = candidates.find(c => c.tmdbId === tmdbId)
+      if (byTmdb) return byTmdb
+    }
+
+    const wanted = normTitle(title)
+    const exact = candidates.find(i => normTitle(i.title) === wanted && (!year || i.year === year))
     if (exact) return exact
 
     if (!year) {
-      const exactTitle = candidates.find(i => i.title.toLowerCase() === title.toLowerCase())
+      const exactTitle = candidates.find(i => normTitle(i.title) === wanted)
       if (exactTitle) return exactTitle
     }
 
     // Fuzzy fallback: when a year is provided, only consider candidates within ±1
     // year so that e.g. "Toy Story (1995)" never fuzzy-matches "Toy Story 2 (1999)".
-    const pool = year
-      ? candidates.filter(c => c.year != null && Math.abs(c.year - year) <= 1)
-      : candidates
-    if (!pool.length) return null
-    const fuse = new Fuse(pool, { keys: ['title'], threshold: 0.35 })
-    return fuse.search(title)[0]?.item ?? null
+    const fuzzyMatch = (pool: PlexItem[]): PlexItem | null => {
+      const scoped = year ? pool.filter(c => c.year != null && Math.abs(c.year - year) <= 1) : pool
+      if (!scoped.length) return null
+      const fuse = new Fuse(scoped, { keys: ['title'], threshold: 0.35 })
+      return fuse.search(title)[0]?.item ?? null
+    }
+    const fuzzy = fuzzyMatch(candidates)
+    if (fuzzy) return fuzzy
+
+    // Last resort when the TMDB id is known: Plex's relevance search can drop a
+    // long, subtitled franchise entry ("The Librarian: The Curse of the Judas
+    // Chalice") even though it's in the library, so the candidate never appears
+    // to match against. Re-search with just the main title to pull it into the
+    // pool, then match strictly by id.
+    if (tmdbId) {
+      const broad = broadenTitle(title)
+      if (broad && normTitle(broad) !== wanted) {
+        const byTmdb = (await gather(broad)).find(c => c.tmdbId === tmdbId)
+        if (byTmdb) return byTmdb
+      }
+    }
+
+    return null
   },
 
   /**

@@ -188,8 +188,8 @@ export default function LogDrawer({ open, onClose }: Props) {
               </button>
               <button
                 className={styles.iconBtn}
-                title="Clear"
-                onClick={() => { setEntries([]); setNewCount(0) }}
+                title="Clear logs and truncate the log file"
+                onClick={() => { window.api.log.clear().catch(() => {}); setEntries([]); setNewCount(0) }}
               >
                 <Trash2 size={13} />
               </button>

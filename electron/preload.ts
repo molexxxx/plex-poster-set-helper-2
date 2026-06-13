@@ -13,8 +13,8 @@ const api = {
     connect: (baseUrl: string, token: string) =>
       ipcRenderer.invoke('plex:connect', { baseUrl, token }),
     getLibraries: () => ipcRenderer.invoke('plex:getLibraries'),
-    findItem: (title: string, year?: number, libraries?: string[]) =>
-      ipcRenderer.invoke('plex:findItem', { title, year, libraries: libraries ?? [] }),
+    findItem: (title: string, year?: number, libraries?: string[], tmdbId?: string) =>
+      ipcRenderer.invoke('plex:findItem', { title, year, libraries: libraries ?? [], tmdbId }),
     findCollection: (title: string) =>
       ipcRenderer.invoke('plex:findCollection', { title }),
     uploadPoster: (
@@ -137,6 +137,7 @@ const api = {
 
   log: {
     getHistory: (): Promise<LogEntry[]> => ipcRenderer.invoke('log:getHistory'),
+    clear: (): Promise<void> => ipcRenderer.invoke('log:clear'),
     onEntry: (cb: (entry: LogEntry) => void) =>
     {
       const handler = (_: unknown, data: LogEntry) => cb(data)

@@ -355,6 +355,11 @@ function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: 
 
   return {
     title, url, thumbUrl, source: 'mediux', year, season, episode,
+    // A collection-set poster that targets one specific movie: flag it so the
+    // apply path routes it to that movie (not just the viewed item), and carry
+    // its TMDB id for an exact "is this the viewed item?" match.
+    ...(collectionMoviePoster ? { isCollectionMember: true } : {}),
+    ...(collectionMoviePoster && file.movie_id?.id != null ? { tmdbId: String(file.movie_id.id) } : {}),
     ...(isCollection ? { isCollection: true } : {}),
   }
 }
@@ -484,7 +489,22 @@ export class MediuxScraper extends BaseScraper {
     for (const s of sets) {
       if (this._aborted) { out.push(s); continue }
       const posters = (s.files ?? []).filter(f => (f.fileType ?? '').toLowerCase().includes('poster'))
-      const needsEnrich = !!s.collection && posters.length > 1 && !posters.some(f => f.movie_id)
+      // Movie/show browse pages strip per-file movie_id and the set-level
+      // collection ref, leaving only file titles. Treat a set as a collection
+      // set (worth re-fetching for its per-movie metadata) when it has the
+      // collection object, is named "... Collection", or its poster titles
+      // resolve to more than one dated movie.
+      const datedMovies = new Set(
+        posters
+          .map(f => parseTitleYear(f.title))
+          .filter((p): p is { title: string; year?: number } => !!p && p.year != null)
+          .map(p => `${p.title.toLowerCase()}|${p.year}`),
+      )
+      const looksLikeCollection =
+        !!s.collection ||
+        /\bcollection\b/i.test(s.set_name ?? s.name ?? '') ||
+        datedMovies.size > 1
+      const needsEnrich = looksLikeCollection && posters.length > 1 && !posters.some(f => f.movie_id)
       if (!needsEnrich) { out.push(s); continue }
       try {
         const full = await this._fetchSets(`https://mediux.pro/sets/${s.id}`)
@@ -540,6 +560,11 @@ export class MediuxScraper extends BaseScraper {
       Logger.warn('MediUX', `No sets found for ${type} ${tmdbId}`)
       return []
     }
+
+    // Recover per-movie metadata for any collection set that came back stripped,
+    // so its posters can be told apart and routed to the right movie. No-op for
+    // ordinary sets and for collection sets that already carry movie_id.
+    sets = await this._enrichCollectionSets(sets)
 
     const summaries = sets.map(s => setToSummary(s, allTypes, fallback))
     Logger.scrape('MediUX', `Browse: ${summaries.length} set(s) for ${type} ${tmdbId}`)

@@ -242,7 +242,7 @@ export default function ScrapePage() {
             <div className={styles.runGateInfo}>
               <span className={styles.runGateDot} aria-hidden="true" />
               <span>
-                <strong>{idleCount}</strong> URL{idleCount !== 1 ? 's' : ''} queued and ready — click Run to begin scraping
+                <strong>{idleCount}</strong> URL{idleCount !== 1 ? 's' : ''} queued and ready, click Run to begin scraping
               </span>
             </div>
             <Button variant="primary" size="sm" icon={<Zap size={13} />} onClick={runQueue}>

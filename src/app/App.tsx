@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import TitleBar from '../components/shell/TitleBar'
-import Sidebar from '../components/shell/Sidebar'
+import FloatingDock from '../components/shell/FloatingDock'
+import CommandPalette from '../components/shell/CommandPalette'
 import StatusBar from '../components/shell/StatusBar'
 import ParticleField from '../components/shell/ParticleField'
 import LogDrawer from '../features/logs/LogDrawer'
@@ -20,6 +21,8 @@ export type NavTab = 'library' | 'scheduler' | 'mappings' | 'manual' | 'reset' |
 
 const NAV_ORDER: NavTab[] = ['library', 'scheduler', 'mappings', 'manual', 'reset', 'settings']
 
+const IS_MAC = /mac/i.test(navigator.platform)
+
 const PAGE_MAP: Record<NavTab, React.ReactNode> = {
   library:   <LibraryPage />,
   scheduler: <SchedulerPage />,
@@ -34,6 +37,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('library')
   const [prevTab, setPrevTab] = useState<NavTab>('library')
   const [logOpen, setLogOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const [plexConnected, setPlexConnected] = useState(false)
   // null = still checking, false = setup needed, true = ready
   const [browserReady, setBrowserReady] = useState<boolean | null>(null)
@@ -57,6 +61,18 @@ export default function App() {
   useEffect(() => {
     window.api.browser.getStatus().then(s => setBrowserReady(s.installed))
     window.api.app.getEnv().then(e => setReduceMotion(e.container))
+  }, [])
+
+  // Global Ctrl/Cmd+F toggles the command palette (search).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault()
+        setPaletteOpen(v => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
   return (
@@ -83,8 +99,6 @@ export default function App() {
       <TitleBar />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
-        <Sidebar activeTab={activeTab} onNavigate={navigate} onToggleLogs={() => setLogOpen(v => !v)} />
-
         <main
           style={{
             flex: 1,
@@ -100,15 +114,35 @@ export default function App() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: direction * -24 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              // The dock floats and overlays content; pages fill the full height and add their
+              // own bottom clearance (--dock-clearance) inside their scrollers.
               style={{ height: '100%', overflow: 'auto', padding: 'var(--content-padding)' }}
             >
               {PAGE_MAP[activeTab]}
             </motion.div>
           </AnimatePresence>
         </main>
+
+        <FloatingDock
+          activeTab={activeTab}
+          logOpen={logOpen}
+          onNavigate={navigate}
+          onToggleLogs={() => setLogOpen(v => !v)}
+          onOpenPalette={() => setPaletteOpen(true)}
+          isMac={IS_MAC}
+        />
       </div>
 
       <LogDrawer open={logOpen} onClose={() => setLogOpen(false)} />
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onNavigate={navigate}
+        onToggleLogs={() => setLogOpen(v => !v)}
+        plexConnected={plexConnected}
+        isMac={IS_MAC}
+      />
 
       <UpdateToast />
 

@@ -41,6 +41,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  padding-bottom: var(--dock-clearance);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -286,6 +287,7 @@
 
 .resultList {
   overflow-y: auto;
+  padding-bottom: var(--dock-clearance);
   display: flex;
   flex-direction: column;
   gap: 3px;

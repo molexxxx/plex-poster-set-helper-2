@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { CheckCircle2, AlertCircle, KeyRound, ExternalLink, ArrowRight } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import styles from './SetupScreen.module.css'
 
@@ -8,7 +8,7 @@ interface Props {
   onComplete: () => void
 }
 
-type Phase = 'checking' | 'installing' | 'done' | 'error'
+type Phase = 'checking' | 'installing' | 'done' | 'tmdb' | 'error'
 
 /**
  * Extracts the percentage from a progress line like "| 72% of 123.4 MiB".
@@ -39,6 +39,8 @@ export default function SetupScreen({ onComplete }: Props) {
   const [phaseLabel, setPhaseLabel] = useState('Preparing…')
   const [log,        setLog]        = useState<string[]>([])
   const [error,      setError]      = useState<string | null>(null)
+  const [tmdbKey,    setTmdbKey]    = useState('')
+  const [savingKey,  setSavingKey]  = useState(false)
   const logRef = useRef<HTMLDivElement>(null)
 
   function appendLog(line: string) {
@@ -50,6 +52,14 @@ export default function SetupScreen({ onComplete }: Props) {
 
   useEffect(() => {
     let progressOff: (() => void) | null = null
+
+    // After the browser is ready, offer the optional TMDB key step, but only when
+    // a key isn't already configured (returning users skip straight through).
+    async function proceedAfterBrowser(delayMs: number) {
+      const cfg = await window.api.config.get()
+      const hasKey = (cfg.tmdbApiKey ?? '').trim().length > 0
+      setTimeout(() => (hasKey ? onComplete() : setPhase('tmdb')), delayMs)
+    }
 
     async function run() {
       // Subscribe before the status check so no early output is missed
@@ -63,7 +73,7 @@ export default function SetupScreen({ onComplete }: Props) {
 
       const status = await window.api.browser.getStatus()
       if (status.installed) {
-        onComplete()
+        await proceedAfterBrowser(0)
         return
       }
 
@@ -75,8 +85,8 @@ export default function SetupScreen({ onComplete }: Props) {
         setProgress(100)
         setPhase('done')
         setPhaseLabel('Chromium ready')
-        // Short pause so the user sees the success state, then proceed
-        setTimeout(onComplete, 1400)
+        // Short pause so the user sees the success state, then move on
+        await proceedAfterBrowser(1400)
       } catch (err) {
         setPhase('error')
         setError(err instanceof Error ? err.message : String(err))
@@ -86,6 +96,17 @@ export default function SetupScreen({ onComplete }: Props) {
     void run()
     return () => { progressOff?.() }
   }, [onComplete])
+
+  // Saves the pasted key (if any) and dismisses onboarding. Skipping passes an
+  // empty key through - matching simply falls back to title and year.
+  async function finishTmdbStep(save: boolean) {
+    const key = tmdbKey.trim()
+    if (save && key) {
+      setSavingKey(true)
+      try { await window.api.config.set({ tmdbApiKey: key }) } finally { setSavingKey(false) }
+    }
+    onComplete()
+  }
 
   return (
     <motion.div
@@ -148,7 +169,52 @@ export default function SetupScreen({ onComplete }: Props) {
           {phase === 'done' && (
             <motion.div key="done" className={styles.doneBlock} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
               <CheckCircle2 size={32} className={styles.doneIcon} />
-              <span className={styles.doneLabel}>Browser ready - launching…</span>
+              <span className={styles.doneLabel}>Browser ready</span>
+            </motion.div>
+          )}
+
+          {phase === 'tmdb' && (
+            <motion.div key="tmdb" className={styles.tmdbBlock} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <div className={styles.tmdbHead}>
+                <KeyRound size={16} className={styles.tmdbIcon} />
+                <span className={styles.tmdbTitle}>Add a TMDB API key (optional)</span>
+              </div>
+              <p className={styles.tmdbDesc}>
+                Recommended: a free TMDB key lets the app match your library by ID instead of guessing
+                by title and year, which fixes most matching and title-mapping issues. You can always
+                add or change it later in Settings.
+              </p>
+              <input
+                className={styles.tmdbInput}
+                type="password"
+                value={tmdbKey}
+                onChange={e => setTmdbKey(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') void finishTmdbStep(true) }}
+                placeholder="Paste TMDB v3 API key…"
+                spellCheck={false}
+                autoFocus
+              />
+              <button
+                className={styles.tmdbLink}
+                onClick={() => window.api.app.openExternal('https://www.themoviedb.org/settings/api')}
+              >
+                <ExternalLink size={12} /> Get a free key at themoviedb.org
+              </button>
+              <div className={styles.tmdbActions}>
+                <Button variant="ghost" size="sm" onClick={() => void finishTmdbStep(false)} disabled={savingKey}>
+                  Skip for now
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<ArrowRight size={13} />}
+                  onClick={() => void finishTmdbStep(true)}
+                  loading={savingKey}
+                  disabled={savingKey}
+                >
+                  {tmdbKey.trim() ? 'Save & continue' : 'Continue'}
+                </Button>
+              </div>
             </motion.div>
           )}
 

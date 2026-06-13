@@ -11,13 +11,29 @@ import type { AppliedRecord } from '../../electron/ipc/types'
  *   the same item + set.
  */
 export async function recordApplied(rec: AppliedRecord) {
+  return recordAppliedBatch([rec])
+}
+
+/**
+ * Records several applied entries in a single config read/write. Applying a
+ * whole collection touches multiple Plex items at once; recording each with a
+ * separate {@link recordApplied} call races on the shared config (concurrent
+ * get/set lose each other's writes), so the per-movie rows would mostly vanish.
+ * Batching keeps every item's row.
+ *
+ * @param recs - Applied entries; merged per item + set with existing history.
+ */
+export async function recordAppliedBatch(recs: AppliedRecord[]) {
+  if (!recs.length) return
   const cfg = await window.api.config.get()
-  const list = cfg.appliedPosters ?? []
-  const existing = list.find(r => r.itemKey === rec.itemKey && r.setId === rec.setId)
-  const mergedUrls = [...new Set([...(existing?.posterUrls ?? []), ...(rec.posterUrls ?? [])])]
-  const merged: AppliedRecord = { ...rec, posterUrls: mergedUrls }
-  const deduped = list.filter(r => !(r.itemKey === rec.itemKey && r.setId === rec.setId))
-  await window.api.config.set({ appliedPosters: [merged, ...deduped].slice(0, 2000) })
+  let list = cfg.appliedPosters ?? []
+  for (const rec of recs) {
+    const existing = list.find(r => r.itemKey === rec.itemKey && r.setId === rec.setId)
+    const mergedUrls = [...new Set([...(existing?.posterUrls ?? []), ...(rec.posterUrls ?? [])])]
+    const merged: AppliedRecord = { ...rec, posterUrls: mergedUrls }
+    list = [merged, ...list.filter(r => !(r.itemKey === rec.itemKey && r.setId === rec.setId))]
+  }
+  await window.api.config.set({ appliedPosters: list.slice(0, 2000) })
 }
 
 /**

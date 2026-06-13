@@ -1,5 +1,6 @@
 import winston from 'winston'
 import path from 'path'
+import fs from 'fs'
 import { app, BrowserWindow } from 'electron'
 import type { LogEntry } from '../ipc/types'
 
@@ -12,6 +13,14 @@ let logger: winston.Logger
 let mainWindowRef: BrowserWindow | null = null
 const buffer: LogEntry[] = []
 const MAX_BUFFER = 600
+
+/** Safely push to the renderer, skipping when the window/webContents is gone (closed or reloaded). */
+function streamToRenderer(entry: LogEntry) {
+  const win = mainWindowRef
+  if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
+    win.webContents.send('log:stream', entry)
+  }
+}
 
 /** Winston-backed logger that streams entries to the renderer and keeps a bounded in-memory history. */
 export const Logger = {
@@ -49,7 +58,7 @@ export const Logger = {
     })
 
     logger.on('data', (chunk: LogEntry) => {
-      mainWindowRef?.webContents.send('log:stream', chunk)
+      streamToRenderer(chunk)
     })
   },
 
@@ -66,7 +75,7 @@ export const Logger = {
     ;(logger as unknown as Record<string, (msg: string, meta?: object) => void>)[level]?.(message, { module, ...meta })
     buffer.push(entry)
     if (buffer.length > MAX_BUFFER) buffer.shift()
-    mainWindowRef?.webContents.send('log:stream', entry)
+    streamToRenderer(entry)
   },
 
   /**
@@ -76,6 +85,21 @@ export const Logger = {
    */
   getHistory(): LogEntry[] {
     return [...buffer]
+  },
+
+  /**
+   * Clears the in-memory history and truncates the on-disk log file. The
+   * file transport keeps appending afterwards, and its 10 MB rotation still
+   * applies - this just resets the current contents.
+   */
+  clear() {
+    buffer.length = 0
+    try {
+      fs.truncateSync(path.join(app.getPath('logs'), 'app.log'), 0)
+    } catch {
+      /* file may not exist yet */
+    }
+    Logger.info('logger', 'Logs cleared')
   },
 
   error: (module: string, msg: string, meta?: Record<string, unknown>) => Logger.log('error', module, msg, meta),

@@ -48,11 +48,22 @@ input, textarea, [data-selectable] {
   background: rgba(255, 255, 255, 0.18);
 }
 
-/* Focus ring */
+/* Focus ring - subtle accent, for keyboard users only */
 :focus-visible {
-  outline: 2px solid var(--color-accent-primary);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: var(--radius-xs);
+}
+
+/* Text fields and inputs convey focus through their own border, never the ring. */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible,
+[contenteditable]:focus-visible {
+  outline: none;
 }
 
 /* Remove default focus for mouse users */

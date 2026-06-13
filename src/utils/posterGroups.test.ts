@@ -31,7 +31,7 @@ describe('ALL_TYPES', () => {
   })
 })
 
-describe('mediuxFilters — applyPosters filter gate', () => {
+describe('mediuxFilters - applyPosters filter gate', () => {
   function filterPosters(posters: PosterInfo[], enabled: Set<string>) {
     return posters.filter(po => enabled.has(posterFileType(po)))
   }

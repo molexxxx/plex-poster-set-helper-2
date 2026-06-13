@@ -9,10 +9,11 @@ import Spinner from '../../components/ui/Spinner'
 import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
 import { groupPosters, posterFileType, ALL_TYPES, type FileType } from '../../utils/posterGroups'
-import { recordApplied, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
+import { recordApplied, recordAppliedBatch, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
 import { useAppContext } from '../../app/AppContext'
+import { useNavStore } from '../../app/navStore'
 import type {
-  LibrarySection, LibraryItem, MediuxSetSummary, BrowseSetsRes, PosterInfo, MediuxUserSet, UserSetsRes,
+  LibrarySection, LibraryItem, MediuxSetSummary, BrowseSetsRes, PosterInfo, MediuxUserSet, UserSetsRes, AppliedRecord,
 } from '../../../electron/ipc/types'
 import styles from './LibraryPage.module.css'
 
@@ -91,7 +92,7 @@ function useSubscriptions() {
 }
 
 /** Plex library grid with per-section tabs, cross-library search, and the MediUX sets panel. */
-function MyLibraryView({ subs }: { subs: string[] }) {
+function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; targetSection: string | null; targetItem: LibraryItem | null }) {
   const [sections, setSections]   = useState<LibrarySection[]>([])
   const [activeKey, setActiveKey] = useState<string>('')
 
@@ -126,6 +127,44 @@ function MyLibraryView({ subs }: { subs: string[] }) {
     })
     return () => { unsub() }
   }, [loadSections])
+
+  // Deep-link from the command palette: jump to a specific library section.
+  useEffect(() => {
+    if (!targetSection) return
+    setSearch('')
+    setActiveKey(targetSection)
+    setSelected(null)
+  }, [targetSection])
+
+  // Deep-link from the command palette: open a specific item's MediUX sets panel,
+  // and scroll its card into view within the active library tab.
+  const scrollTargetRef = useRef<string | null>(null)
+  const flashCard = useCallback((key: string) => {
+    const el = scrollRef.current?.querySelector<HTMLElement>(`[data-item-key="${key}"]`)
+    if (!el) return false
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    el.classList.add(styles.itemCardPulse)
+    setTimeout(() => el.classList.remove(styles.itemCardPulse), 1600)
+    return true
+  }, [])
+
+  useEffect(() => {
+    if (!targetItem) return
+    // Filter the grid down to the chosen title (cross-library search) and open
+    // its MediUX panel, so a command-palette jump lands on just that item.
+    setSearch(targetItem.title)
+    setSelected(targetItem)
+    scrollTargetRef.current = targetItem.key
+    // Best-effort once the grid for this section has had a moment to load.
+    const t = setTimeout(() => { if (flashCard(targetItem.key)) scrollTargetRef.current = null }, 350)
+    return () => clearTimeout(t)
+  }, [targetItem, flashCard])
+
+  // Backup: if the grid loads later, scroll once the card appears.
+  useEffect(() => {
+    const key = scrollTargetRef.current
+    if (key && flashCard(key)) scrollTargetRef.current = null
+  }, [items, flashCard])
 
   const loadItems = useCallback(async (key: string, q: string, append: boolean) => {
     if (!key) return
@@ -233,7 +272,7 @@ function MyLibraryView({ subs }: { subs: string[] }) {
             <Search size={14} className={styles.searchIcon} />
             <input
               className={`${styles.searchInput} ${isGlobalSearch ? styles.searchInputActive : ''}`}
-              placeholder={isGlobalSearch ? 'Searching all libraries…' : 'Search…'}
+              placeholder={isGlobalSearch ? 'Filtering all libraries…' : 'Filter all libraries…'}
               value={search}
               onChange={e => setSearch(e.target.value)}
               spellCheck={false}
@@ -325,6 +364,8 @@ function MyLibraryView({ subs }: { subs: string[] }) {
             onClose={() => setSelected(null)}
             onItemPoster={(key, thumb) => {
               setItems(prev => prev.map(it => it.key === key ? { ...it, thumb } : it))
+              // The grid may be showing cross-library search results instead of `items`.
+              setGlobalResults(prev => prev.map(g => ({ ...g, items: g.items.map(it => it.key === key ? { ...it, thumb } : it) })))
               setSelected(prev => prev && prev.key === key ? { ...prev, thumb } : prev)
             }}
           />
@@ -341,19 +382,40 @@ export default function LibraryPage() {
   const { plexConnected } = useAppContext()
   const [mode, setMode] = useState<Mode>('library')
   const [creatorTarget, setCreatorTarget] = useState<string | null>(null)
+  const [sectionTarget, setSectionTarget] = useState<string | null>(null)
+  const [itemTarget, setItemTarget] = useState<LibraryItem | null>(null)
   const subs = useSubscriptions()
+  const libraryIntent = useNavStore(s => s.libraryIntent)
+  const clearLibrary  = useNavStore(s => s.clearLibrary)
 
   const openCreator = useCallback((username: string) => {
     setCreatorTarget(username)
     setMode('creators')
   }, [])
 
+  // Consume a deep-link intent from the command palette (creator, section, or item).
+  useEffect(() => {
+    if (!libraryIntent) return
+    if (libraryIntent.creator) {
+      setCreatorTarget(libraryIntent.creator)
+      setMode('creators')
+    } else if (libraryIntent.item) {
+      if (libraryIntent.section) setSectionTarget(libraryIntent.section)
+      setItemTarget(libraryIntent.item)
+      setMode('library')
+    } else if (libraryIntent.section) {
+      setSectionTarget(libraryIntent.section)
+      setMode('library')
+    }
+    clearLibrary()
+  }, [libraryIntent, clearLibrary])
+
   return (
     <CreatorNav.Provider value={openCreator}>
       <div className={styles.page}>
         <div className={styles.header}>
           <div>
-            <h1 className="page-title">Library Browser</h1>
+            <h1 className="page-title">{mode === 'library' ? 'Library Browser' : 'MediUX Creators'}</h1>
             <p className="page-subtitle">
               {mode === 'library'
                 ? 'Browse your Plex library and apply MediUX poster sets.'
@@ -392,7 +454,7 @@ export default function LibraryPage() {
         {!plexConnected ? (
           <PlexConnectBanner />
         ) : mode === 'library' ? (
-          <MyLibraryView subs={subs} />
+          <MyLibraryView subs={subs} targetSection={sectionTarget} targetItem={itemTarget} />
         ) : (
           <CreatorsView initialCreator={creatorTarget} />
         )}
@@ -406,7 +468,7 @@ function ItemCard({ item, active, onClick }: { item: LibraryItem; active: boolea
   const [err, setErr]       = useState(false)
   const [loaded, setLoaded] = useState(false)
   return (
-    <button className={`${styles.itemCard} ${active ? styles.itemCardActive : ''}`} onClick={onClick} title={item.title}>
+    <button className={`${styles.itemCard} ${active ? styles.itemCardActive : ''}`} onClick={onClick} title={item.title} data-item-key={item.key}>
       <div className={`${styles.itemPoster} ${!err && item.thumb && !loaded ? styles.skeleton : ''}`}>
         {!err && item.thumb ? (
           <img
@@ -447,12 +509,52 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   const [uploader, setUploader] = useState<string>('all')
   const [types, setTypes]       = useState<Set<FileType>>(new Set(ALL_TYPES))
   const [applyMap, setApplyMap] = useState<Record<string, ApplyState>>({})
+  // Per-set apply scope for collection sets: true = spread across the whole
+  // collection, false = apply only the viewed item's art. Defaults to this
+  // movie only; the toggle lets users opt into the whole collection.
+  const [collectionScope, setCollectionScope] = useState<Record<string, boolean>>({})
+  // TMDB id MediUX resolved for this item (set even when the Plex item uses a
+  // tvdb/imdb agent), used to match the viewed item's collection-member poster.
+  const [resolvedTmdbId, setResolvedTmdbId] = useState<string | undefined>(undefined)
+  // Which collection-member movies actually exist in the Plex library, keyed by
+  // tmdbId (or title|year). Resolved with the same findItem the apply uses, so
+  // the "N movies" count matches exactly what "apply all" will touch.
+  const [memberInLib, setMemberInLib] = useState<Map<string, boolean>>(new Map())
   const [appliedIdx, setAppliedIdx] = useState<AppliedIndex>({ setIds: new Set(), titles: new Set(), posterUrls: new Set(), currentByItem: new Map(), currentPosterUrls: new Set() })
+  const [scheduledSetIds, setScheduledSetIds] = useState<Set<string>>(new Set())
+  const [schedulingId, setSchedulingId] = useState<string | null>(null)
 
   const subSet = useMemo(() => new Set(subs), [subs])
   const itemApplied = appliedIdx.titles.has(appliedKey(item.title, item.year))
 
   useEffect(() => { loadAppliedIndex().then(setAppliedIdx) }, [])
+
+  // Which of this title's sets already have a scheduled sync job.
+  useEffect(() => {
+    window.api.scheduler.list().then((jobs: ScheduledJob[]) => {
+      const ids = new Set<string>()
+      for (const j of jobs) for (const u of j.urls) { const m = u.match(/\/sets\/(\d+)/); if (m) ids.add(m[1]) }
+      setScheduledSetIds(ids)
+    }).catch(() => { /* scheduler unavailable */ })
+  }, [])
+
+  // Create a weekly sync job for a single set, straight from the library.
+  async function scheduleSet(s: MediuxSetSummary) {
+    if (scheduledSetIds.has(s.id) || schedulingId) return
+    setSchedulingId(s.id)
+    try {
+      await window.api.scheduler.save({
+        id: crypto.randomUUID(),
+        name: `${item.title}${item.year ? ` (${item.year})` : ''} - ${s.setName}`,
+        urls: [`https://mediux.pro/sets/${s.id}`],
+        cronExpr: '0 3 * * 0',
+        enabled: true,
+      })
+      setScheduledSetIds(prev => new Set(prev).add(s.id))
+    } finally {
+      setSchedulingId(null)
+    }
+  }
 
   useEffect(() => {
     window.api.config.get().then(c => {
@@ -469,6 +571,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
       if (cancelled) return
       if (res.error === 'no_tmdb') setError('no_tmdb')
       else if (res.error) setError(res.error)
+      setResolvedTmdbId(res.tmdbId)
       // Pin followed creators' sets to the top
       const sorted = [...res.sets].sort((a, b) => {
         const fa = subSet.has(a.uploader.toLowerCase()) ? 0 : 1
@@ -480,7 +583,36 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
       if (!cancelled) setError(e instanceof Error ? e.message : String(e))
     }).finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [item, subSet])
+    // Keyed on the item's identity, not the object reference - applying a poster
+    // updates item.thumb, which must not re-trigger a MediUX re-scrape.
+  }, [item.key, item.type, item.tmdbId, item.tvdbId, item.imdbId, subSet])
+
+  // Resolve which collection-member movies are actually in the library. Deduped
+  // across all sets (they share the same handful of movies), so it's a couple of
+  // findItem calls, not one per set.
+  useEffect(() => {
+    const myTmdb = item.tmdbId ?? resolvedTmdbId
+    const unique = new Map<string, { title: string; year?: number; tmdbId?: string }>()
+    for (const s of sets) for (const p of s.posters) {
+      if (!p.isCollectionMember) continue
+      const k = p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`
+      if (!unique.has(k)) unique.set(k, { title: p.title, year: p.year, tmdbId: p.tmdbId })
+    }
+    if (unique.size === 0) { setMemberInLib(new Map()); return }
+    let cancelled = false
+    ;(async () => {
+      const out = new Map<string, boolean>()
+      for (const [k, m] of unique) {
+        // The viewed item is in the library by definition (it's the open item).
+        if (m.tmdbId && myTmdb && m.tmdbId === myTmdb) { out.set(k, true); continue }
+        const found = await window.api.plex.findItem(m.title, m.year, undefined, m.tmdbId)
+        if (cancelled) return
+        out.set(k, !!found)
+      }
+      if (!cancelled) setMemberInLib(out)
+    })()
+    return () => { cancelled = true }
+  }, [sets, item.tmdbId, resolvedTmdbId])
 
   const uploaders = useMemo(() => {
     // Followed uploaders first, then the rest alphabetically
@@ -506,70 +638,124 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
     })
   }
 
+  // True when a collection-member poster targets the currently viewed item
+  // (exact TMDB match preferred; title/year as a fallback when ids are absent).
+  function isThisItem(p: PosterInfo): boolean {
+    const myTmdb = item.tmdbId ?? resolvedTmdbId
+    if (p.tmdbId && myTmdb) return p.tmdbId === myTmdb
+    return p.title.toLowerCase().trim() === item.title.toLowerCase().trim()
+      && (p.year == null || item.year == null || p.year === item.year)
+  }
+
+  /** Main poster (no season/episode) of a list, for the grid thumbnail. */
+  function mainThumb(posters: PosterInfo[]): string | undefined {
+    const main = posters.find(p => p.season == null && p.episode == null)
+    return main ? (main.thumbUrl ?? main.url) : undefined
+  }
+
+  /** Stable key for a collection-member poster's movie (matches the memberInLib map). */
+  const memberKey = (p: PosterInfo) => p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`
+
   async function applySet(s: MediuxSetSummary) {
-    const mainPosters       = s.posters.filter(p => !p.isCollectionMember)
-    const memberPosters     = s.posters.filter(p => p.isCollectionMember)
-    const enabledTotal      = s.posters.filter(p => types.has(posterFileType(p))).length
+    const wholeCollection = collectionScope[s.id] ?? false
+    const collectionArt = s.posters.filter(p => p.isCollection)
+    const members       = s.posters.filter(p => p.isCollectionMember)
+    const plain         = s.posters.filter(p => !p.isCollection && !p.isCollectionMember)
+    // The viewed item's own art always goes straight to its key (no findItem
+    // risk); sibling movies are only touched in whole-collection mode, and only
+    // those actually in the library (so we don't attempt - or count as failed -
+    // movies the user doesn't have).
+    const viewedPosters  = [...plain, ...members.filter(isThisItem)]
+    const siblingMembers = wholeCollection
+      ? members.filter(p => !isThisItem(p) && memberInLib.get(memberKey(p)))
+      : []
+    // Collection-level art targets the Plex Collection object, not a movie. Apply
+    // it when spreading the whole collection, or when the set is purely a
+    // collection (no per-movie posters to fall back to).
+    const applyCollArt   = collectionArt.length > 0 && (wholeCollection || members.length === 0)
+
+    const willApply = [
+      ...viewedPosters,
+      ...siblingMembers,
+      ...(applyCollArt ? collectionArt : []),
+    ]
+    const enabledTotal = willApply.filter(p => types.has(posterFileType(p))).length
     setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: 0, total: enabledTotal } }))
 
     let totalDone = 0, totalFailed = 0
-    const allAppliedUrls: string[] = []
+    const records: AppliedRecord[] = []
+    const bump = (d: number) =>
+      setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: totalDone + d, total: enabledTotal } }))
 
-    // Collection-level / show-level posters go to the main item key
-    const mainRes = await applyPosters(item.key, mainPosters, types,
-      (d, _t) => setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: totalDone + d, total: enabledTotal } })))
-    totalDone   += mainRes.done
-    totalFailed += mainRes.failed
-    allAppliedUrls.push(...mainRes.appliedUrls)
+    // 1. The viewed item's own art.
+    const mainRes = await applyPosters(item.key, viewedPosters, types, bump)
+    totalDone += mainRes.done; totalFailed += mainRes.failed
+    if (mainRes.done > 0) {
+      const thumb = mainThumb(viewedPosters)
+      records.push({
+        itemKey: item.key, title: item.title, year: item.year, type: item.type,
+        source: 'mediux', thumb: thumb ?? item.thumb, setId: s.id, uploader: s.uploader,
+        posterUrls: mainRes.appliedUrls, appliedAt: new Date().toISOString(),
+      })
+      if (thumb) onItemPoster(item.key, thumb)
+    }
 
-    // Individual movies within a boxset/collection: look up each movie's own
-    // Plex key, upload to it, and record it separately in Reset Posters
-    if (memberPosters.length > 0) {
-      const movieMap = new Map<string, { title: string; year?: number; posters: PosterInfo[] }>()
-      for (const p of memberPosters) {
-        const key = `${p.title.toLowerCase()}|${p.year ?? ''}`
+    // 2. Sibling movies in the collection: resolve each to its own Plex key.
+    if (siblingMembers.length > 0) {
+      const movieMap = new Map<string, { title: string; year?: number; tmdbId?: string; posters: PosterInfo[] }>()
+      for (const p of siblingMembers) {
+        const key = p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`
         const existing = movieMap.get(key)
         if (existing) existing.posters.push(p)
-        else movieMap.set(key, { title: p.title, year: p.year, posters: [p] })
+        else movieMap.set(key, { title: p.title, year: p.year, tmdbId: p.tmdbId, posters: [p] })
       }
       for (const m of movieMap.values()) {
-        const found = await window.api.plex.findItem(m.title, m.year) as { key: string; title: string; year?: number; type: string; thumb?: string; libraryTitle?: string } | null
-        if (!found) {
-          totalFailed += m.posters.filter(p => types.has(posterFileType(p))).length
-          continue
-        }
-        const memberRes = await applyPosters(found.key, m.posters, types,
-          (d, _t) => setApplyMap(mm => ({ ...mm, [s.id]: { status: 'applying', done: totalDone + d, total: enabledTotal } })))
-        totalDone   += memberRes.done
-        totalFailed += memberRes.failed
-        allAppliedUrls.push(...memberRes.appliedUrls)
+        const found = await window.api.plex.findItem(m.title, m.year, undefined, m.tmdbId) as { key: string; title: string; year?: number; type: string; thumb?: string; libraryTitle?: string } | null
+        // Not in the library - skip quietly rather than reporting a failure.
+        if (!found) continue
+        const memberRes = await applyPosters(found.key, m.posters, types, bump)
+        totalDone += memberRes.done; totalFailed += memberRes.failed
         if (memberRes.done > 0) {
-          void recordApplied({
+          const thumb = mainThumb(m.posters)
+          records.push({
             itemKey: found.key, title: found.title, year: found.year,
             type: (found.type === 'movie' ? 'movie' : 'show'),
-            source: 'mediux', thumb: found.thumb,
-            setId: s.id, uploader: s.uploader,
+            source: 'mediux', thumb: thumb ?? found.thumb, setId: s.id, uploader: s.uploader,
             posterUrls: memberRes.appliedUrls, appliedAt: new Date().toISOString(),
+          })
+          if (thumb) onItemPoster(found.key, thumb)
+        }
+      }
+    }
+
+    // 3. Collection-level art onto the matching Plex Collection object.
+    if (applyCollArt) {
+      const coll = await window.api.plex.findCollection(collectionArt[0].title) as { key: string; title: string; thumb?: string; libraryTitle?: string } | null
+      // No matching Plex Collection object - skip quietly (the movies still applied).
+      if (coll) {
+        const collRes = await applyPosters(coll.key, collectionArt, types, bump)
+        totalDone += collRes.done; totalFailed += collRes.failed
+        if (collRes.done > 0) {
+          records.push({
+            itemKey: coll.key, title: coll.title, type: 'collection',
+            source: 'mediux', thumb: mainThumb(collectionArt) ?? coll.thumb, setId: s.id, uploader: s.uploader,
+            posterUrls: collRes.appliedUrls, appliedAt: new Date().toISOString(),
           })
         }
       }
     }
 
-    if (totalDone > 0) {
-      void recordApplied({
-        itemKey: item.key, title: item.title, year: item.year, type: item.type,
-        source: 'mediux', thumb: item.thumb, setId: s.id, uploader: s.uploader,
-        posterUrls: allAppliedUrls, appliedAt: new Date().toISOString(),
-      })
+    // One atomic write so every touched item keeps its Reset Posters row.
+    if (records.length > 0) {
+      void recordAppliedBatch(records)
+      const appliedUrls = records.flatMap(r => r.posterUrls ?? [])
       setAppliedIdx(prev => ({
         setIds: new Set(prev.setIds).add(s.id),
-        titles: new Set(prev.titles).add(appliedKey(item.title, item.year)),
-        posterUrls: new Set([...prev.posterUrls, ...allAppliedUrls]),
-        currentByItem: new Map(prev.currentByItem).set(item.key, s.id),
-        currentPosterUrls: new Set([...prev.currentPosterUrls, ...allAppliedUrls]),
+        titles: new Set([...prev.titles, ...records.map(r => appliedKey(r.title, r.year))]),
+        posterUrls: new Set([...prev.posterUrls, ...appliedUrls]),
+        currentByItem: records.reduce((map, r) => map.set(r.itemKey, s.id), new Map(prev.currentByItem)),
+        currentPosterUrls: new Set([...prev.currentPosterUrls, ...appliedUrls]),
       }))
-      const main = mainPosters.find(p => p.season == null && p.episode == null)
-      if (main) onItemPoster(item.key, main.thumbUrl ?? main.url)
     }
     setApplyMap(m => ({
       ...m,
@@ -653,6 +839,13 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
               : itemApplied
                 ? <span className={styles.scheduledBadge}><Library size={11} /> Has art</span>
                 : undefined
+          // Distinct movies this set spans, and how many are actually in the
+          // library. The toggle only matters when more than the viewed item is
+          // present, and the label reflects what "apply all" will really touch.
+          const memberIds = [...new Set(s.posters.filter(p => p.isCollectionMember).map(p => p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`))]
+          const collectionTotal = memberIds.length
+          const collectionInLib = memberIds.filter(k => memberInLib.get(k)).length
+          const hasCollectionArt = s.posters.some(p => p.isCollection)
           return (
             <SetCard
               key={s.id}
@@ -662,6 +855,18 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
               enabledTypes={types}
               followed={subSet.has(s.uploader.toLowerCase())}
               badge={badge}
+              onSchedule={() => scheduleSet(s)}
+              scheduled={scheduledSetIds.has(s.id)}
+              scheduling={schedulingId === s.id}
+              collectionMovies={collectionInLib}
+              collectionTotal={collectionTotal}
+              hasCollectionArt={hasCollectionArt}
+              wholeCollection={collectionScope[s.id] ?? false}
+              onToggleScope={() => {
+                setCollectionScope(m => ({ ...m, [s.id]: !(m[s.id] ?? false) }))
+                // Changing scope invalidates the prior "Applied N" - let them re-apply.
+                setApplyMap(m => { const next = { ...m }; delete next[s.id]; return next })
+              }}
             />
           )
         })}
@@ -693,7 +898,7 @@ function ThumbButton({ url, label, episode, onClick }: { url: string; label: str
 }
 
 /** Expandable card for one MediUX set: preview, uploader, counts, apply state, and grouped posters. */
-function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, followed, selectable, checked, onToggleSelect }: {
+function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, followed, selectable, checked, onToggleSelect, onSchedule, scheduled, scheduling, collectionMovies, collectionTotal, hasCollectionArt, wholeCollection, onToggleScope }: {
   set: MediuxSetSummary
   apply?: ApplyState
   onApply: () => void
@@ -710,6 +915,22 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
   selectable?: boolean
   checked?: boolean
   onToggleSelect?: () => void
+  /** Creates a weekly sync job for this set (library view). */
+  onSchedule?: () => void
+  /** This set already has a scheduled job. */
+  scheduled?: boolean
+  /** A schedule request for this set is in flight. */
+  scheduling?: boolean
+  /** How many of this collection set's movies are in the library (the spread target count). */
+  collectionMovies?: number
+  /** Total movies the collection set spans, including any not in the library. */
+  collectionTotal?: number
+  /** Set includes a collection-level poster (applied to the Plex Collection object). */
+  hasCollectionArt?: boolean
+  /** Whether Apply spreads across the whole collection (vs. the viewed item only). */
+  wholeCollection?: boolean
+  /** Toggles the whole-collection / this-item-only apply scope. */
+  onToggleScope?: () => void
 }) {
   const [err, setErr]               = useState(false)
   const [previewLoaded, setPreviewLoaded] = useState(false)
@@ -796,9 +1017,30 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
                 <button className={styles.retry} onClick={onApply}>Retry</button>
               </span>
             )}
+            {onSchedule && !disabled && (
+              scheduled
+                ? <span className={styles.scheduledTag} title="A weekly sync is scheduled for this set"><CalendarClock size={12} /> Scheduled weekly</span>
+                : <button className={styles.scheduleBtn} onClick={onSchedule} disabled={scheduling} title="Sync this set automatically every week">
+                    {scheduling ? <Loader2 size={12} className={styles.spin} /> : <CalendarClock size={12} />} Schedule
+                  </button>
+            )}
           </div>
         </div>
       </div>
+
+      {!!collectionMovies && collectionMovies > 1 && onToggleScope && (() => {
+        const moviesPart = collectionTotal && collectionTotal > collectionMovies
+          ? `${collectionMovies} of ${collectionTotal} movies`
+          : `all ${collectionMovies} movies`
+        const label = hasCollectionArt
+          ? `Apply to ${moviesPart} + the collection poster`
+          : `Apply to ${moviesPart} in collection`
+        return (
+          <div className={styles.scopeToggle} title="This set covers a whole collection. Apply its art to every movie you have (and the collection's own poster), or just the one you're viewing.">
+            <Checkbox checked={!!wholeCollection} onChange={onToggleScope} label={label} />
+          </div>
+        )
+      })()}
 
       <button className={`${styles.setExpandBar} ${open ? styles.setExpandBarOpen : ''}`} onClick={() => setOpen(v => !v)}>
         {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -999,18 +1241,21 @@ function CreatorsView({ initialCreator }: { initialCreator: string | null }) {
         </div>
 
         <div className={styles.addCreator}>
-          <UserPlus size={14} className={styles.addIcon} />
-          <input
-            className={styles.addInput}
-            placeholder="username or profile URL"
-            value={adding}
-            onChange={e => setAdding(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') addCreator() }}
-            spellCheck={false}
-          />
-          <button className={styles.addBtn} onClick={addCreator} disabled={!adding.trim()} title="Follow">
-            <Plus size={14} />
-          </button>
+          <span className={styles.addLabel}>Follow a creator</span>
+          <div className={styles.addField}>
+            <UserPlus size={14} className={styles.addIcon} />
+            <input
+              className={styles.addInput}
+              placeholder="username or mediux.pro/user/…"
+              value={adding}
+              onChange={e => setAdding(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') addCreator() }}
+              spellCheck={false}
+            />
+            <button className={styles.addBtn} onClick={addCreator} disabled={!adding.trim()} title="Follow">
+              <Plus size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1547,7 +1792,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         {!loading && !loadingMore && !error && sets.length > 0 && tab === 'sets' && (
           setsFiltered.length
             ? setsFiltered.map(renderSetCard)
-            : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found — try a different title.') : 'No sets loaded yet.'}</p></div>
+            : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found, try a different title.') : 'No sets loaded yet.'}</p></div>
         )}
 
         {/* Posters / Backdrops / Title Cards tabs: individual files */}
@@ -1572,7 +1817,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
                 )
               })}
             </div>
-          ) : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found — try a different title.') : tab === 'titlecards' ? 'No title cards loaded yet.' : `No ${tab} loaded yet.`}</p></div>
+          ) : <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found, try a different title.') : tab === 'titlecards' ? 'No title cards loaded yet.' : `No ${tab} loaded yet.`}</p></div>
         )}
 
         {/* Cap note (shown once the catalog has settled) */}

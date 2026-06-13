@@ -105,9 +105,9 @@
   --duration-slow:  400ms;
 
   /* Layout */
-  --sidebar-collapsed-width: 60px;
-  --sidebar-expanded-width:  220px;
   --titlebar-height:         38px;
   --statusbar-height:        28px;
   --content-padding:         var(--space-6);
+  /* Bottom breathing room inside scrollers so content clears the floating dock. */
+  --dock-clearance:          84px;
 }
