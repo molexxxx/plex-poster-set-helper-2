@@ -4,6 +4,14 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.1.1
+
+### Scheduled jobs now show poster previews in Reset Posters
+Posters applied by a scheduled job were landing in the Reset Posters list with a blank placeholder instead of a thumbnail. Scheduled runs now record the poster preview (and the exact applied image URLs) just like a manual apply, so those items show their artwork and light up the "in library" markers. Items applied by earlier scheduled runs stay blank until the job runs again.
+
+### Reset All keeps its progress when you leave the page
+Starting a **Reset All** and navigating away no longer loses track of what's resetting. The reset now runs above the page, so leaving and coming back shows the live "Resetting… N/M" progress and each item's status, matching what the log already reported. Single resets survive navigation too.
+
 ## What's new in v2.1.0
 
 ### Reset Posters: free up space on your Plex server

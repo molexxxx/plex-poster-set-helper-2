@@ -270,7 +270,7 @@ export const SchedulerService = {
     try {
       let uploaded = 0
       let errors = 0
-      const appliedItems = new Map<string, { key: string; title: string; year?: number; type: 'movie' | 'show'; libraryTitle: string; source: 'mediux' | 'posterdb' }>()
+      const appliedItems = new Map<string, { key: string; title: string; year?: number; type: 'movie' | 'show'; libraryTitle: string; source: 'mediux' | 'posterdb'; thumb?: string; thumbIsMain: boolean; posterUrls: string[] }>()
 
       for (const url of job.urls) {
         try {
@@ -293,11 +293,27 @@ export const SchedulerService = {
               })
               if (res.success) {
                 uploaded++
-                appliedItems.set(item.key, {
-                  key: item.key, title: item.title, year: item.year,
-                  type: item.type === 'movie' ? 'movie' : 'show',
-                  libraryTitle: item.libraryTitle, source: poster.source,
-                })
+                // Mirror the manual paths: record a preview thumb + the exact
+                // poster URLs so Reset Posters shows an image and the "in
+                // library" markers light up. Prefer the main poster's thumb
+                // over a season/episode card for the row preview.
+                const isMain = poster.season == null && poster.episode == null
+                const thumb  = poster.thumbUrl ?? poster.url
+                const existing = appliedItems.get(item.key)
+                if (existing) {
+                  existing.posterUrls.push(poster.url)
+                  if ((isMain && !existing.thumbIsMain) || !existing.thumb) {
+                    existing.thumb = thumb
+                    existing.thumbIsMain = existing.thumbIsMain || isMain
+                  }
+                } else {
+                  appliedItems.set(item.key, {
+                    key: item.key, title: item.title, year: item.year,
+                    type: item.type === 'movie' ? 'movie' : 'show',
+                    libraryTitle: item.libraryTitle, source: poster.source,
+                    thumb, thumbIsMain: isMain, posterUrls: [poster.url],
+                  })
+                }
               }
             } catch { errors++ }
           }
@@ -313,7 +329,8 @@ export const SchedulerService = {
         const now = new Date().toISOString()
         const fresh = [...appliedItems.values()].map(i => ({
           itemKey: i.key, title: i.title, year: i.year, type: i.type,
-          source: i.source, libraryTitle: i.libraryTitle, appliedAt: now,
+          source: i.source, libraryTitle: i.libraryTitle,
+          thumb: i.thumb, posterUrls: i.posterUrls, appliedAt: now,
         }))
         const keys = new Set(fresh.map(f => f.itemKey))
         ConfigService.set({ appliedPosters: [...fresh, ...existing.filter(r => !keys.has(r.itemKey))].slice(0, 2000) })

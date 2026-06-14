@@ -13,6 +13,7 @@ import Modal from '../../components/ui/Modal'
 import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
 import { useAppContext } from '../../app/AppContext'
+import { useReset, type ResetItemStatus } from './ResetContext'
 import type { AppliedRecord } from '../../../electron/ipc/types'
 import styles from './ResetPage.module.css'
 
@@ -47,13 +48,11 @@ function timeAgo(iso?: string): string {
 
 type SourceFilter = 'all' | 'mediux' | 'posterdb'
 type TypeFilter   = 'all' | 'movie' | 'show'
-type ItemStatus   = 'idle' | 'resetting' | 'done' | 'error'
 type CleanState   = 'idle' | 'cleaning' | 'done' | 'error'
 
 interface TrackedItem extends AppliedRecord {
   /** itemKey alias for existing markup. */
   key: string
-  resetStatus: ItemStatus
 }
 
 interface Stats {
@@ -121,58 +120,39 @@ function SkeletonRows() {
 /** Reset Posters page: lists locally tracked applied art and restores Plex originals. */
 export default function ResetPage() {
   const { plexConnected } = useAppContext()
+  // The run loop lives in ResetProvider so it survives navigating away mid-run.
+  const { running, total, completed, statuses, revision, startAll, resetOne } = useReset()
   const [items, setItems]           = useState<TrackedItem[]>([])
   const [loading, setLoading]       = useState(false)
   const [sourceFilter, setSource]   = useState<SourceFilter>('all')
   const [typeFilter, setType]       = useState<TypeFilter>('all')
   const [search, setSearch]         = useState('')
   const [confirmAll, setConfirmAll] = useState(false)
-  const [resettingAll, setResettingAll] = useState(false)
   const [lightbox, setLightbox]     = useState<number | null>(null)
   const [deleteUploads, setDeleteUploads] = useState(false)
   const [cleanState, setCleanState] = useState<CleanState>('idle')
   const cleanTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true)
     try {
       const cfg = await window.api.config.get()
       const records = cfg.appliedPosters ?? []
       // One row per Plex item (latest record wins)
       const byItem = new Map<string, AppliedRecord>()
       for (const r of records) if (!byItem.has(r.itemKey)) byItem.set(r.itemKey, r)
-      setItems([...byItem.values()].map(r => ({ ...r, key: r.itemKey, resetStatus: 'idle' as const })))
+      setItems([...byItem.values()].map(r => ({ ...r, key: r.itemKey })))
     } finally {
-      setLoading(false)
+      if (!quiet) setLoading(false)
     }
   }, [])
 
   useEffect(() => { load() }, [load])
+  // The controller forgets items from history as they reset; pull the fresh list
+  // so reset rows drop (without flashing the loading skeleton each time).
+  useEffect(() => { if (revision > 0) void load(true) }, [revision, load])
   useEffect(() => () => { if (cleanTimer.current) clearTimeout(cleanTimer.current) }, [])
-
-  /** Removes an item from the local applied history. */
-  async function forgetItem(key: string) {
-    const cfg = await window.api.config.get()
-    const next = (cfg.appliedPosters ?? []).filter(r => r.itemKey !== key)
-    await window.api.config.set({ appliedPosters: next })
-  }
-
-
-  async function resetOne(key: string) {
-    setItems(prev => prev.map(i => i.key === key ? { ...i, resetStatus: 'resetting' } : i))
-    try {
-      await window.api.plex.resetPoster(key, true, deleteUploads)
-      await forgetItem(key)
-      // Flash the "Reset" confirmation, then drop the row so the list stays
-      // truthful without a manual refresh (AnimatePresence handles the exit).
-      setItems(prev => prev.map(i => i.key === key ? { ...i, resetStatus: 'done' } : i))
-      await new Promise(r => setTimeout(r, 480))
-      setItems(prev => prev.filter(i => i.key !== key))
-    } catch {
-      setItems(prev => prev.map(i => i.key === key ? { ...i, resetStatus: 'error' } : i))
-    }
-  }
 
 
   /**
@@ -195,14 +175,11 @@ export default function ResetPage() {
   }
 
 
-  async function resetAll() {
+  function resetAll() {
     setConfirmAll(false)
-    setResettingAll(true)
-    // Snapshot keys up front - resetOne mutates `items` as rows drop out.
-    for (const key of filtered.map(i => i.key)) {
-      await resetOne(key)
-    }
-    setResettingAll(false)
+    // Hand the whole batch to the controller so it keeps running (and stays
+    // visible) even if the user navigates away from this page.
+    startAll(filtered.map(i => i.key), deleteUploads)
   }
 
 
@@ -253,7 +230,7 @@ export default function ResetPage() {
             variant="ghost"
             size="sm"
             icon={loading ? <Spinner size="xs" color="current" /> : <RefreshCw size={13} />}
-            onClick={load}
+            onClick={() => load()}
             disabled={loading}
           >
             Refresh
@@ -264,7 +241,7 @@ export default function ResetPage() {
               size="sm"
               icon={deleteUploads ? <Trash2 size={13} /> : <RotateCcw size={13} />}
               onClick={() => setConfirmAll(true)}
-              disabled={resettingAll}
+              disabled={running}
             >
               Reset All ({filtered.length})
             </Button>
@@ -283,7 +260,7 @@ export default function ResetPage() {
             <Switch
               checked={deleteUploads}
               onChange={setDeleteUploads}
-              disabled={resettingAll}
+              disabled={running}
               label="Delete uploaded images"
               description="On reset, also remove the poster & background files from your Plex server to free space"
             />
@@ -356,9 +333,9 @@ export default function ResetPage() {
               </button>
             ))}
           </div>
-          {resettingAll && (
+          {running && (
             <span className={styles.workingTag}>
-              <Spinner size="xs" /> Resetting…
+              <Spinner size="xs" /> Resetting… {completed}/{total}
             </span>
           )}
         </div>
@@ -380,13 +357,15 @@ export default function ResetPage() {
           />
         ) : (
           <AnimatePresence initial={false}>
-            {filtered.map(item => (
+            {filtered.map(item => {
+              const status = (statuses[item.key] ?? 'idle') as ResetItemStatus | 'idle'
+              return (
               <motion.div
                 key={item.key}
                 className={[
                   styles.itemRow,
                   item.source === 'mediux' ? styles.rowMediux : styles.rowPosterdb,
-                  item.resetStatus === 'done' ? styles.itemDone : '',
+                  status === 'done' ? styles.itemDone : '',
                 ].filter(Boolean).join(' ')}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -432,39 +411,40 @@ export default function ResetPage() {
 
                 {/* action */}
                 <div className={styles.itemAction}>
-                  {item.resetStatus === 'resetting' && (
+                  {status === 'resetting' && (
                     <span className={styles.workingLabel}>
                       <Spinner size="xs" /> {deleteUploads ? 'Deleting…' : 'Resetting…'}
                     </span>
                   )}
-                  {item.resetStatus === 'done' && (
+                  {status === 'done' && (
                     <span className={styles.doneLabel}>
                       <CheckCircle2 size={13} /> {deleteUploads ? 'Cleared' : 'Reset'}
                     </span>
                   )}
-                  {item.resetStatus === 'error' && (
+                  {status === 'error' && (
                     <span className={styles.errorLabel}>
                       <AlertTriangle size={13} /> Failed
                     </span>
                   )}
-                  {(item.resetStatus === 'idle' || item.resetStatus === 'error') && (
+                  {(status === 'idle' || status === 'error') && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className={deleteUploads ? styles.dangerAction : undefined}
                       icon={deleteUploads ? <Trash2 size={12} /> : <RotateCcw size={12} />}
-                      onClick={() => resetOne(item.key)}
-                      disabled={resettingAll}
+                      onClick={() => resetOne(item.key, deleteUploads)}
+                      disabled={running}
                       title={deleteUploads
                         ? 'Reset to original art and delete the uploaded images from Plex'
                         : 'Reset to original Plex art'}
                     >
-                      {item.resetStatus === 'error' ? 'Retry' : 'Reset'}
+                      {status === 'error' ? 'Retry' : 'Reset'}
                     </Button>
                   )}
                 </div>
               </motion.div>
-            ))}
+              )
+            })}
           </AnimatePresence>
         )}
       </div>
