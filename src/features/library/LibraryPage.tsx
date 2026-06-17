@@ -506,6 +506,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
 
+  const [hasTmdbKey, setHasTmdbKey] = useState(false)
   const [uploader, setUploader] = useState<string>('all')
   const [types, setTypes]       = useState<Set<FileType>>(new Set(ALL_TYPES))
   const [applyMap, setApplyMap] = useState<Record<string, ApplyState>>({})
@@ -560,6 +561,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   useEffect(() => {
     window.api.config.get().then(c => {
       if (c.mediuxFilters?.length) setTypes(new Set(c.mediuxFilters as FileType[]))
+      setHasTmdbKey(Boolean(c.tmdbApiKey?.trim()))
     })
   }, [])
 
@@ -567,7 +569,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
     let cancelled = false
     setLoading(true); setError(null); setSets([])
     window.api.library.sets({
-      type: item.type, tmdbId: item.tmdbId, tvdbId: item.tvdbId, imdbId: item.imdbId,
+      type: item.type, tmdbId: item.tmdbId, tvdbId: item.tvdbId, imdbId: item.imdbId, anidbId: item.anidbId,
     }).then((res: BrowseSetsRes) => {
       if (cancelled) return
       if (res.error === 'no_tmdb') setError('no_tmdb')
@@ -811,16 +813,25 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
       <div className={styles.panelBody}>
         {loading && <div className={styles.panelLoading}><Spinner size="sm" /> <span>Finding sets on MediUX…</span></div>}
 
-        {error === 'no_tmdb' && (
-          <div className={styles.panelNotice}>
-            <AlertCircle size={20} />
-            <p><strong>No TMDB match for this item.</strong></p>
-            <p className={styles.noticeSub}>
-              This title uses a {item.tvdbId ? 'TVDB' : item.imdbId ? 'IMDb' : 'non-TMDB'} agent.
-              Add a free TMDB API key in Settings to auto-convert {item.tvdbId || item.imdbId ? 'it' : 'these'} to TMDB.
-            </p>
-          </div>
-        )}
+        {error === 'no_tmdb' && (() => {
+          const agent = item.tvdbId ? 'TVDB' : item.imdbId ? 'IMDb' : item.anidbId ? 'AniDB' : 'non-TMDB'
+          // A key only helps convert tvdb/imdb ids via TMDB; AniDB is mapped
+          // separately, so its failures mean "no known mapping", not "add a key".
+          const keyWouldHelp = !hasTmdbKey && (item.tvdbId || item.imdbId)
+          return (
+            <div className={styles.panelNotice}>
+              <AlertCircle size={20} />
+              <p><strong>No TMDB match for this item.</strong></p>
+              <p className={styles.noticeSub}>
+                {keyWouldHelp ? (
+                  <>This title uses a {agent} agent. Add a free TMDB API key in Settings to auto-convert it to TMDB.</>
+                ) : (
+                  <>This title&apos;s {agent} id has no known TMDB mapping, so MediUX has no sets to show for it.</>
+                )}
+              </p>
+            </div>
+          )
+        })()}
         {error && error !== 'no_tmdb' && (
           <div className={styles.panelNotice}><AlertCircle size={20} /><p>{error}</p></div>
         )}

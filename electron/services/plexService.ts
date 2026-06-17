@@ -1,6 +1,7 @@
 import Fuse from 'fuse.js'
 import { Logger } from './logger'
 import { ConfigService } from './config'
+import { AnimeMappingService } from './animeMappingService'
 import type {
   ConnectReq, ConnectRes, Library,
   FindItemReq, PlexItem, UploadReq, UploadRes,
@@ -73,15 +74,17 @@ async function plexFetch(
 function extractGuids(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   m: any,
-): { tmdbId?: string; tvdbId?: string; imdbId?: string } {
-  const out: { tmdbId?: string; tvdbId?: string; imdbId?: string } = {}
+): { tmdbId?: string; tvdbId?: string; imdbId?: string; anidbId?: string } {
+  const out: { tmdbId?: string; tvdbId?: string; imdbId?: string; anidbId?: string } = {}
 
   const assign = (raw: string) => {
     const s = raw.toLowerCase()
     let mm: RegExpMatchArray | null
     if ((mm = s.match(/tmdb:\/\/(\d+)/)) || (mm = s.match(/themoviedb:\/\/(\d+)/))) out.tmdbId ??= mm[1]
     if ((mm = s.match(/tvdb[:-](\d+)/)) || (mm = s.match(/thetvdb:\/\/(\d+)/)))    out.tvdbId ??= mm[1]
-    if ((mm = s.match(/imdb:\/\/(tt\d+)/)))                                         out.imdbId ??= mm[1]
+    if ((mm = s.match(/imdb:\/\/(tt\d+)/)) || (mm = s.match(/imdb-(tt\d+)/)))       out.imdbId ??= mm[1]
+    // HAMA's primary id for most anime (e.g. com.plexapp.agents.hama://anidb-47).
+    if ((mm = s.match(/anidb[:-](\d+)/)))                                           out.anidbId ??= mm[1]
   }
 
   if (typeof m.guid === 'string') assign(m.guid)
@@ -505,12 +508,24 @@ export const PlexService = {
   async resolveTmdbId(item: LibraryItem): Promise<string | null> {
     if (item.tmdbId) return item.tmdbId
 
+    let { tvdbId, imdbId } = item
+
+    // HAMA anime carry an AniDB id that TMDB's /find can't resolve. Map it via
+    // the Fribb dataset: most entries yield a direct TMDB id (no key needed),
+    // and the rest backfill a tvdb/imdb id for the /find path below.
+    if (item.anidbId) {
+      const mapped = await AnimeMappingService.resolve(item.anidbId)
+      if (mapped?.tmdbId) return mapped.tmdbId
+      tvdbId ??= mapped?.tvdbId
+      imdbId ??= mapped?.imdbId
+    }
+
     const key = ConfigService.get().tmdbApiKey?.trim()
     if (!key) return null
 
-    const external = item.tvdbId
-      ? { source: 'tvdb_id', value: item.tvdbId }
-      : item.imdbId ? { source: 'imdb_id', value: item.imdbId } : null
+    const external = tvdbId
+      ? { source: 'tvdb_id', value: tvdbId }
+      : imdbId ? { source: 'imdb_id', value: imdbId } : null
     if (!external) return null
 
     try {

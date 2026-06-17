@@ -4,6 +4,14 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.1.2
+
+### Anime (HAMA) now matches MediUX automatically
+Anime libraries using the **HAMA** agent tag titles with an AniDB ID, which TMDB can't look up directly. The Library Browser would show "No TMDB match" and tell you to add a TMDB key, even when one was already set, and a key wouldn't have helped anyway. The app now converts AniDB IDs to TMDB automatically using a cached community AniDB→TMDB dataset (downloaded once and refreshed weekly), so HAMA anime resolves and finds its MediUX sets, no TMDB key required. HAMA's IMDb-style IDs are recognized too.
+
+### Clearer "no match" message
+When an item genuinely can't be matched, the notice no longer tells you to add a TMDB key you already have. It now only suggests a key when one would actually help, and otherwise explains that the title's ID has no known TMDB mapping.
+
 ## What's new in v2.1.1
 
 ### Scheduled jobs now show poster previews in Reset Posters

@@ -137,7 +137,7 @@ progress screen shows the download and the app opens when it's done.
 
 1. **Sign in to Plex** - Settings → *Sign in with Plex* → click the link → approve. (No token copy‑paste needed.)
 2. **Connect your server** - auto‑detected after sign‑in. All libraries are included by default. To exclude a specific library from matching and the browser, uncheck it in **Settings → Libraries**.
-3. *(Optional, recommended)* **Add a TMDB API key** - a free [TMDB API key](https://www.themoviedb.org/settings/api) lets the app match your library by ID instead of guessing by title and year, which fixes most matching and title-mapping issues automatically (and is required for non‑TMDB agents such as anime via HAMA). First‑run setup offers a paste/skip step, or add it anytime in **Settings → Library Browser**.
+3. *(Optional, recommended)* **Add a TMDB API key** - a free [TMDB API key](https://www.themoviedb.org/settings/api) lets the app match your library by ID instead of guessing by title and year, which fixes most matching and title-mapping issues automatically (and resolves TVDB/IMDb-agent libraries). Anime under the **HAMA** agent is mapped to TMDB automatically via a community AniDB→TMDB dataset, so it matches even without a key. First‑run setup offers a paste/skip step, or add it anytime in **Settings → Library Browser**.
 
 That's it - head to the **Library Browser** and start applying posters.
 
@@ -194,7 +194,7 @@ More detail (unraid, ports, volumes) in the [Docker guide](docker/README.md#upda
 | **[MediUX](https://mediux.pro)** | Set links (`/sets/123`), **boxsets** (`/boxsets/123` - a whole collection at once), and creator pages (`/user/name`). Full‑quality artwork, including season posters, title cards, and backdrops. |
 | **[ThePosterDB](https://theposterdb.com)** | Set links (`/set/123`), single posters (`/poster/123`), and user uploads (`/user/name`). |
 
-Posters are matched to your library by **TMDB ID** (read from each Plex item), so the right art lands on the right title. For titles Plex stores without a TMDB ID (or under a TVDB/IMDb agent), a free **TMDB API key** in Settings restores ID‑based matching - otherwise the tool falls back to title and year, which can miss renamed or subtitled entries. Everything you apply is tracked locally, so the **Reset** page always knows what's current, what was applied before, and where it came from.
+Posters are matched to your library by **TMDB ID** (read from each Plex item), so the right art lands on the right title. For titles Plex stores without a TMDB ID (or under a TVDB/IMDb agent), a free **TMDB API key** in Settings restores ID‑based matching - otherwise the tool falls back to title and year, which can miss renamed or subtitled entries. Anime under the **HAMA** agent (which tags titles with an AniDB ID) is converted to TMDB automatically using a cached community AniDB→TMDB dataset, no key required. Everything you apply is tracked locally, so the **Reset** page always knows what's current, what was applied before, and where it came from.
 
 ---
 

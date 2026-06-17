@@ -273,6 +273,8 @@ export interface LibraryItem {
   tmdbId?: string
   tvdbId?: string
   imdbId?: string
+  /** HAMA's AniDB id, mapped to TMDB via the Fribb dataset. */
+  anidbId?: string
 }
 
 export interface SectionItemsReq {
@@ -309,6 +311,7 @@ export interface BrowseSetsReq {
   tmdbId?: string
   tvdbId?: string
   imdbId?: string
+  anidbId?: string
 }
 
 /** A set from a creator's page, with library-match info resolved. */

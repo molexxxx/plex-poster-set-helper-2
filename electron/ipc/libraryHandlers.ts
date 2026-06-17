@@ -21,7 +21,7 @@ export function registerLibraryHandlers(ipcMain: IpcMain) {
       // Resolve a TMDB id: direct, or via tvdb/imdb when a TMDB key is configured
       const tmdbId = await PlexService.resolveTmdbId({
         key: '', title: '', type: req.type,
-        tmdbId: req.tmdbId, tvdbId: req.tvdbId, imdbId: req.imdbId,
+        tmdbId: req.tmdbId, tvdbId: req.tvdbId, imdbId: req.imdbId, anidbId: req.anidbId,
       })
       if (!tmdbId) return { sets: [], error: 'no_tmdb' }
 
@@ -78,7 +78,7 @@ export function registerLibraryHandlers(ipcMain: IpcMain) {
       for (const item of items.slice(0, 10)) {
         const tmdbId = await PlexService.resolveTmdbId({
           key: item.key, title: item.title, type: item.type,
-          tmdbId: item.tmdbId, tvdbId: item.tvdbId, imdbId: item.imdbId,
+          tmdbId: item.tmdbId, tvdbId: item.tvdbId, imdbId: item.imdbId, anidbId: item.anidbId,
         })
         if (!tmdbId) continue
         const sets = await ScraperFactory.browseMediux(tmdbId, item.type)
