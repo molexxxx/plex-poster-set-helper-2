@@ -277,7 +277,8 @@ MediUX matches by TMDB id. Adding a free [TMDB API key](https://www.themoviedb.o
 in **Settings → Library Browser** is optional but recommended: it matches your library by ID
 instead of guessing by title and year, which fixes most matching and title-mapping issues
 automatically (and resolves TVDB/IMDb-agent libraries). Anime under the **HAMA** agent is mapped
-to TMDB automatically via a cached community AniDB→TMDB dataset, so it matches even without a key.
+to TMDB automatically via the open-source [Fribb/anime-lists](https://github.com/Fribb/anime-lists)
+AniDB→TMDB dataset (cached locally), so it matches even without a key.
 </details>
 
 <details>
