@@ -35,6 +35,7 @@ const NO_TRAY = process.env.PLEX_HELPER_NO_TRAY === '1'
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let forceQuit = false
+let trayAvailable = false
 
 // Single-instance lock: a second launch (e.g. clicking the shortcut while
 // minimised to tray) brings the existing window forward instead
@@ -79,7 +80,11 @@ const appIconPath = path.join(iconsDir, 'app-256.png')
 
 /** Creates the system tray icon with show/hide and quit actions. */
 function setupTray() {
+  if (!fs.existsSync(trayIconPath)) {
+    throw new Error(`Tray icon not found: ${trayIconPath}`)
+  }
   tray = new Tray(trayIconPath)
+  trayAvailable = true
   tray.setToolTip('Plex Poster Helper')
 
   function buildMenu() {
@@ -157,6 +162,7 @@ function hideToTray() {
  */
 function createWindow() {
   const launchedAtLogin = app.getLoginItemSettings().wasOpenedAtLogin
+  const startHidden = launchedAtLogin && trayAvailable
 
   mainWindow = new BrowserWindow({
     width: 1620,
@@ -192,12 +198,14 @@ function createWindow() {
   }
 
   mainWindow.once('ready-to-show', () => {
-    // Don't pop the window if the user launched us via login items
-    if (!launchedAtLogin) mainWindow?.show()
+    if (!startHidden) showWindow()
   })
 
-  // Auto-reconnect from saved credentials once the renderer is interactive
+  // ready-to-show can fail to fire on some Windows/GPU setups - show once the page loads
   mainWindow.webContents.once('did-finish-load', () => {
+    if (!startHidden && mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      showWindow()
+    }
     PlexService.tryRestoreFromConfig().then(result => {
       if (result.success) {
         mainWindow?.webContents.send('auth:statusChange', {
@@ -212,10 +220,18 @@ function createWindow() {
     }).catch(() => {})
   })
 
+  // Last resort: never leave the user with a headless process and no window
+  setTimeout(() => {
+    if (!startHidden && mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      Logger.warn('App', 'Window still hidden after startup - forcing show')
+      showWindow()
+    }
+  }, 5000)
+
   // Hide to tray instead of closing, unless forceQuit was set or there's no
   // usable tray (container GUI)
   mainWindow.on('close', e => {
-    if (!forceQuit && !NO_TRAY) {
+    if (!forceQuit && trayAvailable && !NO_TRAY) {
       e.preventDefault()
       hideToTray()
     }
@@ -235,7 +251,7 @@ function createWindow() {
   })
   // Title-bar close button behaves the same as clicking X
   ipcMain.on('window:close', () => {
-    if (!forceQuit && !NO_TRAY) {
+    if (!forceQuit && trayAvailable && !NO_TRAY) {
       hideToTray()
     } else {
       mainWindow?.close()
@@ -245,9 +261,8 @@ function createWindow() {
   return mainWindow
 }
 
-/** Initialises logging, scheduler, and the Playwright environment (call after createWindow). */
+/** Initialises scheduler and the Playwright environment (call after createWindow + IPC). */
 async function initServices() {
-  Logger.init(mainWindow)
   PlaywrightService.setupEnv()
   if (mainWindow) {
     SchedulerService.init(mainWindow)
@@ -371,14 +386,25 @@ app.whenReady().then(async () => {
   }
 
   await ConfigService.init()
+
+  // Tray before window so login-at-startup can start hidden only when the tray works
+  if (!NO_TRAY) {
+    try {
+      setupTray()
+    } catch (err) {
+      console.error('System tray unavailable:', err)
+      trayAvailable = false
+    }
+  }
+
   createWindow()
-  if (!NO_TRAY) setupTray()
-  await initServices().catch(err => console.error('initServices failed:', err))
+  Logger.init(mainWindow)
   registerIpcHandlers()
   if (mainWindow) {
     wireSchedulerEvents(mainWindow)
     wireBrowserEvents(mainWindow)
   }
+  await initServices().catch(err => console.error('initServices failed:', err))
   setupAutoUpdater()
 
   // macOS: re-show when clicking the dock icon
