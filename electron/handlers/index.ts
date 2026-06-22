@@ -18,7 +18,7 @@ import type {
   CurrentArtReq,
 } from '../ipc/types'
 
-const REPO = 'SanchoBlaze/plex-poster-set-helper-2'
+const REPO = 'tonywied17/plex-poster-set-helper-2'
 const REPO_URL = `https://github.com/${REPO}`
 
 function emitAuth(status: PlexAuthStatus) {

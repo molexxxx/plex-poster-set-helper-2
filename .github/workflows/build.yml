@@ -1,7 +1,6 @@
 # This workflow builds and releases the app when a new tag is pushed.
 # It runs on both Windows and Linux to produce platform-specific builds, then cleans up unwanted .blockmap assets from the release.
-# It also builds the Docker GUI image and pushes it to Docker Hub under
-# DOCKERHUB_USERNAME/plex-poster-helper-2 (set DOCKERHUB_USERNAME + DOCKERHUB_TOKEN secrets).
+# It also builds the Docker GUI image and pushes it to Docker Hub (tonywied17/plex-poster-helper-2).
 
 # To trigger a release, create a new tag (e.g. `git tag v1.2.3`) and push it to the repository
 # (`git push origin v1.2.3`). The workflow will automatically build the app for both platforms and publish
@@ -56,9 +55,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-  # Build the web UI image and push to Docker Hub (DOCKERHUB_USERNAME/plex-poster-helper-2).
-  # Create the repo on hub.docker.com first, then add DOCKERHUB_USERNAME and
-  # DOCKERHUB_TOKEN (Read & Write) as repository secrets.
+  # Build the web UI image and push it to Docker Hub so the unraid template
+  # (tonywied17/plex-poster-helper-2:latest) picks up new releases automatically.
+  # Needs the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN repo secrets (token from
+  # hub.docker.com -> Account settings -> Personal access tokens, Read & Write).
   docker:
     name: Publish Docker image
     runs-on: ubuntu-latest
@@ -86,8 +86,8 @@ jobs:
           # latest security patches instead of inheriting a stale cached layer.
           pull: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/plex-poster-helper-2:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/plex-poster-helper-2:${{ steps.version.outputs.version }}
+            tonywied17/plex-poster-helper-2:latest
+            tonywied17/plex-poster-helper-2:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -136,3 +136,21 @@ jobs:
             echo "Deleting $asset"
             gh release delete-asset "${{ github.ref_name }}" "$asset" --repo "${{ github.repository }}" --yes
           done
+
+  # Ping the profile repo so the build / release / downloads badges refresh
+  # immediately after a tagged build instead of waiting on its 2-hour cron.
+  # Runs last (even if a build job failed) so the badge reflects reality.
+  notify-badges:
+    name: Refresh profile badges
+    needs: [build, cleanup]
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    steps:
+      - name: Dispatch refresh-badges
+        if: env.GH_TOKEN != ''
+        run: |
+          gh api -X POST repos/tonywied17/tonywied17/dispatches \
+            -f event_type=refresh-badges \
+            -f "client_payload[repo]=${{ github.repository }}"

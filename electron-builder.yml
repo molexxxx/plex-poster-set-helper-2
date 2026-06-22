@@ -55,7 +55,7 @@ linux:
 
 publish:
   provider: github
-  owner: SanchoBlaze
+  owner: tonywied17
   repo: plex-poster-set-helper-2
   releaseType: release
   publishAutoUpdate: true

@@ -39,7 +39,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/SanchoBlaze/plex-poster-set-helper-2.git"
+    "url": "https://github.com/tonywied17/plex-poster-set-helper-2.git"
   },
   "overrides": {
     "form-data": "4.0.6",
