@@ -94,7 +94,7 @@ right from this GUI container, so there's nothing else to set up.
 ## unraid
 
 No build needed - it runs from the prebuilt image
-[`molexxxx/plex-poster-helper-2`](https://hub.docker.com/r/molexxxx/plex-poster-helper-2)
+[`molexxxx/plex-poster-helper-2`](https://hub.docker.com/r/tonywied17/plex-poster-helper-2)
 on Docker Hub.
 
 ### Easiest: Community Applications
