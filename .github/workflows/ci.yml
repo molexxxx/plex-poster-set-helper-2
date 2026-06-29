@@ -60,6 +60,6 @@ jobs:
       - name: Dispatch refresh-badges
         if: env.GH_TOKEN != ''
         run: |
-          gh api -X POST repos/tonywied17/tonywied17/dispatches \
+          gh api -X POST repos/molexxxx/molexxxx/dispatches \
             -f event_type=refresh-badges \
             -f "client_payload[repo]=${{ github.repository }}"

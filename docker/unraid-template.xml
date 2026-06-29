@@ -1,27 +1,28 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>Plex Poster Helper 2</Name>
-  <Repository>tonywied17/plex-poster-helper-2:latest</Repository>
+  <Repository>molexxxx/plex-poster-helper-2:latest</Repository>
   <Registry>https://hub.docker.com/r/tonywied17/plex-poster-helper-2</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/tonywied17/plex-poster-set-helper-2/issues</Support>
-  <Project>https://github.com/tonywied17/plex-poster-set-helper-2</Project>
-  <Overview>Browse your Plex library and apply MediUX / ThePosterDB poster sets - follow creators, schedule weekly syncs, and reset posters. Native web UI in your browser (no VNC).</Overview>
+  <Support>https://github.com/molexxxx/plex-poster-set-helper-2/issues</Support>
+  <Project>https://github.com/molexxxx/plex-poster-set-helper-2</Project>
+  <Overview>Browse your Plex library and apply MediUX / ThePosterDB poster sets - follow creators, schedule weekly syncs, and reset posters. The full desktop GUI, accessible from your browser via KasmVNC.</Overview>
   <Category>MediaApp:Video Tools:Utilities</Category>
-  <WebUI>http://[IP]:[PORT:3939]</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/docker/unraid-template.xml</TemplateURL>
-  <Icon>https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/resources/icon.png</Icon>
+  <WebUI>https://[IP]:[PORT:3001]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/docker/unraid-template.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/resources/icon.png</Icon>
   <ExtraParams>--shm-size=1g</ExtraParams>
   <PostArgs/>
   <DateInstalled/>
   <DonateText/>
   <DonateLink/>
-  <Description>Browse your Plex library and apply MediUX / ThePosterDB poster sets. Full web UI with built-in scheduler.</Description>
+  <Description>Browse your Plex library and apply MediUX / ThePosterDB poster sets. Full GUI in your browser.</Description>
 
-  <Config Name="WebUI" Target="3939" Default="3939" Mode="tcp" Description="Web UI port. Open http://[IP]:3939 in your browser. Sign in with Plex to access the app." Type="Port" Display="always" Required="true" Mask="false">3939</Config>
+  <Config Name="WebUI HTTP" Target="3000" Default="3939" Mode="tcp" Description="Plain HTTP port. Clipboard paste will not work on HTTP - use the HTTPS port instead." Type="Port" Display="always" Required="true" Mask="false">3939</Config>
+  <Config Name="WebUI HTTPS" Target="3001" Default="3940" Mode="tcp" Description="HTTPS port (self-signed cert). Use https://[IP]:3940 in your browser for clipboard paste support. Accept the certificate warning once." Type="Port" Display="always" Required="true" Mask="false">3940</Config>
   <Config Name="Config" Target="/config" Default="/mnt/user/appdata/plex-poster-helper-2" Mode="rw" Description="Config, schedules, applied-poster history, and installed Chromium." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/plex-poster-helper-2</Config>
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID" Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>

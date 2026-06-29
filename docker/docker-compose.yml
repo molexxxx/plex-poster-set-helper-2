@@ -1,11 +1,16 @@
 # Plex Poster Helper - Docker Compose
 #
-#   docker compose -f docker/docker-compose.yml up -d gui
-#   docker compose -f docker/docker-compose.yml up -d --build gui
+#   docker compose -f docker/docker-compose.yml up -d gui        # start the GUI
+#   docker compose -f docker/docker-compose.yml up -d --build gui  # rebuild + start
 #
-# Access: http://<host>:3939
+# Access:
+#   http://  <host>:3939  - plain HTTP (clipboard paste won't work in browser)
+#   https:// <host>:3940  - HTTPS with self-signed cert (enables clipboard paste)
+#
+# For clipboard support use https://host:3940 and accept the cert warning once.
 
 services:
+  # -- Full GUI in your browser -------------------------------------------------
   gui:
     build:
       context: ..
@@ -13,17 +18,20 @@ services:
     image: plex-poster-helper-2
     container_name: plex-poster-helper-2
     ports:
-      - "3939:3939"
+      - "3939:3000"   # KasmVNC HTTP  - change 3939 if the port is taken
+      - "3940:3001"   # KasmVNC HTTPS - use this for clipboard support
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=America/New_York
-      - PORT=3939
     volumes:
       - ./config:/config
-    shm_size: "1gb"
+    shm_size: "1gb"   # Chromium needs a decent /dev/shm
     restart: unless-stopped
 
+  # -- Headless scheduler (no UI) ---------------------------------------------
+  # Shares ./config with the gui service: sign in and build schedules there
+  # first, then start this - it picks everything up automatically.
   headless:
     build:
       context: ..
@@ -32,8 +40,12 @@ services:
     container_name: plex-poster-helper-2-scheduler
     environment:
       - TZ=America/New_York
+      # Optional overrides - NOT needed when sharing ./config with the GUI.
+      # Only set these if you run headless standalone (no GUI container):
+      # - PLEX_BASEURL=http://192.168.1.10:32400
+      # - PLEX_TOKEN=your-plex-token
     volumes:
       - ./config:/config
     shm_size: "1gb"
     restart: unless-stopped
-    profiles: ["headless"]
+    profiles: ["headless"]   # only starts when explicitly selected

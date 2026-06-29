@@ -2,7 +2,7 @@
   "name": "plex-poster-set-helper-2",
   "version": "2.2.1",
   "description": "Download and apply custom poster artwork from ThePosterDB and MediUX to your Plex Media Server",
-  "author": "tonywied17",
+  "author": "molexxxx",
   "license": "MIT",
   "main": "electron/dist/main.js",
   "scripts": {
@@ -39,7 +39,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/tonywied17/plex-poster-set-helper-2.git"
+    "url": "https://github.com/molexxxx/plex-poster-set-helper-2.git"
   },
   "overrides": {
     "form-data": "4.0.6",

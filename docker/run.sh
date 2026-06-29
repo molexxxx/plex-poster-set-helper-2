@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # Plex Poster Helper - one-command Docker launcher (Linux / macOS / unraid).
 #
-#   ./docker/run.sh                    build (if needed) + start the web UI on :3939
-#   ./docker/run.sh headless           start the optional headless scheduler (legacy)
+#   ./docker/run.sh                    build (if needed) + start the GUI on :3939 (HTTP) / :3940 (HTTPS)
+#   ./docker/run.sh headless           start the optional headless scheduler (no window)
 #   ./docker/run.sh both               start the GUI and the scheduler together
 #   ./docker/run.sh --build [target]   force a rebuild first
 #   ./docker/run.sh --stop  [target]   stop & remove container(s); default: both
-#   PORT=8095 ./docker/run.sh          use a different host port
+#   PORT=8095 ./docker/run.sh          use a different host port for the GUI HTTP port (HTTPS = PORT+1)
 #
-# The web GUI includes a built-in scheduler. The headless container is only
-# needed if you want scheduler-only with no UI.
+# The GUI and the headless scheduler mount the same named volume (ppsh-config)
+# at /config, so the scheduler automatically reuses the Plex sign-in and the
+# schedules you set up in the GUI - no tokens or env vars to copy around.
 set -euo pipefail
 
 GUI_NAME=plex-poster-helper-2
@@ -18,8 +19,10 @@ HL_NAME=plex-poster-helper-2-scheduler
 HL_IMAGE=plex-poster-helper-2:headless
 VOLUME=ppsh-config
 PORT="${PORT:-3939}"
+HTTPS_PORT="${HTTPS_PORT:-3940}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-
+# Timezone jobs run in: an explicit TZ wins, else read the host (Linux
+# /etc/timezone or the macOS /etc/localtime symlink), else fall back to UTC.
 detect_tz() {
   if [[ -n "${TZ:-}" ]]; then echo "$TZ"; return; fi
   if [[ -s /etc/timezone ]]; then cat /etc/timezone; return; fi
@@ -49,7 +52,7 @@ fi
 
 if [[ -z "$TARGET" ]]; then TARGET=gui; fi
 
-build_image() {
+build_image() { # <image> <dockerfile>
   if [[ "$BUILD" == 1 || -z "$(docker images -q "$1")" ]]; then
     echo "Building $1 (first build takes a few minutes)…"
     docker build -f "$ROOT/docker/$2" -t "$1" "$ROOT"
@@ -62,18 +65,21 @@ start_gui() {
   build_image "$GUI_IMAGE" Dockerfile
   docker rm -f "$GUI_NAME" >/dev/null 2>&1 || true
   docker run -d --name "$GUI_NAME" \
-    -p "${PORT}:3939" \
-    -e PUID=1000 -e PGID=1000 -e "TZ=$TZONE" -e PORT=3939 \
+    -p "${PORT}:3000" \
+    -p "${HTTPS_PORT}:3001" \
+    -e PUID=1000 -e PGID=1000 -e "TZ=$TZONE" \
     -v "$VOLUME":/config \
     --shm-size=1g \
     --restart unless-stopped \
     "$GUI_IMAGE" >/dev/null
-  echo "✓ Web UI running: http://localhost:${PORT}"
+  echo "✓ GUI running:        http://localhost:${PORT}"
+  echo "  Clipboard support:  https://localhost:${HTTPS_PORT}  (accept the self-signed cert once)"
 }
 
 start_headless() {
   build_image "$HL_IMAGE" Dockerfile.headless
   docker rm -f "$HL_NAME" >/dev/null 2>&1 || true
+  # Optional overrides; not needed when the GUI shares the same config volume.
   local extra=()
   if [[ -n "${PLEX_BASEURL:-}" ]]; then extra+=(-e "PLEX_BASEURL=$PLEX_BASEURL"); fi
   if [[ -n "${PLEX_TOKEN:-}"  ]]; then extra+=(-e "PLEX_TOKEN=$PLEX_TOKEN"); fi
@@ -84,7 +90,7 @@ start_headless() {
     --shm-size=1g \
     --restart unless-stopped \
     "$HL_IMAGE" >/dev/null
-  echo "✓ Headless scheduler: running (legacy - the web UI includes a scheduler)"
+  echo "✓ Headless scheduler: running (shares the GUI's sign-in & schedules)"
 }
 
 case "$TARGET" in
@@ -94,5 +100,10 @@ case "$TARGET" in
 esac
 
 echo ""
-echo "  Logs: docker logs -f $GUI_NAME"
+if [[ "$TARGET" != gui ]]; then
+  echo "  Tip:  sign in to Plex and build schedules in the GUI first -"
+  echo "        the scheduler picks them up automatically from '$VOLUME'."
+fi
+echo "  Logs: docker logs -f $GUI_NAME      (GUI)"
+echo "        docker logs -f $HL_NAME       (headless)"
 echo "  Stop: ./docker/run.sh --stop [gui|headless|both]"

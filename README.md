@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/.github/assets/logo.svg" width="120" alt="Plex Poster Set Helper 2" />
+  <img src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/logo.svg" width="120" alt="Plex Poster Set Helper 2" />
 </p>
 
 <h1 align="center">Plex Poster Set Helper 2</h1>
@@ -9,16 +9,16 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/tonywied17/plex-poster-set-helper-2/actions/workflows/ci.yml"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-2-ci-plex.svg" alt="CI" /></a>&nbsp;
-  <a href="https://github.com/tonywied17/plex-poster-set-helper-2/actions/workflows/build.yml"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-2-build-plex.svg" alt="build" /></a>&nbsp;
-  <a href="https://github.com/tonywied17/plex-poster-set-helper-2/releases/latest"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-2-release-plex.svg" alt="latest release" /></a>&nbsp;
-  <a href="LICENSE"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-2-license-plex.svg" alt="license" /></a>
+  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/actions/workflows/ci.yml"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-ci-plex.svg" alt="CI" /></a>&nbsp;
+  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/actions/workflows/build.yml"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-build-plex.svg" alt="build" /></a>&nbsp;
+  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-release-plex.svg" alt="latest release" /></a>&nbsp;
+  <a href="LICENSE"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-license-plex.svg" alt="license" /></a>
 </p>
 
 <p align="center">
-  <a href="docker/README.md"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-2-docker-plex.svg" alt="docker guide" /></a>&nbsp;
-  <a href="https://github.com/tonywied17/plex-poster-set-helper-2/releases"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-2-downloads-plex.svg" alt="downloads" /></a>&nbsp;
-  <a href="https://github.com/tonywied17/plex-poster-set-helper-2/releases/latest"><img height="28" src="https://raw.githubusercontent.com/tonywied17/tonywied17/main/.github/badges/plex-poster-helper-2-download-plex.svg" alt="download latest" /></a>
+  <a href="docker/README.md"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-docker-plex.svg" alt="docker guide" /></a>&nbsp;
+  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-downloads-plex.svg" alt="downloads" /></a>&nbsp;
+  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-download-plex.svg" alt="download latest" /></a>
 </p>
 
 ---
@@ -28,12 +28,12 @@
 Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and shows already in your Plex library and applies it with a click - posters, season posters, episode title cards, and backdrops, all routed to the right place automatically.
 
 <p align="center">
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/.github/assets/card-library.svg" alt="Library Browser" />
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/.github/assets/card-creators.svg" alt="Creators" />
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/.github/assets/card-manual.svg" alt="Manual Import" />
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/.github/assets/card-scheduler.svg" alt="Scheduler" />
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/.github/assets/card-reset.svg" alt="Reset Posters" />
-  <img width="390" src="https://raw.githubusercontent.com/tonywied17/plex-poster-set-helper-2/main/.github/assets/card-signin.svg" alt="One-click Plex sign-in" />
+  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-library.svg" alt="Library Browser" />
+  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-creators.svg" alt="Creators" />
+  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-manual.svg" alt="Manual Import" />
+  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-scheduler.svg" alt="Scheduler" />
+  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-reset.svg" alt="Reset Posters" />
+  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-signin.svg" alt="One-click Plex sign-in" />
 </p>
 
 > Runs as a desktop app on **Windows** and **Linux**, or in **Docker** (including unraid) for always‑on servers.
@@ -86,7 +86,7 @@ Not sure where to run it? Here's the plain‑English version:
 
 ### Option 1 - Download the app (easiest)
 
-1. Go to the **[Releases page](https://github.com/tonywied17/plex-poster-set-helper-2/releases/latest)**.
+1. Go to the **[Releases page](https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest)**.
 2. Download the installer for your system:
    - **Windows** → the `.exe` installer
    - **Linux** → the `.AppImage` or `.deb`
@@ -100,7 +100,7 @@ Not sure where to run it? Here's the plain‑English version:
 You'll need **[Node.js 22+](https://nodejs.org/)** installed.
 
 ```bash
-git clone https://github.com/tonywied17/plex-poster-set-helper-2.git
+git clone https://github.com/molexxxx/plex-poster-set-helper-2.git
 cd plex-poster-set-helper-2
 npm install
 npm run dev
@@ -156,7 +156,7 @@ The **Scheduler** lets you re‑apply a set on a repeating schedule, which is gr
 
 Your data (Plex sign‑in, schedules, applied‑poster history) survives every update - the desktop app keeps it in your user profile, Docker keeps it in the config volume.
 
-**Desktop app (Windows / Linux):** the app checks GitHub and updates itself with one click - or grab the latest installer from [Releases](https://github.com/tonywied17/plex-poster-set-helper-2/releases/latest).
+**Desktop app (Windows / Linux):** the app checks GitHub and updates itself with one click - or grab the latest installer from [Releases](https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest).
 
 **From source:**
 ```bash
@@ -220,7 +220,7 @@ Issues and pull requests are welcome. Please run `npm run lint` and `npm run typ
 
 ## License
 
-[MIT](LICENSE) © tonywied17
+[MIT](LICENSE) © molexxxx
 
 ## Credits
 

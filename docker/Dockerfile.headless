@@ -27,7 +27,7 @@ COPY . .
 RUN npm run build && npm prune --omit=dev
 
 # Electron is a devDependency (electron-builder requires that) but is run at
-# runtime here — reinstall it after the prune and bake its Linux binary.
+# runtime here - reinstall it after the prune and bake its Linux binary.
 RUN set -eux; \
     npm install --no-save --no-audit --no-fund "electron@$(node -p "require('./package.json').devDependencies.electron")"; \
     EV="$(node -p "require('/build/node_modules/electron/package.json').version")"; \
