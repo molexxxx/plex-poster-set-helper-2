@@ -56,7 +56,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
   # Build the web UI image and push it to Docker Hub so the unraid template
-  # (molexxxx/plex-poster-helper-2:latest) picks up new releases automatically.
+  # (tonywied17/plex-poster-helper-2:latest) picks up new releases automatically.
   # Needs the DOCKERHUB_USERNAME / DOCKERHUB_TOKEN repo secrets (token from
   # hub.docker.com -> Account settings -> Personal access tokens, Read & Write).
   docker:
@@ -86,8 +86,8 @@ jobs:
           # latest security patches instead of inheriting a stale cached layer.
           pull: true
           tags: |
-            molexxxx/plex-poster-helper-2:latest
-            molexxxx/plex-poster-helper-2:${{ steps.version.outputs.version }}
+            tonywied17/plex-poster-helper-2:latest
+            tonywied17/plex-poster-helper-2:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
