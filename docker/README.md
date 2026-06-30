@@ -90,11 +90,18 @@ No build needed - runs from the prebuilt image
 
 ## Updating to a new version
 
-Your settings, schedules, and history live in the config volume.
+Your settings, schedules, and history live in the config volume, so they survive every update.
 
+**Run script:**
 ```bash
 git pull
-./docker/run.sh --build
+./docker/run.sh --build          # Windows: ./docker/run.ps1 -Build
+```
+
+**Docker Compose:**
+```bash
+git pull
+docker compose -f docker/docker-compose.yml up -d --build
 ```
 
 **unraid:** **Docker** tab → container → **Force update**.
@@ -103,11 +110,19 @@ git pull
 
 ## Everyday commands
 
+Run script:
 ```bash
 ./docker/run.sh                           # start (or restart) the web UI
 ./docker/run.sh --stop                    # stop & remove (data stays)
 PORT=8095 ./docker/run.sh               # different host port
 docker logs -f plex-poster-helper-2       # live logs
+```
+
+Docker Compose:
+```bash
+docker compose -f docker/docker-compose.yml up -d        # start (or restart)
+docker compose -f docker/docker-compose.yml down         # stop & remove (data stays)
+docker compose -f docker/docker-compose.yml logs -f      # live logs
 ```
 
 ---
