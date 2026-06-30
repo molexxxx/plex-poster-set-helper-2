@@ -27,9 +27,9 @@ jobs:
         os: [windows-latest, ubuntu-22.04]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -67,7 +67,7 @@ jobs:
     name: Publish Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: docker/setup-buildx-action@v4
 
@@ -105,7 +105,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Print the "## What's new in <tag>" section up to the next "## " heading.
       # h3 (### ) subheadings stay as content; only h2 headings end the section.
