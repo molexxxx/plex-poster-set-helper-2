@@ -47,15 +47,15 @@
     "picomatch": "4.0.4"
   },
   "dependencies": {
-    "@fastify/static": "^9.1.1",
+    "@fastify/static": "^9.1.3",
     "cheerio": "^1.2.0",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.8.9",
-    "fastify": "^5.2.1",
+    "fastify": "^5.9.0",
     "fuse.js": "^7.4.2",
-    "node-cron": "^4.2.1",
+    "node-cron": "^4.5.0",
     "p-limit": "^3.1.0",
-    "playwright": "^1.60.0",
+    "playwright": "^1.61.1",
     "plex-oauth": "^2.2.0",
     "winston": "^3.19.0"
   },
