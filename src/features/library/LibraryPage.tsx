@@ -174,13 +174,20 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
   const [selected, setSelected] = useState<LibraryItem | null>(null)
   const [reloadNonce, setReloadNonce] = useState(0)
   const [manualRefreshing, setManualRefreshing] = useState(false)
+  // Global "include collections" setting; collections live in movie libraries.
+  const [collectionsEnabled, setCollectionsEnabled] = useState(true)
 
   const offsetRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  useEffect(() => {
+    window.api.config.get().then(c => setCollectionsEnabled(c.collectionsEnabled !== false))
+  }, [reloadNonce])
+
   const isCollectionsView = activeKey === COLLECTIONS_TAB_KEY && search.trim().length === 0
   const isGlobalSearch = search.trim().length > 0
   const hasMovieLibrary = sections.some(s => s.type === 'movie')
+  const showCollections = collectionsEnabled && hasMovieLibrary
 
   const loadSections = useCallback(() => {
     return window.api.library.sections().then((s: LibrarySection[]) => {
@@ -288,7 +295,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
               .catch(() => ({ section: s, items: [] as LibraryItem[] }))
           ),
         ),
-        hasMovieLibrary
+        showCollections
           ? window.api.library.collections({ offset: 0, limit: 48, search: q })
               .then(res => res.items)
               .catch(() => [] as LibraryItem[])
@@ -301,7 +308,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
       })
     }, 300)
     return () => { cancelled = true; clearTimeout(t) }
-  }, [search, isGlobalSearch, sections, hasMovieLibrary, reloadNonce])
+  }, [search, isGlobalSearch, sections, showCollections, reloadNonce])
 
   // Infinite scroll, single-tab mode only
   function onScroll() {
@@ -363,7 +370,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
               {s.title}
             </button>
           ))}
-          {hasMovieLibrary && (
+          {showCollections && (
             <button
               className={`${styles.sectionTab} ${!isGlobalSearch && isCollectionsView ? styles.sectionTabActive : ''}`}
               onClick={() => { setSearch(''); setActiveKey(COLLECTIONS_TAB_KEY); setSelected(null) }}

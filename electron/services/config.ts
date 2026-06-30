@@ -28,10 +28,10 @@ const DEFAULTS: AppConfig = {
   scheduledJobs: [],
   tmdbApiKey: '',
   mediuxSubscriptions: [],
-  appliedSetIds: [],
   appliedPosters: [],
   trayNotice: true,
   excludedLibraries: [],
+  collectionsEnabled: true,
 }
 
 /** Web/Docker store tokens in plain JSON; desktop encrypts with OS keychain when available. */

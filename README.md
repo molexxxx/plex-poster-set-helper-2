@@ -49,20 +49,23 @@ Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and 
 <table>
   <tr>
     <td align="center"><a href=".github/assets/gallery/thumbs/1-creators-browser.png"><img src=".github/assets/gallery/thumbs/1-creators-browser.png" width="160" alt="Creators Browser"/><br/><sub>Creators Browser</sub></a></td>
+    <td align="center"><a href=".github/assets/gallery/thumbs/1.05-collection-browser.png"><img src=".github/assets/gallery/thumbs/1.05-collection-browser.png" width="160" alt="Collection Browser"/><br/><sub>Collection Browser</sub></a></td>
     <td align="center"><a href=".github/assets/gallery/thumbs/1.1-search-1.png"><img src=".github/assets/gallery/thumbs/1.1-search-1.png" width="160" alt="Command Palette"/><br/><sub>Command Palette</sub></a></td>
     <td align="center"><a href=".github/assets/gallery/thumbs/1.2-search-2.png"><img src=".github/assets/gallery/thumbs/1.2-search-2.png" width="160" alt="Library Search"/><br/><sub>Library Search</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/2-scheduler-list.png"><img src=".github/assets/gallery/thumbs/2-scheduler-list.png" width="160" alt="Scheduler List"/><br/><sub>Scheduler List</sub></a></td>
   </tr>
   <tr>
+    <td align="center"><a href=".github/assets/gallery/thumbs/2-scheduler-list.png"><img src=".github/assets/gallery/thumbs/2-scheduler-list.png" width="160" alt="Scheduler List"/><br/><sub>Scheduler List</sub></a></td>
     <td align="center"><a href=".github/assets/gallery/thumbs/3-scheduler-edit.png"><img src=".github/assets/gallery/thumbs/3-scheduler-edit.png" width="160" alt="Scheduler Edit"/><br/><sub>Scheduler Editor</sub></a></td>
     <td align="center"><a href=".github/assets/gallery/thumbs/4-title-mappings.png"><img src=".github/assets/gallery/thumbs/4-title-mappings.png" width="160" alt="Title Mappings"/><br/><sub>Title Mappings</sub></a></td>
     <td align="center"><a href=".github/assets/gallery/thumbs/5-manual-scrape-top.png"><img src=".github/assets/gallery/thumbs/5-manual-scrape-top.png" width="160" alt="Manual Scrape Top"/><br/><sub>Manual Scrape</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/6-manual-scrape-titles.png"><img src=".github/assets/gallery/thumbs/6-manual-scrape-titles.png" width="160" alt="Manual Scrape Titles"/><br/><sub>Manual Scrape Titles</sub></a></td>
   </tr>
   <tr>
+    <td align="center"><a href=".github/assets/gallery/thumbs/6-manual-scrape-titles.png"><img src=".github/assets/gallery/thumbs/6-manual-scrape-titles.png" width="160" alt="Manual Scrape Titles"/><br/><sub>Manual Scrape Titles</sub></a></td>
     <td align="center"><a href=".github/assets/gallery/thumbs/7-reset-posters.png"><img src=".github/assets/gallery/thumbs/7-reset-posters.png" width="160" alt="Reset Posters"/><br/><sub>Reset Posters</sub></a></td>
     <td align="center"><a href=".github/assets/gallery/thumbs/8-settings-top.png"><img src=".github/assets/gallery/thumbs/8-settings-top.png" width="160" alt="Settings Top"/><br/><sub>Settings Top</sub></a></td>
     <td align="center"><a href=".github/assets/gallery/thumbs/9-settings-bottom.png"><img src=".github/assets/gallery/thumbs/9-settings-bottom.png" width="160" alt="Settings Bottom"/><br/><sub>Settings Bottom</sub></a></td>
+  </tr>
+  <tr>
     <td align="center"><a href=".github/assets/gallery/thumbs/10-log-drawer.png"><img src=".github/assets/gallery/thumbs/10-log-drawer.png" width="160" alt="Live Log Drawer"/><br/><sub>Live Log Drawer</sub></a></td>
   </tr>
 </table>

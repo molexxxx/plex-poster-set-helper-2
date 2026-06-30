@@ -158,14 +158,14 @@ export interface AppConfig {
   tmdbApiKey?: string
   /** Followed MediUX usernames. */
   mediuxSubscriptions?: string[]
-  /** @deprecated Set ids already applied; superseded by appliedPosters. */
-  appliedSetIds?: string[]
   /** Local history of applied poster sets (source of truth for Reset). */
   appliedPosters?: AppliedRecord[]
   /** Show the "minimized to tray" notification (default true). */
   trayNotice?: boolean
   /** Library titles excluded from all operations (empty = include all). */
   excludedLibraries?: string[]
+  /** Show Plex collections in the Library Browser (default true). */
+  collectionsEnabled?: boolean
 }
 
 /**

@@ -4,6 +4,17 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.2.5
+
+### Show or hide collections
+A new **Collections** toggle under Settings → Libraries lets you hide Plex collections from the Library Browser (the Collections tab and collection results in search), the same way you include or exclude a library. It's on by default.
+
+### Clearer in-app Docker update guide
+The "Update your container" dialog is now organized into tabs by method (unraid, Docker Compose, run script) and opens to the one that best matches your system, showing the run-script command for your OS. The Docker guide documents the Compose update path too.
+
+### Security hardening
+An internal CodeQL pass: least-privilege permissions on the CI and release workflows, linear (non-backtracking) parsing of collection titles, and hostname-based URL matching in the scraper.
+
 ## What's new in v2.2.4
 
 ### Faster collection art in the Library Browser

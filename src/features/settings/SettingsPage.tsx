@@ -4,7 +4,7 @@ import {
   LogIn, LogOut, RefreshCw, ServerCrash, Pencil, X,
   Server, User, Sliders, SlidersHorizontal, Filter, Wrench,
   CheckCircle2, Circle, AppWindow, Globe, Download, RotateCcw, AlertTriangle, Film, Tv, Copy, ExternalLink,
-  Package, FolderOpen, Sparkles, MinusCircle, Trash2, BookOpen,
+  Package, FolderOpen, Sparkles, MinusCircle, Trash2, BookOpen, Layers,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
@@ -397,6 +397,11 @@ export default function SettingsPage() {
     autosave('excludedLibraries', next)
   }
 
+  function toggleCollections() {
+    if (!merged) return
+    autosave('collectionsEnabled', merged.collectionsEnabled === false)
+  }
+
   async function copyPath() {
     if (!browserStatus?.executablePath) return
     try {
@@ -636,7 +641,7 @@ export default function SettingsPage() {
             icon={<SlidersHorizontal size={15} />}
             title="Libraries"
             anchor="libraries"
-            description="All libraries are included by default. Uncheck any library to exclude it from scraping, matching, and the library browser."
+            description="All libraries are included by default. Uncheck any library to exclude it from scraping, matching, and the Library Browser, or turn off Collections to hide them from the browser."
             action={
               <button
                 className={styles.refreshBtn}
@@ -705,6 +710,26 @@ export default function SettingsPage() {
                     })}
                   </>
                 )}
+                {movieLibs.length > 0 && (() => {
+                  const enabled = merged.collectionsEnabled !== false
+                  return (
+                    <>
+                      <span className={`${styles.libGroupLabel} ${styles.libGroupLabelSpaced}`}>Collections</span>
+                      <button className={`${styles.libCard} ${enabled ? styles.libCardOn : styles.libCardOff}`} onClick={toggleCollections}>
+                        <div className={`${styles.libCardIcon} ${styles.libCardIconMovie}`}><Layers size={15} /></div>
+                        <div className={styles.libCardBody}>
+                          <span className={styles.libCardName}>Collections</span>
+                          <span className={styles.libCardMeta}>Browse and apply art to Plex collections in the Library Browser</span>
+                        </div>
+                        <div className={styles.libCardStatus}>
+                          {enabled
+                            ? <CheckCircle2 size={15} className={styles.libCardStatusOn} />
+                            : <MinusCircle  size={15} className={styles.libCardStatusOff} />}
+                        </div>
+                      </button>
+                    </>
+                  )
+                })()}
               </div>
             )}
           </Section>
