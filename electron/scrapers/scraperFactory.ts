@@ -15,8 +15,16 @@ export type ScraperSource = 'posterdb' | 'mediux' | 'unknown'
  * @returns posterdb, mediux, or unknown.
  */
 export function classifyUrl(url: string): ScraperSource {
-  if (url.includes('theposterdb.com')) return 'posterdb'
-  if (url.includes('mediux.pro')) return 'mediux'
+  // Match on the parsed hostname, not a substring: `includes('mediux.pro')`
+  // would also accept evil.com/?mediux.pro or mediux.pro.evil.com.
+  let host: string
+  try {
+    host = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname.toLowerCase()
+  } catch {
+    return 'unknown'
+  }
+  if (host === 'theposterdb.com' || host.endsWith('.theposterdb.com')) return 'posterdb'
+  if (host === 'mediux.pro' || host.endsWith('.mediux.pro')) return 'mediux'
   return 'unknown'
 }
 

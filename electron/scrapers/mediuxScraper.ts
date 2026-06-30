@@ -174,6 +174,21 @@ function setsFromScripts(scriptTexts: string[]): MediuxSet[] {
 }
 
 /**
+ * Lowercases a name and strips a trailing " collection" word in linear time.
+ * Avoids the `/\s+collection$/` form, whose `\s+` backtracks quadratically on a
+ * long whitespace-only input.
+ *
+ * @param s - Collection name to normalise.
+ * @returns The lowercased name without a trailing whitespace + "collection".
+ */
+function normalizeCollectionName(s: string): string {
+  const lower = s.toLowerCase().trim()
+  if (!lower.endsWith('collection')) return lower
+  const head = lower.slice(0, lower.length - 'collection'.length)
+  return /\s$/.test(head) ? head.trimEnd() : lower
+}
+
+/**
  * Extracts the 4-digit year from a date string like "1999-11-19".
  *
  * @param d - Date string, or nothing.
@@ -646,10 +661,10 @@ export class MediuxScraper extends BaseScraper {
     childTmdbIds: string[],
   ): Promise<MediuxSetSummary[]> {
     const allTypes = new Set(['poster', 'backdrop', 'title_card'])
-    const collNorm = collectionTitle.toLowerCase().replace(/\s+collection$/i, '').trim()
+    const collNorm = normalizeCollectionName(collectionTitle)
 
     const matchesTitle = (name: string) => {
-      const n = name.toLowerCase().replace(/\s+collection$/i, '').trim()
+      const n = normalizeCollectionName(name)
       return n === collNorm || n.includes(collNorm) || collNorm.includes(n)
     }
 

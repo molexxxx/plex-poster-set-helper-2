@@ -100,6 +100,20 @@ function thumbUrl(baseUrl: string, token: string, thumbPath: string | undefined,
 }
 
 /**
+ * Strips a trailing " Collection" word from a title in linear time. Avoids the
+ * `/\s+Collection$/` form, whose `\s+` backtracks quadratically on a long
+ * whitespace-only input (a ReDoS sink for the API-supplied collection title).
+ *
+ * @param s - Title to normalise (assumed already trimmed).
+ * @returns The title without a trailing whitespace + "Collection" suffix.
+ */
+function stripCollectionSuffix(s: string): string {
+  if (!s.toLowerCase().endsWith('collection')) return s
+  const head = s.slice(0, s.length - 'collection'.length)
+  return /\s$/.test(head) ? head.trimEnd() : s
+}
+
+/**
  * Maps raw Plex metadata into a PlexItem.
  *
  * @param m - Raw Plex metadata node.
@@ -406,7 +420,7 @@ export const PlexService = {
 
     // Some users rename Plex collections without the trailing "Collection" word
     // (e.g. "Toy Story" instead of "Toy Story Collection")
-    const altTitle = title.replace(/\s+Collection$/i, '').trim()
+    const altTitle = stripCollectionSuffix(title)
 
     const candidates: PlexCollection[] = []
     for (const lib of allLibs) {

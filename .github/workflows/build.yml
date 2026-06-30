@@ -17,6 +17,12 @@ on:
     tags:
       - 'v*'
 
+# Least privilege for the default token: every publishing step (electron-builder
+# release, gh release edit/delete, Docker Hub push, badge dispatch) authenticates
+# with its own GH_TOKEN / DOCKERHUB_* secret, so the workflow token only reads.
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build (${{ matrix.os }})

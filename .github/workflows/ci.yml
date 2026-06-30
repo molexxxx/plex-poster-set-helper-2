@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: jobs only read the repo. The badge-refresh step authenticates
+# with its own GH_TOKEN secret, not the default token.
+permissions:
+  contents: read
+
 jobs:
   ci:
     name: Lint, Typecheck & Build
