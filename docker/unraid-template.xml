@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>Plex Poster Helper 2</Name>
-  <Repository>tonywied17/plex-poster-helper-2:latest</Repository>
+  <Repository>ghcr.io/molexxxx/plex-poster-helper-2:latest</Repository>
   <Registry>https://hub.docker.com/r/tonywied17/plex-poster-helper-2</Registry>
   <Network>bridge</Network>
   <MyIP/>
