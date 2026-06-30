@@ -347,7 +347,12 @@ export interface MediuxUserSet extends MediuxSetSummary {
 
 export interface UserSetsReq {
   username: string
-  /** Cumulative page (N = first N*12 sets); default 1. */
+  /**
+   * 1-based page for a single-page fetch. The library:userSets handler now
+   * crawls the creator's whole catalog regardless of this value; it's kept for
+   * single-page callers. MediUX pages are a ~24-set window (+12 new/page), not
+   * cumulative.
+   */
   page?: number
 }
 
@@ -366,6 +371,8 @@ export interface UserSetsRes {
   page: number
   /** A full page came back, so more likely exist. */
   hasMore: boolean
+  /** The crawl stopped at the page cap, so some sets may be missing. */
+  capped?: boolean
   error?: string
 }
 

@@ -738,13 +738,17 @@ export class MediuxScraper extends BaseScraper {
   }
 
   /**
-   * Lists a creator's most-recent sets (for subscriptions) with a parsed
-   * title/year per set so the caller can match them against the Plex library.
-   * matchedKey is filled in later by the library handler.
+   * Lists one page of a creator's sets with a parsed title/year per set so the
+   * caller can match them against the Plex library. matchedKey is filled in
+   * later by the library handler.
+   *
+   * NOTE: MediUX's `?page=N` is NOT cumulative. Each page server-renders a
+   * ~24-set sliding window that advances ~12 new sets per page (page N shares
+   * ~12 sets with page N-1). To collect a creator's full catalog you must walk
+   * every page and dedupe by set id - see browseAllUserSets().
    *
    * @param username - Creator to browse.
-   * @param page - MediUX's cumulative pagination: page N server-renders the
-   *   creator's first N*12 sets, so each higher page is a superset of the prior.
+   * @param page - 1-based page; each page is a 24-set window, +12 new per page.
    * @returns The creator's own sets from that page.
    */
   async browseUserSets(username: string, page = 1): Promise<MediuxUserSet[]> {
@@ -793,6 +797,65 @@ export class MediuxScraper extends BaseScraper {
     })
     Logger.scrape('MediUX', `Creator "${username}": ${out.length} set(s)`)
     return out
+  }
+
+  /**
+   * Walks a creator's entire set catalog by paging through browseUserSets() and
+   * deduping by set id, returning every set the creator owns.
+   *
+   * MediUX serves a ~24-set sliding window per page (+12 new each page), so the
+   * old "fetch page N for the first N*12" shortcut no longer works - a single
+   * page only ever yields ~24 sets. Pages are independent and deterministic, so
+   * each batch of pages is fetched concurrently (mapPool); the crawl stops when
+   * a whole batch contributes no new ids (past the end of the catalog) or the
+   * page cap is hit.
+   *
+   * @param username - Creator to browse.
+   * @param opts.batchSize - Pages fetched concurrently per round (default 8).
+   * @param opts.maxPages - Safety bound on total pages crawled (default 400 ~=
+   *   4800 sets at +12/page).
+   * @returns The deduped sets (newest-first) and whether the page cap stopped it.
+   */
+  async browseAllUserSets(
+    username: string,
+    opts: { batchSize?: number; maxPages?: number } = {},
+  ): Promise<{ sets: MediuxUserSet[]; capped: boolean }> {
+    const batchSize = Math.max(1, opts.batchSize ?? 8)
+    const maxPages  = Math.max(batchSize, opts.maxPages ?? 400)
+
+    const seen = new Set<string>()
+    const all: MediuxUserSet[] = []
+    let reachedEnd = false
+
+    for (let start = 1; start <= maxPages && !this._aborted; start += batchSize) {
+      const pages: number[] = []
+      for (let p = start; p < start + batchSize && p <= maxPages; p++) pages.push(p)
+
+      // Pages are independent, so fetch the whole batch concurrently.
+      const batch = await mapPool(pages, batchSize, p => this.browseUserSets(username, p))
+
+      let added = 0
+      // Merge in page order so the accumulated list stays newest-first.
+      for (const pageSets of batch) {
+        for (const s of pageSets) {
+          if (seen.has(s.id)) continue
+          seen.add(s.id)
+          all.push(s)
+          added++
+        }
+      }
+      Logger.scrape('MediUX', `Creator "${username}": +${added} new (total ${all.length}) through page ${pages[pages.length - 1]}`)
+
+      // A full batch with no new ids means we've gone past the catalog's end.
+      if (added === 0) { reachedEnd = true; break }
+
+      // Be polite to MediUX between concurrent batches.
+      if (start + batchSize <= maxPages && !this._aborted) await sleepConfig('batch')
+    }
+
+    const capped = !reachedEnd && !this._aborted && all.length > 0
+    Logger.scrape('MediUX', `Creator "${username}": ${all.length} total set(s)${capped ? ' (page cap hit)' : ''}`)
+    return { sets: all, capped }
   }
 
   /**

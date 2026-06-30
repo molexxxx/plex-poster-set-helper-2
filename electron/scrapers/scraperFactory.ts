@@ -159,14 +159,26 @@ export const ScraperFactory = {
   },
 
   /**
-   * Lists a MediUX creator's sets.
+   * Lists one page of a MediUX creator's sets (a ~24-set window, +12 new/page).
    *
    * @param username - Creator to browse.
-   * @param page - Cumulative page; page N returns their first N*12 sets.
-   * @returns The creator's sets with parsed title/year per set.
+   * @param page - 1-based page; not cumulative. Use browseMediuxUserAll for the
+   *   full catalog.
+   * @returns That page's sets with parsed title/year per set.
    */
   async browseMediuxUser(username: string, page = 1) {
     return getMediux().browseUserSets(username, page)
+  },
+
+  /**
+   * Lists a MediUX creator's entire set catalog by crawling and deduping all
+   * pages.
+   *
+   * @param username - Creator to browse.
+   * @returns Every set the creator owns and whether the page cap stopped it.
+   */
+  async browseMediuxUserAll(username: string) {
+    return getMediux().browseAllUserSets(username)
   },
 
   /**

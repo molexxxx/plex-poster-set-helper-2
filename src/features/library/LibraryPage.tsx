@@ -1940,10 +1940,11 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
 
   const refresh = useCallback(() => setReloadKey(k => k + 1), [])
 
-  // Auto-load the creator's sets in the background. MediUX server-renders a
-  // cumulative page (N = first N*12) but caps the creator's own sets after a
-  // couple of pages, so keep fetching higher pages until a page adds nothing
-  // new (the cap), then stop. Cancels cleanly when switching creators.
+  // Auto-load the creator's full set catalog in the background. The backend
+  // (library:userSets) crawls every MediUX page and dedupes by set id: MediUX
+  // serves a ~24-set sliding window per page (+12 new each, not cumulative), so
+  // one page is never the whole catalog. A large creator's first load can take a
+  // while; it resolves in a single call. Cancels cleanly when switching creators.
   //
   // Backed by a session cache: a fresh cached entry is served instantly with no
   // network. A manual Refresh (reloadKey > 0) or a stale entry re-fetches; when
@@ -1951,7 +1952,6 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   // background so the list never blanks or visibly re-sorts.
   useEffect(() => {
     let cancelled = false
-    const MAX_PAGES = 12   // safety bound on the cumulative re-fetch
     const cached = creatorSetsCache.get(username)
     const forced = reloadKey > 0
     const fresh  = !!cached && Date.now() - cached.fetchedAt < CREATOR_CACHE_TTL
@@ -1973,37 +1973,27 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     if (hasCache) setRefreshing(true)
 
     ;(async () => {
-      let prev = -1
-      let latest: MediuxUserSet[] = []
-      for (let n = 1; n <= MAX_PAGES && !cancelled; n++) {
-        let res: UserSetsRes
-        try { res = await window.api.library.userSets({ username, page: n }) }
-        catch (e) {
-          if (!cancelled) {
-            if (!hasCache) setError(e instanceof Error ? e.message : String(e))
-            setLoading(false); setLoadingMore(false); setRefreshing(false)
-          }
-          return
-        }
-        if (cancelled) return
-        if (res.error) {
-          if (!hasCache) setError(res.error)
+      let res: UserSetsRes
+      try { res = await window.api.library.userSets({ username }) }
+      catch (e) {
+        if (!cancelled) {
+          if (!hasCache) setError(e instanceof Error ? e.message : String(e))
           setLoading(false); setLoadingMore(false); setRefreshing(false)
-          return
         }
-        latest = res.sets
-        if (!hasCache) { setSets(res.sets); setLoading(false) }  // progressive only when nothing is shown yet
-        if (res.sets.length <= prev) break      // no growth: MediUX cap reached
-        prev = res.sets.length
-        if (!res.hasMore) break                 // no full page: done
-        if (!hasCache) setLoadingMore(true)
+        return
       }
       if (cancelled) return
+      if (res.error) {
+        if (!hasCache) setError(res.error)
+        setLoading(false); setLoadingMore(false); setRefreshing(false)
+        return
+      }
       const now = Date.now()
-      setSets(latest); setCapped(true)
+      const capped = res.capped ?? false
+      setSets(res.sets); setCapped(capped)
       setLoading(false); setLoadingMore(false); setRefreshing(false)
       setLastChecked(now)
-      creatorSetsCache.set(username, { sets: latest, capped: true, fetchedAt: now })
+      creatorSetsCache.set(username, { sets: res.sets, capped, fetchedAt: now })
     })()
     return () => { cancelled = true }
   }, [username, reloadKey])

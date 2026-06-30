@@ -1,6 +1,7 @@
 import type { BrowserWindow } from 'electron'
 import { PlexService } from '../services/plexService'
 import { ScraperFactory } from '../scrapers/scraperFactory'
+import { mapPool } from '../scrapers/baseScraper'
 import { BulkService } from '../services/bulkService'
 import { PlexAuthService } from '../services/plexAuthService'
 import { ConfigService } from '../services/config'
@@ -127,19 +128,21 @@ export const handlers = {
       }
     },
     userSets: async (req: UserSetsReq): Promise<UserSetsRes> => {
-      const page = Math.max(1, req.page ?? 1)
       try {
-        const sets = await ScraperFactory.browseMediuxUser(req.username, page)
-        const resolved = await Promise.all(sets.map(async s => {
+        // MediUX no longer paginates cumulatively, so crawl every page and dedupe
+        // to get the creator's full catalog instead of just the first ~24 sets.
+        const { sets, capped } = await ScraperFactory.browseMediuxUserAll(req.username)
+        // Bound Plex lookups - a large creator can return thousands of sets, and
+        // an unbounded Promise.all would fire that many concurrent Plex queries.
+        const resolved = await mapPool(sets, 8, async s => {
           if (!s.title) return s
           const match = await PlexService.findInLibrary({ title: s.title, year: s.year, libraries: [], type: s.mediaType })
           return match ? { ...s, matchedKey: match.key, matchedType: match.type as 'movie' | 'show' } : s
-        }))
-        const hasMore = resolved.length >= page * 12
-        return { username: req.username, sets: resolved, page, hasMore }
+        })
+        return { username: req.username, sets: resolved, page: 1, hasMore: false, capped }
       } catch (err) {
-        Logger.error('Library', `browseMediuxUser failed: ${err instanceof Error ? err.message : err}`)
-        return { username: req.username, sets: [], page, hasMore: false, error: err instanceof Error ? err.message : String(err) }
+        Logger.error('Library', `browseMediuxUserAll failed: ${err instanceof Error ? err.message : err}`)
+        return { username: req.username, sets: [], page: 1, hasMore: false, error: err instanceof Error ? err.message : String(err) }
       }
     },
     creatorSearch: async (req: CreatorSearchReq): Promise<UserSetsRes> => {
