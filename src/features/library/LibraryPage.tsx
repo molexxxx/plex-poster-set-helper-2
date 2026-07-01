@@ -1119,7 +1119,12 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
       return
     }
 
-    const viewedPosters = scope.movies === 'none'
+    // A plain movie/show set has no collection dimension, so the scope toggle is
+    // never shown for it (see `showScope`); its posters must always apply. Only
+    // suppress the viewed item's own art when the scope control is actually
+    // present and the user set it to "none".
+    const scopeControllable = hasCollectionArt || collectionInLib > 1
+    const viewedPosters = scopeControllable && scope.movies === 'none'
       ? []
       : [...plain, ...members.filter(isThisItem)]
     const siblingMembers = scope.movies === 'all'

@@ -4,6 +4,11 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.2.6
+
+### Apply now works for movies and shows in the Library Browser
+Applying a MediUX set to a movie or show from the Library Browser did nothing - the Apply button was a silent no-op. It now correctly uploads the set's posters, backdrops, and title cards to the selected title. Collections were unaffected and continue to work as before.
+
 ## What's new in v2.2.5
 
 ### Show or hide collections
