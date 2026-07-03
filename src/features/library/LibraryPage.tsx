@@ -250,6 +250,23 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
     if (key && flashCard(key)) scrollTargetRef.current = null
   }, [items, flashCard])
 
+  // When a new item is selected the grid reflows (gridScrollWithPanel adds
+  // padding-right equal to the panel width). Two rAFs let React flush the DOM
+  // and the browser complete layout before we scroll so the measured position
+  // is post-reflow, not the pre-open position.
+  useEffect(() => {
+    if (!selected) return
+    let raf2: number
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        const el = scrollRef.current?.querySelector<HTMLElement>(`[data-item-key="${selected.key}"]`)
+        el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      })
+    })
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.key])
+
   const loadItems = useCallback(async (key: string, q: string, append: boolean) => {
     if (!key || key === COLLECTIONS_TAB_KEY) return
     setLoading(true)
@@ -1083,12 +1100,19 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   async function applySet(s: MediuxSetSummary) {
     const memberIds = [...new Set(s.posters.filter(p => p.isCollectionMember).map(p => p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`))]
     const collectionInLib = memberIds.filter(k => memberInLib.get(k)).length
-    const hasCollectionArt = s.posters.some(p => p.isCollection)
-    const scope = collectionScope[s.id] ?? defaultSetApplyScope(hasCollectionArt, collectionInLib)
 
     const collectionArt = s.posters.filter(p => p.isCollection)
     const members       = s.posters.filter(p => p.isCollectionMember)
     const plain         = s.posters.filter(p => !p.isCollection && !p.isCollectionMember)
+
+    // When browsing from a Plex Collection and the set carries no explicitly-tagged
+    // collection art or per-movie member posters, treat plain (unclassified) posters
+    // as the collection-level art — they have nowhere else to go from this view.
+    const effectiveCollArt = isCollectionItem && collectionArt.length === 0 && members.length === 0
+      ? plain
+      : collectionArt
+    const hasCollectionArt = effectiveCollArt.length > 0
+    const scope = collectionScope[s.id] ?? defaultSetApplyScope(hasCollectionArt, collectionInLib)
 
     if (isCollectionItem) {
       const memberPosters = scope.movies === 'none'
@@ -1096,9 +1120,9 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
         : scope.movies === 'all'
           ? members.filter(p => memberInLib.get(memberKey(p)))
           : members.filter(p => memberInLib.get(memberKey(p)))
-      const applyCollArt = scope.collectionPoster && collectionArt.length > 0
+      const applyCollArt = scope.collectionPoster && effectiveCollArt.length > 0
 
-      const willApply = [...memberPosters, ...(applyCollArt ? collectionArt : [])]
+      const willApply = [...memberPosters, ...(applyCollArt ? effectiveCollArt : [])]
       const enabledTotal = willApply.filter(p => types.has(posterFileType(p))).length
       if (enabledTotal === 0) return
       setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: 0, total: enabledTotal } }))
@@ -1133,10 +1157,10 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
       }
 
       if (applyCollArt) {
-        const collRes = await applyPosters(item.key, collectionArt, types, bump)
+        const collRes = await applyPosters(item.key, effectiveCollArt, types, bump)
         totalDone += collRes.done; totalFailed += collRes.failed
         if (collRes.done > 0) {
-          const thumb = mainThumb(collectionArt) ?? item.thumb
+          const thumb = mainThumb(effectiveCollArt) ?? item.thumb
           records.push({
             itemKey: item.key, title: item.title, type: 'collection',
             source: 'mediux', thumb, setId: s.id, uploader: s.uploader,
@@ -1407,7 +1431,13 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
           const memberIds = [...new Set(s.posters.filter(p => p.isCollectionMember).map(p => p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`))]
           const collectionTotal = memberIds.length
           const collectionInLib = memberIds.filter(k => memberInLib.get(k)).length
+          // Mirror the effectiveCollArt logic in applySet: plain posters act as
+          // collection art when viewing from a Plex Collection and the set has no
+          // explicitly-tagged collection art or per-movie member posters.
           const hasCollectionArt = s.posters.some(p => p.isCollection)
+            || (isCollectionItem
+                && !s.posters.some(p => p.isCollectionMember)
+                && s.posters.some(p => !p.isCollection && !p.isCollectionMember))
           const applyScope = collectionScope[s.id] ?? defaultSetApplyScope(hasCollectionArt, collectionInLib)
           const showScope = hasCollectionArt || collectionInLib > 1
             || (isCollectionItem && memberIds.some(k => memberInLib.get(k)))

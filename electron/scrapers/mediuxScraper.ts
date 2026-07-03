@@ -372,11 +372,16 @@ function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: 
   // and parse "Title (Year)" so every file routes to its movie. A file with a
   // collection_id, or whose name carries no movie year, is the collection's own
   // art and stays matched by collection name.
+  //
+  // Edge case: when NO file in the set carries an explicit movie_id (memberIds is
+  // empty), the title-year heuristic cannot distinguish a collection poster titled
+  // "Tron (1982)" from a movie-member poster. Treat all files as collection art in
+  // that situation rather than silently misrouting the only poster to a movie.
   const parsedFileTitle = set.collection ? parseTitleYear(stripArtTypeSuffix(file.title)) : null
   const isCollectionArt =
     !!set.collection && !set.movie && !set.show &&
     !file.movie_id && !file.show_id &&
-    (!!file.collection_id || parsedFileTitle == null || parsedFileTitle.year == null)
+    (!!file.collection_id || parsedFileTitle == null || parsedFileTitle.year == null || !memberIds?.size)
   const collectionMember = !!set.collection && !isCollectionArt
   const fileParsed = collectionMember ? parsedFileTitle : null
 
