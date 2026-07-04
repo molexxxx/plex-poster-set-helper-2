@@ -547,11 +547,15 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
         )}
       </div>
 
-      {/* Sets panel */}
+      {/* Sets panel. Stable key: the panel mounts once per open/close and
+          swaps content internally as `item` changes, instead of a full
+          remount per item - a remount-per-item used to fight its own
+          slide-in animation whenever the user picked a different item while
+          the panel was already open. */}
       <AnimatePresence>
         {selected && (
           <SetsPanel
-            key={selected.key}
+            key="sets-panel"
             item={selected}
             subs={subs}
             onClose={() => setSelected(null)}
@@ -813,6 +817,20 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   const [panelWidth, setPanelWidth] = useState(PANEL_WIDTH_DEFAULT)
   const panelWidthRef = useRef(PANEL_WIDTH_DEFAULT)
   const [resizing, setResizing] = useState(false)
+  const panelBodyRef = useRef<HTMLDivElement>(null)
+
+  // The panel chrome no longer remounts per item (see the parent's stable
+  // "sets-panel" key), so per-item UI state that used to reset for free via
+  // remount needs an explicit reset here. `sets`/`error`/`loading`/`artSlots`/
+  // etc. already key their own effects off item.key and don't need to be
+  // listed - only genuinely transient UI state does.
+  useEffect(() => {
+    setUploader('all')
+    setApplyMap({})
+    setCollectionScope({})
+    setSchedulingId(null)
+    panelBodyRef.current?.scrollTo({ top: 0 })
+  }, [item.key])
 
   const subSet = useMemo(() => new Set(subs), [subs])
   const isCollectionItem = item.type === 'collection'
@@ -1310,13 +1328,25 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
         <span className={styles.panelResizeGrip} />
       </div>
       <div className={styles.panelHeader}>
-        <div className={styles.panelTitleWrap}>
-          <h2 className={styles.panelTitle}>{item.title}</h2>
-          {isCollectionItem && item.childCount != null && (
-            <span className={styles.panelYear}>{item.childCount} movie{item.childCount !== 1 ? 's' : ''}</span>
-          )}
-          {!isCollectionItem && item.year && <span className={styles.panelYear}>{item.year}</span>}
-        </div>
+        {/* Keyed on item.key: the panel chrome (position, resize handle,
+            width) stays mounted across item switches, only this title
+            crossfades. */}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={item.key}
+            className={styles.panelTitleWrap}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <h2 className={styles.panelTitle}>{item.title}</h2>
+            {isCollectionItem && item.childCount != null && (
+              <span className={styles.panelYear}>{item.childCount} movie{item.childCount !== 1 ? 's' : ''}</span>
+            )}
+            {!isCollectionItem && item.year && <span className={styles.panelYear}>{item.year}</span>}
+          </motion.div>
+        </AnimatePresence>
         <div className={styles.panelHeaderActions}>
           <button
             className={styles.panelRefresh}
@@ -1359,8 +1389,17 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
         </div>
       )}
 
-      {/* Body */}
-      <div className={styles.panelBody}>
+      {/* Body. Scroll position and content fade both key off item.key since
+          this container - like the panel itself - now persists across item
+          switches instead of remounting. */}
+      <div className={styles.panelBody} ref={panelBodyRef}>
+        <motion.div
+          key={item.key}
+          className={styles.panelBodyInner}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.18 }}
+        >
         {loading && <div className={styles.panelLoading}><Spinner size="sm" /> <span>{isCollectionItem ? 'Finding collection sets on MediUX…' : 'Finding sets on MediUX…'}</span></div>}
 
         {error === 'no_movies' && (
@@ -1468,6 +1507,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
             />
           )
         })}
+        </motion.div>
       </div>
     </motion.div>
   )

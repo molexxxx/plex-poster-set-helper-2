@@ -842,6 +842,9 @@
   overflow-y: auto;
   padding: var(--space-3);
   padding-bottom: var(--dock-clearance);
+}
+
+.panelBodyInner {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);

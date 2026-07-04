@@ -4,6 +4,16 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.3.0
+
+### Collection posters apply correctly from the Collections tab
+Browsing a Plex collection and applying a set that only carried a single collection-level poster used to do nothing - the poster was silently dropped and Apply no-oped. Those posters now apply to the collection, the **Apply collection poster** checkbox shows up for them, and its default scope enables it. The MediUX scraper also no longer mistakes a lone collection poster whose title includes a year (like "TRON (1982)") for a per-movie poster when the set has no other movies to route to.
+
+### Smoother Library Browser side panel
+Switching between titles in the Library Browser no longer jerks the panel around. Instead of sliding the old panel out while the new one slides in over it, the panel now stays put and its title and contents crossfade to the newly selected item. Clicking a poster card also keeps that card in view after the panel opens, rather than letting the grid reflow shift it off screen.
+
+Thanks to @SanchoBlaze for the collection-poster fixes.
+
 ## What's new in v2.2.9
 
 ### Settings layout polish
