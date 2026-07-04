@@ -51,6 +51,8 @@ Opening a MediUX creator no longer blocks on a full catalog crawl before showing
 
 Creators are now **cached on disk** between launches: reopening one you've viewed before shows instantly with no loading spinner, and instead of re-scraping the whole catalog the app does a quick incremental check that only fetches genuinely new sets and stops as soon as it reaches ones you already have. Loading also no longer floods the log.
 
+Thanks to @elliswalker for the crawl all creators and pagination work.
+
 ### Sort your library
 The Library Browser grid has a new sort control: order any library (or your collections) by **Recently Added**, **Title**, **Release Year**, or **Last Played**, with a button to flip between ascending and descending. Your choice is remembered.
 
