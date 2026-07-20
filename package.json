@@ -52,7 +52,7 @@
     "electron-store": "^11.0.2",
     "electron-updater": "^6.8.9",
     "fastify": "^5.10.0",
-    "fuse.js": "^7.4.2",
+    "fuse.js": "^7.5.0",
     "node-cron": "^4.6.0",
     "p-limit": "^3.1.0",
     "playwright": "^1.61.1",
