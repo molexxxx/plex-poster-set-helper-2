@@ -47,7 +47,7 @@
     "picomatch": "4.0.4"
   },
   "dependencies": {
-    "@fastify/static": "^10.1.0",
+    "@fastify/static": "^10.1.2",
     "cheerio": "^1.2.0",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.8.9",
