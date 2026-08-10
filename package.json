@@ -85,7 +85,7 @@
     "electron-builder": "^26.15.3",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "framer-motion": "^12.43.0",
+    "framer-motion": "^13.0.0",
     "lucide-react": "^1.28.0",
     "prettier": "^3.9.6",
     "react": "^19.2.8",
