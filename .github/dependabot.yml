@@ -39,6 +39,12 @@ updates:
         update-types:
           - minor
           - patch
+      # Batch advisory-driven bumps so a burst of alerts lands as one PR
+      # instead of one per advisory.
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     # Major bumps stay as individual PRs so they get reviewed on their own.
 
   # GitHub Actions used by the CI and release workflows.
