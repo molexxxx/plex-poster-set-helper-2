@@ -1,112 +1,242 @@
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, AlertCircle, KeyRound, ExternalLink, ArrowRight } from 'lucide-react'
+import { CheckCircle2, AlertCircle, KeyRound, ExternalLink, ArrowRight, Copy, RotateCcw, Globe } from 'lucide-react'
 import Button from '../../components/ui/Button'
+import type { BrowserInstallError, BrowserInstallState, BrowserStatus, SystemBrowser } from '../../../electron/ipc/types'
 import styles from './SetupScreen.module.css'
 
-interface Props {
+interface Props
+{
   onComplete: () => void
 }
 
-type Phase = 'checking' | 'installing' | 'done' | 'tmdb' | 'error'
+type Phase = 'checking' | 'installing' | 'verifying' | 'done' | 'tmdb' | 'error'
 
-/**
- * Extracts the percentage from a progress line like "| 72% of 123.4 MiB".
- *
- * @param line - One line of installer output.
- * @returns The percent value, or null when the line has none.
- */
-function parsePercent(line: string): number | null {
-  const m = line.match(/\|\s*(\d+)%/)
-  return m ? parseInt(m[1]) : null
+const ERROR_TITLES: Record<BrowserInstallError['kind'], string> = {
+  offline: 'No internet connection',
+  network: 'Download interrupted',
+  blocked: 'Download blocked',
+  disk: 'Not enough disk space',
+  permission: 'Folder not writable',
+  antivirus: 'Files were blocked',
+  'missing-deps': 'System libraries missing',
+  launch: 'Chromium could not start',
+  cancelled: 'Setup cancelled',
+  unknown: 'Setup failed',
+}
+
+const STAGE_VERBS: Partial<Record<BrowserInstallState['stage'], string>> = {
+  preparing: 'Preparing',
+  downloading: 'Downloading',
+  extracting: 'Extracting',
+  verifying: 'Verifying',
+  retrying: 'Retrying',
+}
+
+const FALLBACK_ERROR: BrowserInstallError = {
+  kind: 'unknown',
+  message: 'Setup failed',
+  hint: 'Retry, or check the log for details.',
 }
 
 /**
- * Extracts the phase label from a line like "Downloading Chromium 132...".
+ * Headline for the install block: the stage verb plus the item in flight.
  *
- * @param line - One line of installer output.
- * @returns The label (e.g. "Chromium 132..."), or null.
+ * @param state - Latest install state from the main process.
+ * @returns Text such as "Downloading Chromium Headless Shell 141".
  */
-function parsePhaseLabel(line: string): string | null {
-  const m = line.match(/^Downloading\s+(.+?)\s+from\s+/i)
-  return m ? m[1] : null
+function describeStage(state: BrowserInstallState | null): string
+{
+  if (!state) return 'Starting…'
+  const verb = STAGE_VERBS[state.stage] ?? 'Working'
+  if (state.stage === 'retrying') return state.label || 'Retrying…'
+  if (state.stage === 'downloading' && state.label && !state.label.endsWith('…')) return `${verb} ${state.label}`
+  return state.label || `${verb}…`
 }
 
-/** First-run screen that auto-installs Chromium and shows install progress. */
-export default function SetupScreen({ onComplete }: Props) {
-  const [phase,      setPhase]      = useState<Phase>('checking')
-  const [progress,   setProgress]   = useState(0)
-  const [phaseLabel, setPhaseLabel] = useState('Preparing…')
-  const [log,        setLog]        = useState<string[]>([])
-  const [error,      setError]      = useState<string | null>(null)
-  const [tmdbKey,    setTmdbKey]    = useState('')
-  const [savingKey,  setSavingKey]  = useState(false)
+/** First-run gate: verifies the bundled browser or installs one, with recovery paths when that fails. */
+export default function SetupScreen({ onComplete }: Props)
+{
+  const [phase, setPhase] = useState<Phase>('checking')
+  const [install, setInstall] = useState<BrowserInstallState | null>(null)
+  const [error, setError] = useState<BrowserInstallError | null>(null)
+  const [systemBrowsers, setSystemBrowsers] = useState<SystemBrowser[]>([])
+  const [log, setLog] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [tmdbKey, setTmdbKey] = useState('')
+  const [savingKey, setSavingKey] = useState(false)
   const logRef = useRef<HTMLDivElement>(null)
+  const finishedRef = useRef(false)
 
-  function appendLog(line: string) {
-    setLog(prev => [...prev.slice(-120), line])   // keep last 120 lines
-    requestAnimationFrame(() => {
+  const appendLog = useCallback((line: string) =>
+  {
+    setLog(prev => [...prev.slice(-120), line])
+    requestAnimationFrame(() =>
+    {
       if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
     })
-  }
+  }, [])
 
-  useEffect(() => {
-    let progressOff: (() => void) | null = null
+  // After the browser is ready, offer the optional TMDB key step, but only when
+  // a key isn't already configured (returning users skip straight through).
+  const proceedAfterBrowser = useCallback(async (delayMs: number) =>
+  {
+    if (finishedRef.current) return
+    finishedRef.current = true
+    const cfg = await window.api.config.get()
+    const hasKey = (cfg.tmdbApiKey ?? '').trim().length > 0
+    setTimeout(() => (hasKey ? onComplete() : setPhase('tmdb')), delayMs)
+  }, [onComplete])
 
-    // After the browser is ready, offer the optional TMDB key step, but only when
-    // a key isn't already configured (returning users skip straight through).
-    async function proceedAfterBrowser(delayMs: number) {
-      const cfg = await window.api.config.get()
-      const hasKey = (cfg.tmdbApiKey ?? '').trim().length > 0
-      setTimeout(() => (hasKey ? onComplete() : setPhase('tmdb')), delayMs)
+  const succeed = useCallback(() =>
+  {
+    if (finishedRef.current) return
+    setPhase('done')
+    void proceedAfterBrowser(1400)
+  }, [proceedAfterBrowser])
+
+  const fail = useCallback((detail: BrowserInstallError | undefined, status?: BrowserStatus) =>
+  {
+    setError(detail ?? FALLBACK_ERROR)
+    if (status) setSystemBrowsers(status.systemBrowsers)
+    setPhase('error')
+  }, [])
+
+  const runSetup = useCallback(async () =>
+  {
+    setError(null)
+    setPhase('checking')
+    let status: BrowserStatus
+    try
+    {
+      status = await window.api.browser.getStatus()
+    }
+    catch (err)
+    {
+      fail({ ...FALLBACK_ERROR, message: err instanceof Error ? err.message : String(err) })
+      return
+    }
+    setSystemBrowsers(status.systemBrowsers)
+    if (status.installState) setInstall(status.installState)
+
+    if (status.installed && status.verified)
+    {
+      await proceedAfterBrowser(0)
+      return
     }
 
-    async function run() {
-      // Subscribe before the status check so no early output is missed
-      progressOff = window.api.browser.onInstallProgress((line: string) => {
-        appendLog(line)
-        const pct = parsePercent(line)
-        if (pct !== null) setProgress(pct)
-        const label = parsePhaseLabel(line)
-        if (label) { setPhaseLabel(label); setProgress(0) }
-      })
-
-      const status = await window.api.browser.getStatus()
-      if (status.installed) {
-        await proceedAfterBrowser(0)
+    try
+    {
+      if (status.installed)
+      {
+        setPhase('verifying')
+        const result = await window.api.browser.verify()
+        if (result.ok) succeed()
+        else fail(result.error, result.status)
         return
       }
-
       setPhase('installing')
-      setPhaseLabel('Starting download…')
-
-      try {
-        await window.api.browser.install()
-        setProgress(100)
-        setPhase('done')
-        setPhaseLabel('Chromium ready')
-        // Short pause so the user sees the success state, then move on
-        await proceedAfterBrowser(1400)
-      } catch (err) {
-        setPhase('error')
-        setError(err instanceof Error ? err.message : String(err))
-      }
+      const result = await window.api.browser.install()
+      if (result.ok) succeed()
+      else fail(result.error, result.status)
     }
+    catch (err)
+    {
+      fail({ ...FALLBACK_ERROR, message: err instanceof Error ? err.message : String(err) })
+    }
+  }, [fail, proceedAfterBrowser, succeed])
 
-    void run()
-    return () => { progressOff?.() }
-  }, [onComplete])
+  useEffect(() =>
+  {
+    const offProgress = window.api.browser.onInstallProgress(appendLog)
+    const offState = window.api.browser.onInstallState(state =>
+    {
+      setInstall(state)
+      if (state.stage === 'verifying')
+      {
+        setPhase(current => (current === 'checking' || current === 'installing' ? 'verifying' : current))
+      }
+      else if (state.stage === 'preparing' || state.stage === 'downloading' || state.stage === 'extracting' || state.stage === 'retrying')
+      {
+        setPhase(current => (current === 'checking' || current === 'verifying' ? 'installing' : current))
+      }
+    })
+    void runSetup()
+
+    // Safety net: if the request driving this screen is ever lost, a browser
+    // that became ready in the background still moves setup along.
+    const poll = setInterval(async () =>
+    {
+      if (finishedRef.current) return
+      const status = await window.api.browser.getStatus().catch(() => null)
+      if (status?.installed && status.verified && !status.installing) succeed()
+    }, 5000)
+
+    return () =>
+    {
+      offProgress()
+      offState()
+      clearInterval(poll)
+    }
+  }, [appendLog, runSetup, succeed])
+
+  async function pickSystemBrowser(browser: SystemBrowser)
+  {
+    setBusy(true)
+    try
+    {
+      const result = await window.api.browser.useExecutable(browser.path)
+      if (result.ok) succeed()
+      else fail(result.error, result.status)
+    }
+    catch (err)
+    {
+      fail({ ...FALLBACK_ERROR, message: err instanceof Error ? err.message : String(err) })
+    }
+    finally
+    {
+      setBusy(false)
+    }
+  }
+
+  async function copyCommand()
+  {
+    if (!error?.command) return
+    try
+    {
+      await navigator.clipboard.writeText(error.command)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }
+    catch
+    {
+      // clipboard unavailable; the text stays selectable
+    }
+  }
 
   // Saves the pasted key (if any) and dismisses onboarding. Skipping passes an
   // empty key through - matching simply falls back to title and year.
-  async function finishTmdbStep(save: boolean) {
+  async function finishTmdbStep(save: boolean)
+  {
     const key = tmdbKey.trim()
-    if (save && key) {
+    if (save && key)
+    {
       setSavingKey(true)
-      try { await window.api.config.set({ tmdbApiKey: key }) } finally { setSavingKey(false) }
+      try
+      {
+        await window.api.config.set({ tmdbApiKey: key })
+      }
+      finally
+      {
+        setSavingKey(false)
+      }
     }
     onComplete()
   }
+
+  const percent = install?.percent ?? null
+  const showAttempts = (install?.attempt ?? 0) > 1 || install?.stage === 'retrying'
 
   return (
     <motion.div
@@ -140,22 +270,42 @@ export default function SetupScreen({ onComplete }: Props) {
             </motion.div>
           )}
 
+          {phase === 'verifying' && (
+            <motion.div key="verifying" className={styles.status} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className={styles.spinner} />
+              <span>Making sure Chromium starts…</span>
+            </motion.div>
+          )}
+
           {phase === 'installing' && (
             <motion.div key="installing" className={styles.installBlock} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
               <div className={styles.phaseRow}>
                 <div className={styles.spinner} />
-                <span className={styles.phaseLabel}>Downloading {phaseLabel}</span>
+                <span className={styles.phaseLabel}>{describeStage(install)}</span>
               </div>
 
-              {/* Progress bar */}
+              {/* Progress bar: determinate while a file downloads, otherwise a sweeping indicator */}
               <div className={styles.progressTrack}>
-                <motion.div
-                  className={styles.progressFill}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ ease: 'easeOut', duration: 0.3 }}
-                />
+                {percent === null ? (
+                  <div className={`${styles.progressFill} ${styles.progressIndeterminate}`} />
+                ) : (
+                  <motion.div
+                    className={styles.progressFill}
+                    animate={{ width: `${percent}%` }}
+                    transition={{ ease: 'easeOut', duration: 0.3 }}
+                  />
+                )}
               </div>
-              <div className={styles.progressPct}>{progress}%</div>
+              <div className={styles.attemptRow}>
+                <span>{showAttempts && install ? `Attempt ${install.attempt} of ${install.maxAttempts}` : ''}</span>
+                <span>{percent === null ? '' : `${percent}%`}</span>
+              </div>
+
+              {install?.stage === 'retrying' && install.error && (
+                <div className={styles.retryNote}>
+                  {install.error.message}. {install.error.hint}
+                </div>
+              )}
 
               {/* Live log */}
               <div className={styles.logBox} ref={logRef}>
@@ -218,22 +368,55 @@ export default function SetupScreen({ onComplete }: Props) {
             </motion.div>
           )}
 
-          {phase === 'error' && (
+          {phase === 'error' && error && (
             <motion.div key="error" className={styles.errorBlock} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <AlertCircle size={24} className={styles.errorIcon} />
-              <span className={styles.errorTitle}>Setup failed</span>
-              <span className={styles.errorMsg}>{error}</span>
-              <div className={styles.logBox} ref={logRef} style={{ marginTop: 12 }}>
+              <span className={styles.errorTitle}>{ERROR_TITLES[error.kind] ?? 'Setup failed'}</span>
+              <span className={styles.errorMsg}>{error.message}</span>
+              <span className={styles.errorHint}>{error.hint}</span>
+
+              {error.command && (
+                <div className={styles.commandBox}>
+                  <code className={styles.commandText}>{error.command}</code>
+                  <button className={styles.commandCopy} onClick={() => void copyCommand()} title="Copy command" aria-label="Copy command">
+                    {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
+                  </button>
+                </div>
+              )}
+
+              {systemBrowsers.length > 0 && error.kind !== 'cancelled' && (
+                <div className={styles.altRow}>
+                  <span className={styles.altLabel}>Or use a browser already on this machine:</span>
+                  {systemBrowsers.map(browser => (
+                    <Button
+                      key={browser.path}
+                      variant="ghost"
+                      size="sm"
+                      icon={<Globe size={13} />}
+                      onClick={() => void pickSystemBrowser(browser)}
+                      disabled={busy}
+                      title={browser.path}
+                    >
+                      {browser.name}
+                    </Button>
+                  ))}
+                </div>
+              )}
+
+              <div className={styles.logBox} ref={logRef}>
                 {log.slice(-20).map((line, i) => (
                   <div key={i} className={styles.logLine}>{line}</div>
                 ))}
               </div>
-              <Button variant="primary" size="sm" onClick={() => window.location.reload()}>
-                Retry
-              </Button>
-              <Button variant="ghost" size="sm" onClick={onComplete}>
-                Skip (scraping won't work)
-              </Button>
+
+              <div className={styles.errorActions}>
+                <Button variant="primary" size="sm" icon={<RotateCcw size={13} />} onClick={() => void runSetup()} disabled={busy}>
+                  Retry
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onComplete} disabled={busy}>
+                  Continue without a browser
+                </Button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

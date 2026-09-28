@@ -21,6 +21,9 @@ RUN npm install --no-audit --no-fund
 COPY . .
 RUN npm run build:web
 
+# Bundle the Chromium headless shell so the container never downloads it at runtime.
+RUN npm run prepare:browser
+
 RUN npm prune --omit=dev
 
 # ----- Runtime -----------------------------------------------------------------
@@ -41,6 +44,7 @@ ENV PLEX_HELPER_WEB=1 \
     PLEX_HELPER_PROD=1 \
     PLEX_HELPER_DOCKER=1 \
     PLEX_HELPER_CONFIG_DIR=/config/app \
+    PLEX_BROWSER_BUNDLED_DIR=/app/resources/browsers \
     PORT=3939
 
 VOLUME /config

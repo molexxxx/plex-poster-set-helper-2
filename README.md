@@ -129,12 +129,14 @@ Then open `http://localhost:3939` and sign in with Plex.
 
 ## First‑run setup
 
-On first launch the app downloads a Chromium browser (~115 MB) it uses for scraping - a
-progress screen shows the download and the app opens when it's done.
+The app ships with the Chromium headless shell it uses for scraping, so first launch only
+runs a quick check that the browser starts and then opens the app. Nothing is downloaded.
 
-> If the download finishes but the setup screen never moves on, just restart the app -
-> the browser is already on disk and gets picked up immediately. The download is one-time;
-> it never runs again once installed.
+> If that check fails, the setup screen explains why and offers fixes: on Linux it shows the
+> exact package command for any missing system libraries, and on every platform you can pick
+> Google Chrome, Edge, Brave, or Chromium if one is already installed. A managed download
+> remains available from **Settings → Browser Engine**; it retries automatically, detects
+> system proxies, and can be cancelled.
 
 1. **Sign in to Plex** - Settings → *Sign in with Plex* → click the link → approve. (No token copy‑paste needed.)
 2. **Connect your server** - auto‑detected after sign‑in. All libraries are included by default. To exclude a specific library from matching and the browser, uncheck it in **Settings → Libraries**.

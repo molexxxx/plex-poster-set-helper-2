@@ -172,6 +172,10 @@ export interface AppConfig {
   librarySort?: LibrarySort
   /** Library Browser grid sort direction (default 'desc'). */
   librarySortDir?: SortDir
+  /** Chromium executable to use instead of the managed or bundled one. */
+  browserExecutablePath?: string
+  /** Signature of the browser executable that last passed a launch check. */
+  browserVerified?: string
 }
 
 /**
@@ -243,10 +247,75 @@ export interface PlexAuthStatus {
   serverName?: string
 }
 
+export type BrowserSource = 'managed' | 'bundled' | 'system' | 'custom'
+
+export interface SystemBrowser {
+  name: string
+  path: string
+}
+
+export type BrowserInstallErrorKind =
+  | 'offline'
+  | 'network'
+  | 'blocked'
+  | 'disk'
+  | 'permission'
+  | 'antivirus'
+  | 'missing-deps'
+  | 'launch'
+  | 'cancelled'
+  | 'unknown'
+
+export interface BrowserInstallError {
+  kind: BrowserInstallErrorKind
+  message: string
+  /** What the user can do about it. */
+  hint: string
+  /** Shell command that resolves it (missing Linux system libraries). */
+  command?: string
+}
+
+export type BrowserInstallStage =
+  | 'idle'
+  | 'preparing'
+  | 'downloading'
+  | 'extracting'
+  | 'verifying'
+  | 'retrying'
+  | 'done'
+  | 'failed'
+
+export interface BrowserInstallState {
+  stage: BrowserInstallStage
+  attempt: number
+  maxAttempts: number
+  /** Download progress of the current file, 0-100, when known. */
+  percent: number | null
+  label: string
+  /** Seconds until the next attempt while retrying. */
+  retryInSeconds?: number
+  error?: BrowserInstallError
+}
+
 export interface BrowserStatus {
   installed: boolean
   executablePath: string
+  /** Where the active executable comes from; null when nothing is installed. */
+  source: BrowserSource | null
+  /** True once the executable has been launched successfully on this machine. */
+  verified: boolean
   browsersPath: string
+  bundledPath: string | null
+  installing: boolean
+  installState: BrowserInstallState | null
+  /** Browsers found on this machine that can be used without a download. */
+  systemBrowsers: SystemBrowser[]
+}
+
+export interface BrowserActionResult {
+  ok: boolean
+  error?: BrowserInstallError
+  status: BrowserStatus
 }
 
 export interface ScheduledJob {
@@ -504,8 +573,12 @@ export type IpcChannels = {
   'scheduler:engineStatus':{ req: void; res: SchedulerEngineStatus }
   'scheduler:onChange':    { event: ScheduledJob[] }
   'browser:status':          { req: void; res: BrowserStatus }
-  'browser:install':         { req: void; res: void }
+  'browser:install':         { req: { force?: boolean } | undefined; res: BrowserActionResult }
+  'browser:cancelInstall':   { req: void; res: BrowserStatus }
+  'browser:verify':          { req: void; res: BrowserActionResult }
+  'browser:useExecutable':   { req: string | null; res: BrowserActionResult }
   'browser:installProgress': { event: string }
+  'browser:installState':    { event: BrowserInstallState }
   'library:sections':        { req: void; res: LibrarySection[] }
   'library:items':           { req: SectionItemsReq; res: SectionItemsRes }
   'library:collections':     { req: CollectionsReq; res: SectionItemsRes }

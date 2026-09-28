@@ -10,3 +10,4 @@ release
 config
 docker/config
 **/.DS_Store
+resources/browsers

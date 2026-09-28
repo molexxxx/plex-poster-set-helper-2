@@ -304,28 +304,9 @@ async function initServices() {
   PlaywrightService.setupEnv()
   if (mainWindow) {
     SchedulerService.init(mainWindow)
-    PlaywrightService.init(mainWindow)
   }
 
-  void bootstrapBrowser()
-}
-
-/**
- * Installs Chromium if missing. Driven from the main process so it's reliable
- * in containers too; the SetupScreen still shows progress and the install is
- * idempotent.
- */
-async function bootstrapBrowser() {
-  try {
-    const status = await PlaywrightService.getStatus()
-    if (status.installed) return
-    Logger.info('App', 'Chromium not found - installing (first run)…')
-    await PlaywrightService.install()
-    PlaywrightService.setupEnv()
-    Logger.success('App', 'Chromium ready')
-  } catch (err) {
-    Logger.error('App', `Chromium bootstrap failed: ${err instanceof Error ? err.message : err}`)
-  }
+  void PlaywrightService.bootstrap()
 }
 
 /** Wires electron-updater events to the renderer (packaged desktop builds only, never containers). */
@@ -432,6 +413,7 @@ app.on('window-all-closed', () => {
 // Ensure forceQuit is set before close handlers fire (e.g. from app.quit() calls)
 app.on('before-quit', () => {
   forceQuit = true
+  PlaywrightService.shutdown()
 })
 
 app.on('open-url', (_event, url) => {

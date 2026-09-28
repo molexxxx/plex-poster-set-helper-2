@@ -49,19 +49,6 @@ function requireAuth(req: FastifyRequest, reply: FastifyReply): boolean {
   return true
 }
 
-async function bootstrapBrowser() {
-  try {
-    const status = await PlaywrightService.getStatus()
-    if (status.installed) return
-    Logger.info('App', 'Chromium not found - installing (first run)…')
-    await PlaywrightService.install()
-    PlaywrightService.setupEnv()
-    Logger.success('App', 'Chromium ready')
-  } catch (err) {
-    Logger.error('App', `Chromium bootstrap failed: ${err instanceof Error ? err.message : err}`)
-  }
-}
-
 export async function startServer() {
   await ConfigService.init()
   Logger.init(null)
@@ -144,6 +131,7 @@ export async function startServer() {
       appEvents.onEvent('auth:statusChange', d => send('auth:statusChange', d)),
       appEvents.onEvent('scheduler:onChange', d => send('scheduler:onChange', d)),
       appEvents.onEvent('browser:installProgress', d => send('browser:installProgress', d)),
+      appEvents.onEvent('browser:installState', d => send('browser:installState', d)),
       appEvents.onEvent('log:stream', d => send('log:stream', d)),
       appEvents.onEvent('app:updateAvailable', d => send('app:updateAvailable', d)),
       appEvents.onEvent('app:downloadProgress', d => send('app:downloadProgress', d)),
@@ -281,7 +269,10 @@ export async function startServer() {
 
   // Browser
   app.get('/api/browser/status', async () => handlers.browser.getStatus())
-  app.post('/api/browser/install', async () => { await handlers.browser.install(); return { ok: true } })
+  app.post('/api/browser/install', async (req) => handlers.browser.install((req.body ?? {}) as { force?: boolean }))
+  app.post('/api/browser/cancel', async () => handlers.browser.cancelInstall())
+  app.post('/api/browser/verify', async () => handlers.browser.verify())
+  app.post('/api/browser/executable', async (req) => handlers.browser.useExecutable(((req.body ?? {}) as { path?: string | null }).path ?? null))
 
   // Log
   app.get('/api/log/history', async () => handlers.log.getHistory())
@@ -304,7 +295,7 @@ export async function startServer() {
   await app.listen({ port: PORT, host: '0.0.0.0' })
   Logger.success('Server', `Plex Poster Helper web UI at http://0.0.0.0:${PORT}`)
 
-  void bootstrapBrowser()
+  void PlaywrightService.bootstrap()
 
   PlexService.tryRestoreFromConfig().then(result => {
     if (result.success) {

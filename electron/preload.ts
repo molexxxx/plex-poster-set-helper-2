@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk } from './ipc/types'
 
 /** Typed IPC bridge exposed to the renderer as window.api. */
 const api = {
@@ -139,12 +139,21 @@ const api = {
 
   browser: {
     getStatus: (): Promise<BrowserStatus> => ipcRenderer.invoke('browser:status'),
-    install: (): Promise<void> => ipcRenderer.invoke('browser:install'),
+    install: (options?: { force?: boolean }): Promise<BrowserActionResult> => ipcRenderer.invoke('browser:install', options),
+    cancelInstall: (): Promise<BrowserStatus> => ipcRenderer.invoke('browser:cancelInstall'),
+    verify: (): Promise<BrowserActionResult> => ipcRenderer.invoke('browser:verify'),
+    useExecutable: (execPath: string | null): Promise<BrowserActionResult> => ipcRenderer.invoke('browser:useExecutable', execPath),
     onInstallProgress: (cb: (line: string) => void) =>
     {
       const handler = (_: unknown, line: string) => cb(line)
       ipcRenderer.on('browser:installProgress', handler)
       return () => { ipcRenderer.removeListener('browser:installProgress', handler) }
+    },
+    onInstallState: (cb: (state: BrowserInstallState) => void) =>
+    {
+      const handler = (_: unknown, state: BrowserInstallState) => cb(state)
+      ipcRenderer.on('browser:installState', handler)
+      return () => { ipcRenderer.removeListener('browser:installState', handler) }
     },
   },
 

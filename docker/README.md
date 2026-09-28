@@ -132,9 +132,9 @@ docker compose -f docker/docker-compose.yml logs -f      # live logs
 <details>
 <summary><b>What is the data folder / volume?</b></summary>
 
-Everything the app remembers - Plex login, schedules, applied-poster history, and
-downloaded Chromium - lives under `/config` (mapped to a host folder or the `ppsh-config`
-volume). Back it up and you've backed up the app.
+Everything the app remembers - Plex login, schedules, and applied-poster history - lives
+under `/config` (mapped to a host folder or the `ppsh-config` volume). Back it up and
+you've backed up the app.
 </details>
 
 <details>
@@ -146,7 +146,7 @@ volume). Back it up and you've backed up the app.
 <details>
 <summary><b>The page won't load on first start.</b></summary>
 
-Give it ~20 seconds on first boot (Chromium may be downloading). Refresh the page.
+Give it a few seconds on first boot while the app starts. Chromium ships inside the image, so nothing is downloaded. Refresh the page.
 </details>
 
 <details>

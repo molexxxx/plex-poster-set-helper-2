@@ -341,10 +341,10 @@ export const handlers = {
 
   browser: {
     getStatus: () => PlaywrightService.getStatus(),
-    install: async () => {
-      await PlaywrightService.install()
-      PlaywrightService.setupEnv()
-    },
+    install: (options?: { force?: boolean }) => PlaywrightService.install(options ?? {}),
+    cancelInstall: () => PlaywrightService.cancelInstall(),
+    verify: () => PlaywrightService.verify(),
+    useExecutable: (execPath: string | null) => PlaywrightService.useExecutable(execPath),
   },
 
   log: {

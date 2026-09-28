@@ -4,8 +4,15 @@ import {
   LogIn, LogOut, RefreshCw, ServerCrash, Pencil, X,
   Server, User, Sliders, SlidersHorizontal, Filter, Wrench,
   CheckCircle2, Circle, AppWindow, Globe, Download, RotateCcw, AlertTriangle, Film, Tv, Copy, ExternalLink,
-  Package, FolderOpen, Sparkles, MinusCircle, Trash2, BookOpen, Layers,
+  Package, FolderOpen, Sparkles, MinusCircle, Trash2, BookOpen, Layers, ArrowRight,
 } from 'lucide-react'
+
+const SOURCE_LABELS: Record<BrowserSource, string> = {
+  bundled: 'bundled with the app',
+  managed: 'downloaded copy',
+  system: 'system browser',
+  custom: 'custom path',
+}
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import Switch from '../../components/ui/Switch'
@@ -14,7 +21,7 @@ import Checkbox from '../../components/ui/Checkbox'
 import { useUpdater } from '../updater/UpdaterContext'
 import DockerUpdateModal from '../updater/DockerUpdateModal'
 import { useNavStore } from '../../app/navStore'
-import type { AppConfig, Library, PlexAuthStatus, BrowserStatus } from '../../../electron/ipc/types'
+import type { AppConfig, Library, PlexAuthStatus, BrowserStatus, BrowserActionResult, BrowserInstallError, BrowserSource } from '../../../electron/ipc/types'
 import styles from './SettingsPage.module.css'
 
 /**
@@ -238,6 +245,7 @@ export default function SettingsPage() {
   const [browserInstalling, setBrowserInstalling] = useState(false)
   const [installLog,       setInstallLog]       = useState<string[]>([])
   const [copiedPath,       setCopiedPath]       = useState(false)
+  const [customBrowserPath, setCustomBrowserPath] = useState('')
   const installLogRef = useRef<HTMLDivElement>(null)
 
   // cfg is the single source of truth - no draft layer
@@ -417,24 +425,48 @@ export default function SettingsPage() {
     } catch { /* clipboard may be blocked */ }
   }
 
-  async function installBrowser() {
+  function appendInstallLog(line: string) {
+    setInstallLog(prev => [...prev, line])
+    setTimeout(() => {
+      installLogRef.current?.scrollTo({ top: installLogRef.current.scrollHeight, behavior: 'smooth' })
+    }, 30)
+  }
+
+  function reportBrowserError(error: BrowserInstallError | undefined) {
+    if (!error) return
+    appendInstallLog(`✗ ${error.message}. ${error.hint}`)
+    if (error.command) appendInstallLog(`  ${error.command}`)
+  }
+
+  async function runBrowserAction(action: () => Promise<BrowserActionResult>) {
     setBrowserInstalling(true)
     setInstallLog([])
-    const off = window.api.browser.onInstallProgress((line: string) => {
-      setInstallLog(prev => [...prev, line])
-      setTimeout(() => {
-        installLogRef.current?.scrollTo({ top: installLogRef.current.scrollHeight, behavior: 'smooth' })
-      }, 30)
-    })
+    const off = window.api.browser.onInstallProgress(appendInstallLog)
     try {
-      await window.api.browser.install()
+      const result = await action()
+      if (result.ok) appendInstallLog('✓ Browser ready')
+      else reportBrowserError(result.error)
+      setBrowserStatus(result.status)
+    } catch (err) {
+      appendInstallLog(`✗ ${err instanceof Error ? err.message : String(err)}`)
       await loadBrowserStatus()
-    } catch {
-      setInstallLog(prev => [...prev, '✗ Installation failed. Ensure Node.js is on your PATH.'])
     } finally {
       off()
       setBrowserInstalling(false)
     }
+  }
+
+  function installBrowser() {
+    void runBrowserAction(() => window.api.browser.install({ force: browserStatus?.source === 'managed' }))
+  }
+
+  async function cancelBrowserInstall() {
+    const status = await window.api.browser.cancelInstall()
+    setBrowserStatus(status)
+  }
+
+  function applyBrowserExecutable(execPath: string | null) {
+    void runBrowserAction(() => window.api.browser.useExecutable(execPath))
   }
 
   if (!merged) return (
@@ -866,29 +898,61 @@ export default function SettingsPage() {
                     {chromiumBuild(browserStatus.executablePath) && (
                       <span className={styles.engineChip}>build {chromiumBuild(browserStatus.executablePath)}</span>
                     )}
+                    {browserStatus.source && (
+                      <span className={styles.engineChipMuted}>{SOURCE_LABELS[browserStatus.source]}</span>
+                    )}
                     {browserStatus.installed && (
-                      <span className={styles.engineChipMuted}>headless shell</span>
+                      <span className={browserStatus.verified ? styles.engineChip : styles.engineChipMuted}>
+                        {browserStatus.verified ? 'verified' : 'not verified yet'}
+                      </span>
                     )}
                   </div>
                   <p className={styles.engineSub}>
                     {browserStatus.installed
-                      ? 'Bundled and ready — launched headlessly to render and scrape poster pages.'
-                      : 'Not installed yet. Install Chromium to enable scraping. Node.js must be on your system PATH.'}
+                      ? 'Launched headlessly to render and scrape poster pages.'
+                      : 'Not installed yet. Download the Chromium headless shell, or use a browser already on this machine.'}
                   </p>
                   <div className={styles.browserActions}>
-                    <Button
-                      variant={browserStatus.installed ? 'ghost' : 'primary'}
-                      size="sm"
-                      icon={browserInstalling
-                        ? <Spinner size="xs" color="current" />
-                        : browserStatus.installed ? <RotateCcw size={13} /> : <Download size={13} />}
-                      onClick={installBrowser}
-                      disabled={browserInstalling}
-                    >
-                      {browserInstalling
-                        ? 'Installing…'
-                        : browserStatus.installed ? 'Reinstall' : 'Install Chromium'}
-                    </Button>
+                    {(!browserStatus.installed || browserStatus.source === 'managed') && (
+                      <Button
+                        variant={browserStatus.installed ? 'ghost' : 'primary'}
+                        size="sm"
+                        icon={browserInstalling
+                          ? <Spinner size="xs" color="current" />
+                          : browserStatus.installed ? <RotateCcw size={13} /> : <Download size={13} />}
+                        onClick={installBrowser}
+                        disabled={browserInstalling}
+                      >
+                        {browserInstalling
+                          ? 'Installing…'
+                          : browserStatus.installed ? 'Reinstall' : 'Install Chromium'}
+                      </Button>
+                    )}
+                    {browserInstalling && (
+                      <Button variant="ghost" size="sm" onClick={() => void cancelBrowserInstall()}>
+                        Cancel
+                      </Button>
+                    )}
+                    {(browserStatus.source === 'system' || browserStatus.source === 'custom') && (
+                      <Button variant="ghost" size="sm" onClick={() => applyBrowserExecutable(null)} disabled={browserInstalling}>
+                        Use the built-in browser
+                      </Button>
+                    )}
+                    {browserStatus.systemBrowsers
+                      .filter(browser => browser.path !== browserStatus.executablePath)
+                      .map(browser => (
+                        <Button
+                          key={browser.path}
+                          variant="ghost"
+                          size="sm"
+                          icon={<Globe size={13} />}
+                          onClick={() => applyBrowserExecutable(browser.path)}
+                          disabled={browserInstalling}
+                          title={browser.path}
+                        >
+                          Use {browser.name}
+                        </Button>
+                      ))}
                   </div>
                 </div>
               </div>
@@ -914,6 +978,29 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
+
+              <div className={styles.browserPath}>
+                <span className={styles.browserPathLabel}>Custom executable</span>
+                <div className={styles.pathBox}>
+                  <input
+                    className={styles.pathInput}
+                    value={customBrowserPath}
+                    onChange={e => setCustomBrowserPath(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && customBrowserPath.trim()) applyBrowserExecutable(customBrowserPath) }}
+                    placeholder="Path to a Chromium-based browser executable"
+                    spellCheck={false}
+                  />
+                  <button
+                    className={styles.pathCopy}
+                    onClick={() => applyBrowserExecutable(customBrowserPath)}
+                    disabled={browserInstalling || !customBrowserPath.trim()}
+                    title="Use this executable"
+                    aria-label="Use this executable"
+                  >
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+              </div>
 
               <AnimatePresence>
                 {installLog.length > 0 && (

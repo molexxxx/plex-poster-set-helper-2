@@ -1,11 +1,12 @@
 import { EventEmitter } from 'events'
-import type { LogEntry, PlexAuthStatus, ScrapeProgress, ScheduledJob, UpdateInfo, UpdateProgress, UserSetsChunk } from '../ipc/types'
+import type { BrowserInstallState, LogEntry, PlexAuthStatus, ScrapeProgress, ScheduledJob, UpdateInfo, UpdateProgress, UserSetsChunk } from '../ipc/types'
 
 export type AppEventMap = {
   'scrape:progress': ScrapeProgress
   'auth:statusChange': PlexAuthStatus
   'scheduler:onChange': ScheduledJob[]
   'browser:installProgress': string
+  'browser:installState': BrowserInstallState
   'log:stream': LogEntry
   'app:updateAvailable': UpdateInfo
   'app:downloadProgress': UpdateProgress
