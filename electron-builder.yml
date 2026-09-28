@@ -59,9 +59,11 @@ linux:
 
 # The AppImage catalog (appimage.github.io) flags "Linux" in AppImage names as
 # redundant, so the AppImage carries the arch instead; the deb keeps the
-# suffix from the linux block above.
+# suffix from the linux block above. The name is spelled out because
+# electron-builder keeps the product name's spaces for AppImages (only the
+# uploaded asset name is sanitized) and maps ${arch} to x86_64 here.
 appImage:
-  artifactName: "${productName}-${version}-${arch}.${ext}"
+  artifactName: "Plex-Poster-Set-Helper-2-${version}-${arch}.${ext}"
 
 publish:
   provider: github

@@ -24,14 +24,28 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const METAINFO_ID = 'com.molexxxx.plex-poster-set-helper-2'
-const DEFAULT_UPDATE_INFO =
-  'gh-releases-zsync|molexxxx|plex-poster-set-helper-2|latest|Plex-Poster-Set-Helper-2-*-x64.AppImage.zsync'
+const UPDATE_INFO_PREFIX = 'gh-releases-zsync|molexxxx|plex-poster-set-helper-2|latest|'
 const DEFAULT_TOOL_URL =
   'https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage'
 
 function log(message)
 {
   process.stdout.write(`[repack] ${message}\n`)
+}
+
+/** AppImageUpdate spec for this repository's latest release, with the version wildcarded. */
+function defaultUpdateInfo(name, version)
+{
+  const pattern = name.includes(version) ? name.replace(version, '*') : name
+  return `${UPDATE_INFO_PREFIX}${pattern}.zsync`
+}
+
+/** Published AppImage name from latest-linux.yml, which can differ from the local file name. */
+function manifestAppImageName(raw)
+{
+  const urls = [...raw.matchAll(/^\s+- url: (.+\.AppImage)\s*$/gm)].map(match => match[1].trim())
+  if (urls.length !== 1) throw new Error(`Expected one AppImage entry in latest-linux.yml, found ${urls.length}`)
+  return urls[0]
 }
 
 function run(command, args, options = {})
@@ -121,12 +135,18 @@ async function main()
   {
     throw new Error(`Expected exactly one .AppImage in ${distDir}, found ${candidates.length}`)
   }
-  const name = candidates[0]
-  const original = path.join(distDir, name)
   const manifest = path.join(distDir, 'latest-linux.yml')
   if (!fs.existsSync(manifest)) throw new Error(`Missing ${manifest}`)
-  const updateInfo = process.env.APPIMAGE_UPDATE_INFO || DEFAULT_UPDATE_INFO
+  // electron-builder may write the local file under the raw product name while
+  // publishing, and listing in the manifest, a sanitized name. The published
+  // name is the one the .zsync file and the update information must use.
+  const localName = candidates[0]
+  const name = manifestAppImageName(fs.readFileSync(manifest, 'utf8'))
+  const original = path.join(distDir, localName)
+  const published = path.join(distDir, name)
+  const updateInfo = process.env.APPIMAGE_UPDATE_INFO || defaultUpdateInfo(name, pkg.version)
   const toolUrl = process.env.APPIMAGETOOL_URL || DEFAULT_TOOL_URL
+  log(`update information: ${updateInfo}`)
 
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'appimage-repack-'))
   try
@@ -136,7 +156,7 @@ async function main()
     await download(toolUrl, tool)
     fs.chmodSync(tool, 0o755)
 
-    log(`extracting ${name}`)
+    log(`extracting ${localName}`)
     fs.chmodSync(original, 0o755)
     run(original, ['--appimage-extract'], { cwd: work })
     const appDir = path.join(work, 'squashfs-root')
@@ -164,12 +184,13 @@ async function main()
     const embedded = run(output, ['--appimage-updateinformation']).trim()
     if (embedded !== updateInfo) throw new Error(`embedded update information mismatch: "${embedded}"`)
 
-    fs.copyFileSync(output, original)
-    fs.copyFileSync(zsync, `${original}.zsync`)
-    const sha512 = await sha512Base64(original)
-    const size = fs.statSync(original).size
+    fs.copyFileSync(output, published)
+    fs.copyFileSync(zsync, `${published}.zsync`)
+    if (original !== published) fs.unlinkSync(original)
+    const sha512 = await sha512Base64(published)
+    const size = fs.statSync(published).size
     patchManifest(manifest, name, sha512, size)
-    log(`replaced ${name} (${size} bytes) and wrote ${name}.zsync`)
+    log(`wrote ${name} (${size} bytes) and ${name}.zsync`)
   }
   finally
   {
