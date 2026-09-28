@@ -52,6 +52,11 @@ jobs:
       - name: Build main process
         run: npx tsc -p tsconfig.electron.json
 
+      # Fetch the Chromium headless shell into resources/browsers so the
+      # installers ship it and first run needs no download.
+      - name: Fetch Chromium headless shell
+        run: npm run prepare:browser
+
       - name: Package (Windows)
         if: matrix.os == 'windows-latest'
         run: npx electron-builder --win --publish always
@@ -64,6 +69,23 @@ jobs:
         run: npx electron-builder --linux --publish always
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      # Repack the AppImage with appimagetool so it ships the static runtime
+      # (no libfuse2), AppImageUpdate update information with a .zsync file, and
+      # AppStream metainfo, then swap the published assets. This runs after
+      # electron-builder has created the release, so a repack failure leaves the
+      # original AppImage and manifest in place.
+      - name: Repack AppImage
+        if: matrix.os == 'ubuntu-22.04'
+        run: node scripts/repack-appimage.mjs dist-electron
+
+      - name: Replace AppImage release assets
+        if: matrix.os == 'ubuntu-22.04'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" dist-electron/*.AppImage dist-electron/*.AppImage.zsync --repo "${{ github.repository }}" --clobber
+          gh release upload "${{ github.ref_name }}" dist-electron/latest-linux.yml --repo "${{ github.repository }}" --clobber
 
   # Build the web UI image and push it to Docker Hub so the unraid template
   # (tonywied17/plex-poster-helper-2:latest) picks up new releases automatically.

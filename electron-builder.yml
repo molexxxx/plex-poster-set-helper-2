@@ -25,6 +25,10 @@ extraMetadata:
 extraResources:
   - from: resources/icons
     to: icons
+  # Chromium headless shell fetched by scripts/fetch-browser.mjs, so first run
+  # never downloads a browser.
+  - from: resources/browsers
+    to: browsers
 
 # App icon (poster-set mark) - generated from resources/icon.svg.
 win:
@@ -52,6 +56,12 @@ linux:
       arch: [x64]
   category: Utility
   maintainer: molexxxx
+
+# The AppImage catalog (appimage.github.io) flags "Linux" in AppImage names as
+# redundant, so the AppImage carries the arch instead; the deb keeps the
+# suffix from the linux block above.
+appImage:
+  artifactName: "${productName}-${version}-${arch}.${ext}"
 
 publish:
   provider: github
