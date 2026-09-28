@@ -43,6 +43,7 @@
     "url": "https://github.com/molexxxx/plex-poster-set-helper-2.git"
   },
   "dependencies": {
+    "@fastify/rate-limit": "^11.2.0",
     "@fastify/static": "^10.1.5",
     "cheerio": "^1.2.0",
     "electron-store": "^11.0.2",

@@ -19,6 +19,8 @@ import {
   directorySize,
   findBrowserExec,
   formatBytes,
+  isKnownBrowserExecutable,
+  isRegularFile,
   isRetryable,
   makeInstallError,
   parseInstallLine,
@@ -145,22 +147,42 @@ function bundledBrowsersPath(): string | null
 /** Preference order: user-chosen executable, bundled browser, managed download. */
 function resolveExecutable(): Resolved | null
 {
+  const bundled = bundledBrowsersPath()
+  const bundledExec = bundled ? findBrowserExec(bundled) : null
+  const managedExec = findBrowserExec(managedBrowsersPath())
   const custom = ConfigService.get().browserExecutablePath?.trim()
   if (custom)
   {
-    if (fs.existsSync(custom))
+    // The stored path is re-validated on every read so a hand-edited config
+    // cannot point the scrapers at something that is not a browser.
+    if (isKnownBrowserExecutable(custom) && isRegularFile(custom))
     {
-      const isSystem = detectSystemBrowsers().some(browser => browser.path === custom)
-      return { path: custom, source: isSystem ? 'system' : 'custom' }
+      const source: BrowserSource = detectSystemBrowsers().some(browser => browser.path === custom)
+        ? 'system'
+        : custom === bundledExec
+          ? 'bundled'
+          : custom === managedExec
+            ? 'managed'
+            : 'custom'
+      return { path: custom, source }
     }
-    Logger.error('Playwright', `Configured browser executable is missing: ${custom}`)
+    Logger.error('Playwright', `Ignoring the configured browser executable (missing or not a known browser): ${custom}`)
   }
-  const bundled = bundledBrowsersPath()
-  const bundledExec = bundled ? findBrowserExec(bundled) : null
   if (bundledExec) return { path: bundledExec, source: 'bundled' }
-  const managedExec = findBrowserExec(managedBrowsersPath())
   if (managedExec) return { path: managedExec, source: 'managed' }
   return null
+}
+
+/** Executables the app already trusts: detected system browsers, the bundled copy, and the managed download. */
+function knownExecutables(): string[]
+{
+  const known = detectSystemBrowsers().map(browser => browser.path)
+  const bundled = bundledBrowsersPath()
+  const bundledExec = bundled ? findBrowserExec(bundled) : null
+  if (bundledExec) known.push(bundledExec)
+  const managedExec = findBrowserExec(managedBrowsersPath())
+  if (managedExec) known.push(managedExec)
+  return known
 }
 
 function signatureOf(exec: string): string
@@ -444,6 +466,26 @@ async function runInstall(control: InstallControl, force: boolean): Promise<void
   throw new InstallFailure(failure ?? makeInstallError('unknown', 'Installation failed'))
 }
 
+/** Verifies a trusted executable, then records it as the override. */
+async function applyExecutable(exec: string): Promise<BrowserActionResult>
+{
+  try
+  {
+    await verifyExecutable(exec)
+    ConfigService.set({ browserExecutablePath: exec })
+    emitState({ stage: 'done', percent: 100, label: 'Browser ready', error: undefined, retryInSeconds: undefined })
+    PlaywrightService.setupEnv()
+    Logger.success('Playwright', `Using browser executable ${exec}`)
+    return actionResult(true)
+  }
+  catch (err)
+  {
+    const failure = toFailure(err, 'launch')
+    emitState({ stage: 'failed', error: failure.detail, retryInSeconds: undefined })
+    return actionResult(false, failure.detail)
+  }
+}
+
 /**
  * Manages the Chromium the scrapers run on: a user-chosen executable, the
  * copy bundled with the app, or a managed download into userData/browsers.
@@ -544,36 +586,51 @@ export const PlaywrightService = {
   },
 
   /**
-   * Switches to a browser already on this machine, or back to the bundled or
-   * managed copy when the path is empty. The choice is kept only if it launches.
+   * Switches to one of the browsers this app already knows about (a detected
+   * system browser, the bundled copy, or the managed download), or back to the
+   * default when the path is empty. Only members of that set are accepted, so
+   * a request over the web API cannot point the scrapers at an arbitrary
+   * binary. The choice is kept only if the browser launches.
    *
-   * @param execPath - Chromium-based executable, or null to clear the override.
+   * @param requested - Path of a known browser executable, or null to clear the override.
    */
-  async useExecutable(execPath: string | null): Promise<BrowserActionResult>
+  async useExecutable(requested: string | null): Promise<BrowserActionResult>
   {
-    const trimmed = execPath?.trim() ?? ''
-    if (!trimmed)
+    const wanted = requested?.trim() ?? ''
+    if (!wanted)
     {
       ConfigService.set({ browserExecutablePath: undefined, browserVerified: undefined })
       PlaywrightService.setupEnv()
       return actionResult(true)
     }
-    if (!fs.existsSync(trimmed)) return actionResult(false, makeInstallError('launch', `No file found at ${trimmed}`))
-    try
+    const chosen = knownExecutables().find(candidate => candidate === wanted)
+    if (!chosen)
     {
-      await verifyExecutable(trimmed)
-      ConfigService.set({ browserExecutablePath: trimmed })
-      emitState({ stage: 'done', percent: 100, label: 'Browser ready', error: undefined, retryInSeconds: undefined })
-      PlaywrightService.setupEnv()
-      Logger.success('Playwright', `Using browser executable ${trimmed}`)
-      return actionResult(true)
+      return actionResult(false, makeInstallError('launch', 'That path is not one of the browsers detected on this machine', {
+        hint: 'Pick one of the listed browsers. In the desktop app you can also browse for a Chromium-based executable.',
+      }))
     }
-    catch (err)
+    return applyExecutable(chosen)
+  },
+
+  /**
+   * Uses a browser executable chosen through the desktop file picker. The file
+   * must be a Chromium-family executable, and the choice is kept only if it
+   * launches.
+   *
+   * @param picked - Absolute path returned by the native open dialog.
+   */
+  async useExecutableFile(picked: string): Promise<BrowserActionResult>
+  {
+    const filePath = picked.trim()
+    if (!isKnownBrowserExecutable(filePath))
     {
-      const failure = toFailure(err, 'launch')
-      emitState({ stage: 'failed', error: failure.detail, retryInSeconds: undefined })
-      return actionResult(false, failure.detail)
+      return actionResult(false, makeInstallError('launch', `${path.basename(filePath)} is not a Chromium-based browser executable`, {
+        hint: 'Choose chrome, chromium, msedge, brave, or chrome-headless-shell (with .exe on Windows).',
+      }))
     }
+    if (!isRegularFile(filePath)) return actionResult(false, makeInstallError('launch', `No file found at ${filePath}`))
+    return applyExecutable(filePath)
   },
 
   setupEnv(): void

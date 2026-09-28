@@ -2,6 +2,7 @@ import path from 'path'
 import fs from 'fs'
 import Fastify from 'fastify'
 import fastifyStatic from '@fastify/static'
+import rateLimit from '@fastify/rate-limit'
 import { ConfigService } from '../electron/services/config'
 import { Logger } from '../electron/services/logger'
 import { PlexService } from '../electron/services/plexService'
@@ -57,6 +58,11 @@ export async function startServer() {
   SchedulerService.startEngineHeartbeat()
 
   const app = Fastify({ logger: false })
+
+  // Per-client request budget for the web API: generous enough for the
+  // UI's bursts, tight enough to blunt brute force. The browser routes below
+  // carry their own, much smaller budget because they launch processes.
+  await app.register(rateLimit, { max: 1000, timeWindow: '1 minute' })
 
   // --- Public routes ---
   app.get('/api/health', async () => ({ ok: true }))
@@ -269,10 +275,14 @@ export async function startServer() {
 
   // Browser
   app.get('/api/browser/status', async () => handlers.browser.getStatus())
-  app.post('/api/browser/install', async (req) => handlers.browser.install((req.body ?? {}) as { force?: boolean }))
-  app.post('/api/browser/cancel', async () => handlers.browser.cancelInstall())
-  app.post('/api/browser/verify', async () => handlers.browser.verify())
-  app.post('/api/browser/executable', async (req) => handlers.browser.useExecutable(((req.body ?? {}) as { path?: string | null }).path ?? null))
+  app.post('/api/browser/install', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req) =>
+    handlers.browser.install((req.body ?? {}) as { force?: boolean }))
+  app.post('/api/browser/cancel', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async () =>
+    handlers.browser.cancelInstall())
+  app.post('/api/browser/verify', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async () =>
+    handlers.browser.verify())
+  app.post('/api/browser/executable', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req) =>
+    handlers.browser.useExecutable(((req.body ?? {}) as { path?: string | null }).path ?? null))
 
   // Log
   app.get('/api/log/history', async () => handlers.log.getHistory())

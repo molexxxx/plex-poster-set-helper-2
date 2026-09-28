@@ -198,6 +198,15 @@ export function createWebClient(): Api {
       verify: (): Promise<BrowserActionResult> => apiFetch('/api/browser/verify', { method: 'POST', body: '{}' }),
       useExecutable: (execPath: string | null): Promise<BrowserActionResult> =>
         apiFetch('/api/browser/executable', { method: 'POST', body: JSON.stringify({ path: execPath }) }),
+      pickExecutable: async (): Promise<BrowserActionResult> => ({
+        ok: false,
+        error: {
+          kind: 'launch',
+          message: 'Browsing for an executable is only available in the desktop app',
+          hint: 'Pick one of the browsers detected on the server instead.',
+        },
+        status: await apiFetch('/api/browser/status'),
+      }),
       onInstallProgress: (cb: (line: string) => void) =>
         onSse('browser:installProgress', (_, data) => cb(data as string)),
       onInstallState: (cb: (state: BrowserInstallState) => void) =>

@@ -1024,17 +1024,3 @@
 }
 .authPin b { color: var(--color-text-primary); }
 
-.pathInput {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--color-text-primary);
-}
-
-.pathInput::placeholder {
-  color: var(--color-text-muted);
-}

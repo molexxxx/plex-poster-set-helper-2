@@ -4,7 +4,7 @@ import {
   LogIn, LogOut, RefreshCw, ServerCrash, Pencil, X,
   Server, User, Sliders, SlidersHorizontal, Filter, Wrench,
   CheckCircle2, Circle, AppWindow, Globe, Download, RotateCcw, AlertTriangle, Film, Tv, Copy, ExternalLink,
-  Package, FolderOpen, Sparkles, MinusCircle, Trash2, BookOpen, Layers, ArrowRight,
+  Package, FolderOpen, Sparkles, MinusCircle, Trash2, BookOpen, Layers,
 } from 'lucide-react'
 
 const SOURCE_LABELS: Record<BrowserSource, string> = {
@@ -245,7 +245,7 @@ export default function SettingsPage() {
   const [browserInstalling, setBrowserInstalling] = useState(false)
   const [installLog,       setInstallLog]       = useState<string[]>([])
   const [copiedPath,       setCopiedPath]       = useState(false)
-  const [customBrowserPath, setCustomBrowserPath] = useState('')
+  const [isWeb,            setIsWeb]            = useState(false)
   const installLogRef = useRef<HTMLDivElement>(null)
 
   // cfg is the single source of truth - no draft layer
@@ -318,6 +318,7 @@ export default function SettingsPage() {
   useEffect(() => {
     loadConfig()
     loadBrowserStatus()
+    window.api.app.getEnv().then(e => setIsWeb(!!e.web))
 
     // Restore state on every mount (handles navigating away and back)
     window.api.auth.getStatus().then(s => {
@@ -467,6 +468,10 @@ export default function SettingsPage() {
 
   function applyBrowserExecutable(execPath: string | null) {
     void runBrowserAction(() => window.api.browser.useExecutable(execPath))
+  }
+
+  function pickBrowserExecutable() {
+    void runBrowserAction(() => window.api.browser.pickExecutable())
   }
 
   if (!merged) return (
@@ -979,28 +984,22 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              <div className={styles.browserPath}>
-                <span className={styles.browserPathLabel}>Custom executable</span>
-                <div className={styles.pathBox}>
-                  <input
-                    className={styles.pathInput}
-                    value={customBrowserPath}
-                    onChange={e => setCustomBrowserPath(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && customBrowserPath.trim()) applyBrowserExecutable(customBrowserPath) }}
-                    placeholder="Path to a Chromium-based browser executable"
-                    spellCheck={false}
-                  />
-                  <button
-                    className={styles.pathCopy}
-                    onClick={() => applyBrowserExecutable(customBrowserPath)}
-                    disabled={browserInstalling || !customBrowserPath.trim()}
-                    title="Use this executable"
-                    aria-label="Use this executable"
-                  >
-                    <ArrowRight size={13} />
-                  </button>
+              {!isWeb && (
+                <div className={styles.browserPath}>
+                  <span className={styles.browserPathLabel}>Custom executable</span>
+                  <div className={styles.browserActions}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={<FolderOpen size={13} />}
+                      onClick={pickBrowserExecutable}
+                      disabled={browserInstalling}
+                    >
+                      Browse for a Chromium-based browser…
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <AnimatePresence>
                 {installLog.length > 0 && (

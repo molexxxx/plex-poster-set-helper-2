@@ -273,6 +273,45 @@ export function detectSystemBrowsers(
   return found
 }
 
+/** Executable base names of the Chromium-family browsers the scrapers can drive. */
+const KNOWN_BROWSER_EXECUTABLES: ReadonlySet<string> = new Set([
+  'chrome', 'chrome.exe', 'chromium', 'chromium.exe', 'chromium-browser',
+  'google-chrome', 'google-chrome-stable', 'google-chrome-beta', 'google-chrome-unstable', 'google chrome',
+  'msedge', 'msedge.exe', 'microsoft-edge', 'microsoft-edge-stable', 'microsoft-edge-beta', 'microsoft edge',
+  'brave', 'brave.exe', 'brave-browser', 'brave-browser-stable', 'brave browser',
+  'chrome-headless-shell', 'chrome-headless-shell.exe', 'headless_shell', 'headless_shell.exe',
+])
+
+/**
+ * Whether a path names a Chromium-family browser executable. Only the base
+ * name is checked, so callers still confirm the file exists.
+ *
+ * @param filePath - Absolute or relative path to test.
+ * @returns True for chrome, chromium, msedge, brave, and headless shell binaries.
+ */
+export function isKnownBrowserExecutable(filePath: string): boolean
+{
+  return KNOWN_BROWSER_EXECUTABLES.has(path.basename(filePath.trim()).toLowerCase())
+}
+
+/**
+ * Whether a path exists and is a regular file.
+ *
+ * @param filePath - Path to test.
+ * @returns False for directories, missing paths, and unreadable entries.
+ */
+export function isRegularFile(filePath: string): boolean
+{
+  try
+  {
+    return fs.statSync(filePath).isFile()
+  }
+  catch
+  {
+    return false
+  }
+}
+
 export interface ParsedInstallLine
 {
   /** 0-100 when the line carries a progress bar. */

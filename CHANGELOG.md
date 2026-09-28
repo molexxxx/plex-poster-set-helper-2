@@ -13,7 +13,10 @@ First-run setup no longer downloads a browser. The Chromium headless shell that 
 For the cases where a download is still needed, such as reinstalling from Settings, the installer was rebuilt from the ground up. It retries with backoff, watches for stalled downloads and stops them instead of waiting forever, detects system proxies, checks free disk space and folder permissions up front, and never treats a half-extracted browser as installed. When something does go wrong, the setup screen says what happened and how to fix it: no internet, a blocked download, a full disk, antivirus interference, or, on Linux, the exact package command for any missing system libraries. You can also switch to Google Chrome, Microsoft Edge, Brave, or Chromium if one is already installed, or point the app at any Chromium-based executable, from either the setup screen or **Settings → Browser Engine**.
 
 ### Linux AppImage improvements
-The AppImage now uses the current static AppImage runtime, so it starts on stock Ubuntu 22.04 and 24.04 without installing libfuse2. It carries update information and ships with a companion .zsync file, so AppImageUpdate and compatible tools can update it in place, and it includes AppStream metadata for software centers and the AppImage catalog. The file is now named Plex-Poster-Set-Helper-2-<version>-x64.AppImage.
+The AppImage now uses the current static AppImage runtime, so it starts on stock Ubuntu 22.04 and 24.04 without installing libfuse2. It carries update information and ships with a companion .zsync file, so AppImageUpdate and compatible tools can update it in place, and it includes AppStream metadata for software centers and the AppImage catalog. The file is now named Plex-Poster-Set-Helper-2-<version>-x86_64.AppImage.
+
+### Web mode hardening
+The web and Docker API now rate limits requests per client, with a much smaller budget on the browser install and verification endpoints, and it only lets a client switch the scraping browser to one the server itself detected. Browsing for any other executable is a desktop-only action through the native file picker, and every stored browser path is re-validated before use.
 
 ### Dependency updates
 Electron 44, Playwright 1.63, Fastify 5.12.5, React 19.3, Vite 8.3, and the rest of the toolchain are current, which clears every open security advisory.

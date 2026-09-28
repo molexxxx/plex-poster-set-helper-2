@@ -143,6 +143,7 @@ const api = {
     cancelInstall: (): Promise<BrowserStatus> => ipcRenderer.invoke('browser:cancelInstall'),
     verify: (): Promise<BrowserActionResult> => ipcRenderer.invoke('browser:verify'),
     useExecutable: (execPath: string | null): Promise<BrowserActionResult> => ipcRenderer.invoke('browser:useExecutable', execPath),
+    pickExecutable: (): Promise<BrowserActionResult> => ipcRenderer.invoke('browser:pickExecutable'),
     onInstallProgress: (cb: (line: string) => void) =>
     {
       const handler = (_: unknown, line: string) => cb(line)

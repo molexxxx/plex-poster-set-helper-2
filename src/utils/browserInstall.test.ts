@@ -11,6 +11,8 @@ import {
   extractMissingLibraries,
   findBrowserExec,
   formatBytes,
+  isKnownBrowserExecutable,
+  isRegularFile,
   isRetryable,
   parseInstallLine,
 } from '../../electron/services/browserInstallUtils'
@@ -202,5 +204,45 @@ describe('formatBytes', () =>
   {
     expect(formatBytes(1024 ** 3)).toBe('1.0 GB')
     expect(formatBytes(5 * 1024 ** 2)).toBe('5 MB')
+  })
+})
+
+describe('isKnownBrowserExecutable', () =>
+{
+  it('accepts Chromium-family executables on every platform', () =>
+  {
+    expect(isKnownBrowserExecutable('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')).toBe(true)
+    expect(isKnownBrowserExecutable('/usr/bin/google-chrome-stable')).toBe(true)
+    expect(isKnownBrowserExecutable('/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge')).toBe(true)
+    expect(isKnownBrowserExecutable('/opt/browsers/chromium_headless_shell-1243/chrome-linux/chrome-headless-shell')).toBe(true)
+    expect(isKnownBrowserExecutable('  /usr/bin/brave-browser  ')).toBe(true)
+  })
+
+  it('rejects anything that is not a browser', () =>
+  {
+    expect(isKnownBrowserExecutable('/bin/sh')).toBe(false)
+    expect(isKnownBrowserExecutable('C:\\Windows\\System32\\cmd.exe')).toBe(false)
+    expect(isKnownBrowserExecutable('/usr/bin/chrome-wrapper.sh')).toBe(false)
+    expect(isKnownBrowserExecutable('')).toBe(false)
+  })
+})
+
+describe('isRegularFile', () =>
+{
+  it('distinguishes files from directories and missing paths', () =>
+  {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'regular-'))
+    try
+    {
+      const file = path.join(root, 'chrome')
+      fs.writeFileSync(file, '')
+      expect(isRegularFile(file)).toBe(true)
+      expect(isRegularFile(root)).toBe(false)
+      expect(isRegularFile(path.join(root, 'missing'))).toBe(false)
+    }
+    finally
+    {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
   })
 })

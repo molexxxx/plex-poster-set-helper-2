@@ -577,6 +577,7 @@ export type IpcChannels = {
   'browser:cancelInstall':   { req: void; res: BrowserStatus }
   'browser:verify':          { req: void; res: BrowserActionResult }
   'browser:useExecutable':   { req: string | null; res: BrowserActionResult }
+  'browser:pickExecutable':  { req: void; res: BrowserActionResult }
   'browser:installProgress': { event: string }
   'browser:installState':    { event: BrowserInstallState }
   'library:sections':        { req: void; res: LibrarySection[] }
