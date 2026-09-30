@@ -3,8 +3,15 @@
  * Repacks the electron-builder AppImage with appimagetool so the published
  * file ships the static AppImage runtime (no libfuse2 dependency), embeds
  * AppImageUpdate update information with a companion .zsync file, and carries
- * AppStream metainfo. latest-linux.yml is rewritten with the new checksum and
+ * AppStream metadata. latest-linux.yml is rewritten with the new checksum and
  * size so electron-updater keeps verifying the replaced file.
+ *
+ * The image is unpacked with unsquashfs, which keeps the stored permissions
+ * (the AppImage runtime's own extraction writes every directory as 0700),
+ * permissions are normalized, and the finished image is listed and rejected
+ * if any entry would be unreachable under a sandbox that enforces them.
+ *
+ * Requires unsquashfs (squashfs-tools) on PATH.
  *
  * Usage: node scripts/repack-appimage.mjs [dist-dir]
  *
@@ -21,9 +28,11 @@ import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
+import { findPermissionProblems, normalizeTree, parseListing } from './appimage-permissions.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const METAINFO_ID = 'com.molexxxx.plex-poster-set-helper-2'
+const APPSTREAM_ID = 'com.molexxxx.plex_poster_set_helper_2'
+const APPSTREAM_FILE = `${APPSTREAM_ID}.appdata.xml`
 const UPDATE_INFO_PREFIX = 'gh-releases-zsync|molexxxx|plex-poster-set-helper-2|latest|'
 const DEFAULT_TOOL_URL =
   'https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage'
@@ -62,6 +71,38 @@ function run(command, args, options = {})
     throw new Error(`${path.basename(command)} ${args.join(' ')} exited with ${result.status}\n${tail}`)
   }
   return String(result.stdout)
+}
+
+function requireTool(name)
+{
+  const result = spawnSync('sh', ['-c', `command -v ${name}`], { stdio: ['ignore', 'pipe', 'ignore'] })
+  if (result.status !== 0) throw new Error(`${name} is required; install squashfs-tools`)
+}
+
+/** Byte offset of the squashfs payload behind the AppImage runtime. */
+function payloadOffset(appImage)
+{
+  const offset = run(appImage, ['--appimage-offset']).trim()
+  if (!/^\d+$/.test(offset)) throw new Error(`${path.basename(appImage)} reported an invalid offset: "${offset}"`)
+  return offset
+}
+
+/** Rejects an image whose entries a permission-enforcing mount could not reach. */
+function verifyImage(appImage)
+{
+  const listing = run('unsquashfs', ['-lls', '-d', 'R', '-o', payloadOffset(appImage), appImage])
+  const problems = findPermissionProblems(parseListing(listing), {
+    required: [
+      `usr/share/metainfo/${APPSTREAM_FILE}`,
+      /^resources\/browsers\/chromium_headless_shell-\d+\/INSTALLATION_COMPLETE$/,
+    ],
+  })
+  if (problems.length)
+  {
+    const shown = problems.slice(0, 20).map(problem => `  ${problem}`).join('\n')
+    const more = problems.length > 20 ? `\n  ... and ${problems.length - 20} more` : ''
+    throw new Error(`${path.basename(appImage)} failed the permission check:\n${shown}${more}`)
+  }
 }
 
 async function download(url, destination)
@@ -127,6 +168,7 @@ function patchManifest(manifestPath, name, sha512, size)
 async function main()
 {
   if (process.platform !== 'linux') throw new Error('AppImage repacking only runs on Linux')
+  requireTool('unsquashfs')
 
   const distDir = path.resolve(process.argv[2] ?? path.join(ROOT, 'dist-electron'))
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
@@ -158,18 +200,19 @@ async function main()
 
     log(`extracting ${localName}`)
     fs.chmodSync(original, 0o755)
-    run(original, ['--appimage-extract'], { cwd: work })
     const appDir = path.join(work, 'squashfs-root')
+    run('unsquashfs', ['-no-xattrs', '-no-progress', '-d', appDir, '-o', payloadOffset(original), original])
     if (!fs.existsSync(path.join(appDir, 'AppRun'))) throw new Error('extracted AppDir has no AppRun')
 
     const metaDir = path.join(appDir, 'usr', 'share', 'metainfo')
     fs.mkdirSync(metaDir, { recursive: true })
-    const template = fs.readFileSync(path.join(ROOT, 'resources', 'linux', `${METAINFO_ID}.metainfo.xml`), 'utf8')
+    const template = fs.readFileSync(path.join(ROOT, 'resources', 'linux', APPSTREAM_FILE), 'utf8')
     const today = new Date().toISOString().slice(0, 10)
     fs.writeFileSync(
-      path.join(metaDir, `${METAINFO_ID}.metainfo.xml`),
+      path.join(metaDir, APPSTREAM_FILE),
       template.replaceAll('@VERSION@', pkg.version).replaceAll('@DATE@', today),
     )
+    log(`normalized permissions on ${normalizeTree(appDir)} entries`)
 
     const output = path.join(work, name)
     log('building the AppImage with the static runtime')
@@ -183,6 +226,8 @@ async function main()
     fs.chmodSync(output, 0o755)
     const embedded = run(output, ['--appimage-updateinformation']).trim()
     if (embedded !== updateInfo) throw new Error(`embedded update information mismatch: "${embedded}"`)
+    verifyImage(output)
+    log('permission check passed')
 
     fs.copyFileSync(output, published)
     fs.copyFileSync(zsync, `${published}.zsync`)

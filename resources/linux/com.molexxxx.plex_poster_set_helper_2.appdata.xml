@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.molexxxx.plex-poster-set-helper-2</id>
+  <id>com.molexxxx.plex_poster_set_helper_2</id>
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
   <name>Plex Poster Set Helper 2</name>
@@ -16,6 +16,12 @@
   <url type="homepage">https://github.com/molexxxx/plex-poster-set-helper-2</url>
   <url type="bugtracker">https://github.com/molexxxx/plex-poster-set-helper-2/issues</url>
   <url type="vcs-browser">https://github.com/molexxxx/plex-poster-set-helper-2</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Library Browser with MediUX poster sets for the selected show</caption>
+      <image>https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/gallery/library-browser.png</image>
+    </screenshot>
+  </screenshots>
   <categories>
     <category>Utility</category>
   </categories>

@@ -72,12 +72,15 @@ jobs:
 
       # Repack the AppImage with appimagetool so it ships the static runtime
       # (no libfuse2), AppImageUpdate update information with a .zsync file, and
-      # AppStream metainfo, then swap the published assets. This runs after
+      # AppStream metadata, then swap the published assets. This runs after
       # electron-builder has created the release, so a repack failure leaves the
-      # original AppImage and manifest in place.
+      # original AppImage and manifest in place. unsquashfs unpacks the image
+      # with its permissions intact and lists the result for verification.
       - name: Repack AppImage
         if: matrix.os == 'ubuntu-22.04'
-        run: node scripts/repack-appimage.mjs dist-electron
+        run: |
+          command -v unsquashfs >/dev/null || { sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools; }
+          node scripts/repack-appimage.mjs dist-electron
 
       - name: Replace AppImage release assets
         if: matrix.os == 'ubuntu-22.04'
