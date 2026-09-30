@@ -13,7 +13,7 @@ The v2.4.0 AppImage stored its folders with owner-only permissions. Launching it
 The AppStream file now uses the name the AppImage catalog reads, so the catalog page shows the app's summary, description, and a screenshot of the Library Browser.
 
 ### Under the hood
-The browser executable check now handles Windows-style paths on every platform, and CI runs the unit tests on every push.
+The browser executable check now handles Windows-style paths on every platform, and CI runs the unit tests on every push. undici is updated to 7.30.0, clearing a denial-of-service advisory in its WebSocket compression handling.
 
 ## What's new in v2.4.0
 
