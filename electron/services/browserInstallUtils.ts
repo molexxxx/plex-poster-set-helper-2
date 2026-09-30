@@ -291,7 +291,8 @@ const KNOWN_BROWSER_EXECUTABLES: ReadonlySet<string> = new Set([
  */
 export function isKnownBrowserExecutable(filePath: string): boolean
 {
-  return KNOWN_BROWSER_EXECUTABLES.has(path.basename(filePath.trim()).toLowerCase())
+  const base = filePath.trim().split(/[\\/]/).pop() ?? ''
+  return KNOWN_BROWSER_EXECUTABLES.has(base.toLowerCase())
 }
 
 /**

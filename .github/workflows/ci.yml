@@ -51,6 +51,9 @@ jobs:
       - name: Typecheck server
         run: npx tsc -p tsconfig.server.json --noEmit
 
+      - name: Unit tests
+        run: npm test
+
       - name: Build renderer
         run: npx vite build
 
