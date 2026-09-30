@@ -4,6 +4,17 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.4.1
+
+### Linux AppImage starts in sandboxed launchers again
+The v2.4.0 AppImage stored its folders with owner-only permissions. Launching it normally was unaffected, but launchers that mount the image with the kernel's own driver, such as firejail, could not reach the app and stopped with "Permission denied". The release build now unpacks and repacks the image with its permissions intact and refuses to publish an AppImage that any user could not open.
+
+### AppImage catalog listing
+The AppStream file now uses the name the AppImage catalog reads, so the catalog page shows the app's summary, description, and a screenshot of the Library Browser.
+
+### Under the hood
+The browser executable check now handles Windows-style paths on every platform, and CI runs the unit tests on every push.
+
 ## What's new in v2.4.0
 
 ### Chromium ships with the app
