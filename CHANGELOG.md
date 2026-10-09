@@ -4,6 +4,34 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.5.0
+
+### Scheduling works over plain HTTP
+Opening the Docker or unRAID web UI by its LAN address (for example `http://192.168.1.50:3939`) made **New Job**, the **Schedule** button on a set, and **Sync all weekly** silently do nothing, because browsers hide an API the scheduler relied on unless the page is served over HTTPS. Scheduling now works from any address.
+
+### Smarter scheduled runs
+- **Only new artwork:** each run now skips posters already applied to an item, so repeat syncs stop re-uploading the same images and Plex no longer piles up duplicate copies. Existing jobs switch to this behavior too; turn off **Only apply new artwork** on a job to re-apply the full set every run.
+- Runs reconnect to Plex when the connection dropped (for example, when the container started before Plex) and say so clearly when they can't.
+- A run that couldn't read any of its URLs is now reported as failed instead of succeeding with nothing applied, and a run with some failures shows as partly failed.
+- The same job never runs twice at once, and jobs cut off by a shutdown are marked as interrupted instead of showing as running forever.
+
+### A clearer Scheduler page
+- Pick hourly, daily, weekly on any mix of days, monthly, or a custom cron expression, with a live preview of the next three runs. When the server runs in a different time zone than your browser, which is common in Docker, the editor says so.
+- Each job shows its status, next and last run, and what the last run did, such as "3 posters applied · 118 already applied". Open **Recent runs** to see the last 10.
+- URLs and schedules are checked as you type, duplicate URLs are removed, and errors explain what to fix. **Save & run** saves and starts a job in one step, Ctrl+Enter saves, and deleting asks for confirmation.
+- **Run now** returns right away, and progress shows on the job card.
+
+### Quick sync from the Library Browser
+- **Schedule** on a set and **Sync all** on a creator share one default schedule, which you can change under **Scheduler → Quick sync**.
+- Clicking again never creates duplicate jobs. A creator's selected sets are grouped into one job, and syncing all of a creator replaces their individual sets.
+- **Scheduled** tags open the job in the Scheduler, and failures show right on the set.
+
+### Security fix for the web UI
+The web and Docker API accepted configuration changes without signing in, so any device that could reach the web UI could change settings, including the Plex server address, which could expose your Plex token. Changing configuration now requires a signed-in session.
+
+### Under the hood
+Electron 44.7, Vite 8.3.4, Vitest 5, typescript-eslint 8.71, and the rest of the development toolchain are updated. axios moves to 1.20.0, and shell-quote and http-cache-semantics are patched for the advisories published against them.
+
 ## What's new in v2.4.1
 
 ### Linux AppImage starts in sandboxed launchers again
