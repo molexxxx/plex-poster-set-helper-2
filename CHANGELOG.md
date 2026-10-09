@@ -4,6 +4,23 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.6.0
+
+### Creator syncs read the whole catalog
+A **Sync all** job for a creator only read the first page of their MediUX catalog, about 12 sets, so most of a prolific creator's shows were never applied even though the job reported success. Creator jobs now read every set, through the same cache the Creators view uses: the first run crawls the full catalog once, and later runs only fetch the pages that carry new or updated sets. A page that fails to load now counts as an error instead of looking like the end of the catalog, which also stops the Creators view from showing a short list on a slow connection.
+
+### Jobs run one at a time
+Jobs no longer run at the same time. When several are due together they run in the order shown on the Scheduler page, and the arrows on each card set that order. A job that is waiting shows as **Queued**, and **Run now** puts a job ahead of anything waiting. When two creators cover the same show, the job that runs later applies last.
+
+### Only fill gaps
+A new option for a backup creator. A job with **Only fill gaps** leaves any poster, season, or episode that other art already covers, whether from another job or something you applied by hand, and adds only what is missing. Put your main creator first in the list and give the backup this option. Art applied before this release does not record which episodes it filled, so it counts as covering the whole show.
+
+### See what a run is doing and what it did
+While a job runs, its card shows where it is: reading a creator's sets with a running count, or the show it is applying and how far through the catalog it is. Each run now records which titles got artwork, which failed, and which are not in your library. Open a job's recent runs and click a run to see the lists.
+
+### Applied badges for creator syncs
+Artwork applied by a creator sync is now recorded against its MediUX set, so the Library Browser shows the **Applied** and **Downloaded** badges for it, the same as a manual apply.
+
 ## What's new in v2.5.0
 
 ### Scheduling works over plain HTTP
