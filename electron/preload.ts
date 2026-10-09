@@ -130,6 +130,7 @@ const api = {
     getAutoStart: (): Promise<boolean> => ipcRenderer.invoke('scheduler:getAutoStart'),
     engineStatus: (): Promise<SchedulerEngineStatus> => ipcRenderer.invoke('scheduler:engineStatus'),
     preview: (expr: string): Promise<CronPreview> => ipcRenderer.invoke('scheduler:preview', expr),
+    reorder: (ids: string[]): Promise<ScheduledJob[]> => ipcRenderer.invoke('scheduler:reorder', ids),
     onChange: (cb: (jobs: ScheduledJob[]) => void) =>
     {
       const handler = (_: unknown, data: ScheduledJob[]) => cb(data)

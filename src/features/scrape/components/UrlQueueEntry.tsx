@@ -10,6 +10,7 @@ import Button from '../../../components/ui/Button'
 import Lightbox, { type LightboxImage } from '../../../components/ui/Lightbox'
 import { groupPosters } from '../../../utils/posterGroups'
 import { recordApplied, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../../utils/appliedTracker'
+import { posterSlot } from '../../../../electron/services/scheduleUtils'
 import { useScrapeStore } from '../useScrapeStore'
 import type { QueueEntry, PosterResult } from '../useScrapeStore'
 import styles from './UrlQueueEntry.module.css'
@@ -101,6 +102,7 @@ async function uploadPoster(
           thumb: poster.thumbUrl ?? poster.url,
           setId,
           posterUrls: [poster.url],
+          slots: [posterSlot(poster)],
           appliedAt: new Date().toISOString(),
         })
       }
@@ -133,6 +135,7 @@ async function uploadPoster(
         thumb: poster.thumbUrl ?? poster.url,
         setId,
         posterUrls: [poster.url],
+        slots: [posterSlot(poster)],
         appliedAt: new Date().toISOString(),
       })
     }

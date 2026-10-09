@@ -198,6 +198,12 @@ export interface AppliedRecord {
   uploader?: string
   /** Exact poster image URLs applied (per-poster tracking). */
   posterUrls?: string[]
+  /**
+   * Art slots filled on the item: poster, backdrop, s<n> for a season poster,
+   * s<n>e<n> for a title card. Records written before slots were tracked have
+   * none and count as covering the whole item.
+   */
+  slots?: string[]
   /** ISO timestamp. */
   appliedAt: string
 }
@@ -343,8 +349,31 @@ export interface JobRun {
   failed: number
   /** URLs that could not be scraped. */
   urlErrors: number
+  /** Posters left alone because other art already fills their slot (fill-gaps jobs). */
+  covered?: number
   /** First error message, when any. */
   error?: string
+  /** Per-title breakdown, each list capped with a trailing "and N more" entry. */
+  details?: JobRunDetails
+}
+
+export interface JobRunDetails {
+  /** Titles that received artwork, as "Title (Year) · N posters". */
+  applied: string[]
+  /** Titles or collections not found in the Plex library. */
+  unmatched: string[]
+  /** Titles with a failed upload, as "Title (Year) · error". */
+  failed: string[]
+}
+
+/** Live position of a running job, computed by the scheduler and never stored. */
+export interface JobProgress {
+  /** reading: fetching a creator's catalog; applying: working through sets. */
+  phase: 'reading' | 'applying'
+  done: number
+  total: number
+  /** What is being worked on, such as a creator name or a show title. */
+  current?: string
 }
 
 export interface ScheduledJob {
@@ -355,6 +384,8 @@ export interface ScheduledJob {
   enabled: boolean
   /** Upload only artwork not already applied to each item. Treated as true when unset. */
   skipApplied?: boolean
+  /** Leave any slot that other art already fills, so this job only fills gaps. */
+  fillGaps?: boolean
   /** MediUX creator this job syncs, set for jobs created from the Creators view. */
   creator?: string
   lastRun?: string
@@ -364,6 +395,10 @@ export interface ScheduledJob {
   history?: JobRun[]
   /** Next firing as an ISO timestamp, computed by the scheduler and never stored. */
   nextRun?: string
+  /** Waiting for an earlier job to finish; computed by the scheduler and never stored. */
+  queued?: boolean
+  /** Position of the current run; computed by the scheduler and never stored. */
+  progress?: JobProgress
 }
 
 /** Server-side evaluation of a cron expression for the job editor. */
@@ -621,6 +656,7 @@ export type IpcChannels = {
   'scheduler:getAutoStart':{ req: void; res: boolean }
   'scheduler:engineStatus':{ req: void; res: SchedulerEngineStatus }
   'scheduler:preview':     { req: string; res: CronPreview }
+  'scheduler:reorder':     { req: string[]; res: ScheduledJob[] }
   'scheduler:onChange':    { event: ScheduledJob[] }
   'browser:status':          { req: void; res: BrowserStatus }
   'browser:install':         { req: { force?: boolean } | undefined; res: BrowserActionResult }

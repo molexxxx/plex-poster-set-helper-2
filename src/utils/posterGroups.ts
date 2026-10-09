@@ -1,4 +1,5 @@
 import type { PosterInfo } from '../../electron/ipc/types'
+import { posterKind } from '../../electron/services/scheduleUtils'
 
 export type FileType = 'poster' | 'backdrop' | 'title_card'
 export const ALL_TYPES: FileType[] = ['poster', 'backdrop', 'title_card']
@@ -10,9 +11,7 @@ export const ALL_TYPES: FileType[] = ['poster', 'backdrop', 'title_card']
  * @returns backdrop for background art, title_card for episode art, else poster.
  */
 export function posterFileType(p: PosterInfo): FileType {
-  if (p.season === 'Backdrop') return 'backdrop'
-  if (p.episode != null) return 'title_card'
-  return 'poster'
+  return posterKind(p)
 }
 
 export interface PosterGroup<T extends PosterInfo = PosterInfo> {

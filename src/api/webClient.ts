@@ -189,6 +189,7 @@ export function createWebClient(): Api {
       },
       engineStatus: (): Promise<SchedulerEngineStatus> => apiFetch('/api/scheduler/engine-status'),
       preview: (expr: string): Promise<CronPreview> => apiFetch(`/api/scheduler/preview?expr=${encodeURIComponent(expr)}`),
+      reorder: (ids: string[]): Promise<ScheduledJob[]> => apiFetch('/api/scheduler/order', { method: 'PUT', body: JSON.stringify({ ids }) }),
       onChange: (cb: (jobs: ScheduledJob[]) => void) =>
         onSse('scheduler:onChange', (_, data) => cb(data as ScheduledJob[])),
     },

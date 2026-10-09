@@ -35,14 +35,20 @@ interface CrawlState {
   touchedAt: number
   /** A background incremental refresh is in flight. */
   refreshing: boolean
+  /** The crawl or refresh in flight; settles (never rejects) when it finishes. */
+  pending: Promise<void> | null
   signal: { aborted: boolean }
 }
 
 const store = new Map<string, CrawlState>()
 /** Opening a creator seen within this window does no network at all. */
 const FRESH_TTL = 15 * 60 * 1000
-/** Keep only the few most-recently-used creators buffered/persisted at once. */
-const MAX_CREATORS = 5
+/**
+ * Keep only the most-recently-used creators buffered/persisted at once. An
+ * evicted creator costs a full crawl next time, so this covers a handful of
+ * scheduled creator syncs plus the ones being browsed.
+ */
+const MAX_CREATORS = 8
 /** Safety bound on pages walked during an incremental resync. */
 const INCREMENTAL_MAX_PAGES = 25
 
@@ -64,7 +70,7 @@ function ensureLoaded(): void {
       store.set(k, {
         username: c.username, sets, seen: new Set(sets.map(s => s.id)),
         status: c.capped ? 'capped' : 'done', capped: !!c.capped, lastPage: 0,
-        fetchedAt: c.fetchedAt ?? 0, touchedAt: Date.now(), refreshing: false, signal: { aborted: false },
+        fetchedAt: c.fetchedAt ?? 0, touchedAt: Date.now(), refreshing: false, pending: null, signal: { aborted: false },
       })
     }
   } catch { /* no cache yet */ }
@@ -162,24 +168,27 @@ async function runCrawl(state: CrawlState): Promise<void> {
 
 /**
  * Cheap background resync of a cached creator: walk the newest pages only,
- * collecting sets not already cached, and stop as soon as a page yields nothing
- * new (we've reached known territory). New sets are prepended and the UI is sent
- * a single `reset` chunk with the merged list.
+ * collecting sets not already cached or changed since they were cached, and
+ * stop as soon as a page yields nothing new (we've reached known territory).
+ * Fresh sets are prepended and the UI is sent a single `reset` chunk with the
+ * merged list.
  */
 async function runIncrementalRefresh(state: CrawlState): Promise<void> {
   if (state.refreshing) return
   state.refreshing = true
   const signal = state.signal = { aborted: false }
   try {
-    const known = new Set(state.sets.map(s => s.id))
+    const known = new Map(state.sets.map(s => [s.id, s.dateUpdated]))
     const fresh: MediuxUserSet[] = []
     for (let page = 1; page <= INCREMENTAL_MAX_PAGES && !signal.aborted; page++) {
       const pageSets = await ScraperFactory.browseMediuxUser(state.username, page)
       if (!pageSets.length) break   // past the end of the catalog
       let pageHadNew = false
       for (const s of pageSets) {
-        if (known.has(s.id)) continue
-        known.add(s.id)
+        // An unknown id is a new set; a changed date_updated means the creator
+        // added or replaced files in a set that is already cached.
+        if (known.has(s.id) && known.get(s.id) === s.dateUpdated) continue
+        known.set(s.id, s.dateUpdated)
         fresh.push(s)
         pageHadNew = true
       }
@@ -194,7 +203,7 @@ async function runIncrementalRefresh(state: CrawlState): Promise<void> {
       const freshIds = new Set(matched.map(s => s.id))
       state.sets = [...matched, ...state.sets.filter(s => !freshIds.has(s.id))]
       for (const s of matched) state.seen.add(s.id)
-      Logger.scrape('Library', `Creator "${state.username}": +${matched.length} new set(s) on resync`)
+      Logger.scrape('Library', `Creator "${state.username}": ${matched.length} new or updated set(s) on resync`)
     }
     state.fetchedAt = Date.now()
     state.status = state.capped ? 'capped' : 'done'
@@ -215,23 +224,33 @@ async function runIncrementalRefresh(state: CrawlState): Promise<void> {
   }
 }
 
+/** Runs background work for a creator and tracks it so callers can await it. */
+function track(state: CrawlState, work: () => Promise<void>): void {
+  const p = work()
+  state.pending = p
+  void p.finally(() => { if (state.pending === p) state.pending = null })
+}
+
 export const CreatorSetsService = {
   /**
    * Returns whatever is buffered for a creator right now (instant, from memory or
    * disk) and, when needed, kicks off background work: a full crawl for a cold
    * creator, or a cheap incremental resync for a stale one. Never blocks on the
    * network.
+   *
+   * @param username - Creator to browse.
+   * @param maxAgeMs - A cached catalog older than this is resynced.
    */
-  start(username: string): UserSetsSnapshot {
+  start(username: string, maxAgeMs = FRESH_TTL): UserSetsSnapshot {
     ensureLoaded()
     const k = key(username)
     const existing = store.get(k)
 
     if (existing && existing.status !== 'error') {
       existing.touchedAt = Date.now()
-      if (existing.status !== 'crawling') {
-        const fresh = Date.now() - existing.fetchedAt < FRESH_TTL
-        if (!fresh) void runIncrementalRefresh(existing)
+      if (existing.status !== 'crawling' && !existing.refreshing) {
+        const fresh = Date.now() - existing.fetchedAt < maxAgeMs
+        if (!fresh) track(existing, () => runIncrementalRefresh(existing))
       }
       return snapshot(existing)
     }
@@ -239,12 +258,32 @@ export const CreatorSetsService = {
 
     const state: CrawlState = {
       username, sets: [], seen: new Set(), status: 'crawling', capped: false,
-      lastPage: 0, fetchedAt: 0, touchedAt: Date.now(), refreshing: false, signal: { aborted: false },
+      lastPage: 0, fetchedAt: 0, touchedAt: Date.now(), refreshing: false, pending: null, signal: { aborted: false },
     }
     store.set(k, state)
     evictLru()
-    void runCrawl(state)
+    track(state, () => runCrawl(state))
     return snapshot(state)
+  },
+
+  /**
+   * Returns a creator's whole catalog, waiting for the crawl or resync that
+   * {@link start} kicks off to finish. Used by scheduled creator syncs, which
+   * need every set rather than whatever happens to be buffered.
+   *
+   * @param username - Creator to read.
+   * @param maxAgeMs - A cached catalog older than this is resynced first.
+   * @returns Every cached set and whether the page cap cut the crawl short.
+   * @throws Error when the catalog could not be read.
+   */
+  async catalog(username: string, maxAgeMs = FRESH_TTL): Promise<{ sets: MediuxUserSet[]; capped: boolean }> {
+    this.start(username, maxAgeMs)
+    const state = store.get(key(username))
+    if (!state) throw new Error(`Could not read @${username}'s sets`)
+    if (state.pending) await state.pending
+    if (state.status === 'error') throw new Error(state.error ?? `Could not read @${username}'s sets`)
+    state.touchedAt = Date.now()
+    return { sets: state.sets, capped: state.capped }
   },
 
   /** Aborts any running work for a creator and starts a fresh full crawl. */

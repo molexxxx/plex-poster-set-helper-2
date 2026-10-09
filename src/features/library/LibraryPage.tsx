@@ -14,7 +14,7 @@ import { recordApplied, recordAppliedBatch, appliedKey, loadAppliedIndex, type A
 import { uuid } from '../../utils/uuid'
 import { errorMessage } from '../../utils/errorMessage'
 import {
-  DEFAULT_QUICK_CRON, coveringJob, creatorSyncUrl, describeCron, describeQuickSync, planQuickSync, scheduleCoverage,
+  DEFAULT_QUICK_CRON, coveringJob, creatorSyncUrl, describeCron, describeQuickSync, planQuickSync, posterSlot, scheduleCoverage,
 } from '../../../electron/services/scheduleUtils'
 import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
@@ -126,26 +126,27 @@ interface ApplyState { status: 'idle' | 'applying' | 'done' | 'error'; done: num
  * @param posters - Candidate posters; filtered by the enabled types.
  * @param enabled - File types the user has switched on.
  * @param onProgress - Called after each poster with done/total counts.
- * @returns Done/failed counts, the URLs actually applied, and the last error.
+ * @returns Done/failed counts, the URLs and slots actually applied, and the last error.
  */
 async function applyPosters(
   targetKey: string,
   posters: PosterInfo[],
   enabled: Set<FileType>,
   onProgress: (done: number, total: number) => void,
-): Promise<{ done: number; failed: number; total: number; appliedUrls: string[]; lastError?: string }> {
+): Promise<{ done: number; failed: number; total: number; appliedUrls: string[]; appliedSlots: string[]; lastError?: string }> {
   const list = posters.filter(p => enabled.has(posterFileType(p)))
   let done = 0, failed = 0
   const appliedUrls: string[] = []
+  const appliedSlots: string[] = []
   let lastError: string | undefined
   for (const p of list) {
     try {
       const res = await window.api.plex.uploadPoster(targetKey, p.url, p.source, p.season, p.episode, p.isCollection) as { success: boolean; error?: string }
-      if (res.success) { done++; appliedUrls.push(p.url) } else { failed++; lastError = res.error }
+      if (res.success) { done++; appliedUrls.push(p.url); appliedSlots.push(posterSlot(p)) } else { failed++; lastError = res.error }
     } catch (err) { failed++; lastError = err instanceof Error ? err.message : String(err) }
     onProgress(done, list.length)
   }
-  return { done, failed, total: list.length, appliedUrls, lastError }
+  return { done, failed, total: list.length, appliedUrls, appliedSlots, lastError }
 }
 
 /** Lets any nested set card jump to a creator in the Creators tab. */
@@ -1184,7 +1185,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
             records.push({
               itemKey: child.key, title: child.title, year: child.year, type: 'movie',
               source: 'mediux', thumb: thumb ?? child.thumb, setId: s.id, uploader: s.uploader,
-              posterUrls: memberRes.appliedUrls, appliedAt: new Date().toISOString(),
+              posterUrls: memberRes.appliedUrls, slots: memberRes.appliedSlots, appliedAt: new Date().toISOString(),
             })
             if (thumb) onItemPoster(child.key, thumb)
           }
@@ -1199,7 +1200,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
           records.push({
             itemKey: item.key, title: item.title, type: 'collection',
             source: 'mediux', thumb, setId: s.id, uploader: s.uploader,
-            posterUrls: collRes.appliedUrls, appliedAt: new Date().toISOString(),
+            posterUrls: collRes.appliedUrls, slots: collRes.appliedSlots, appliedAt: new Date().toISOString(),
           })
           if (thumb) onItemPoster(item.key, thumb)
         }
@@ -1259,7 +1260,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
       records.push({
         itemKey: item.key, title: item.title, year: item.year, type: item.type,
         source: 'mediux', thumb: thumb ?? item.thumb, setId: s.id, uploader: s.uploader,
-        posterUrls: mainRes.appliedUrls, appliedAt: new Date().toISOString(),
+        posterUrls: mainRes.appliedUrls, slots: mainRes.appliedSlots, appliedAt: new Date().toISOString(),
       })
       if (thumb) onItemPoster(item.key, thumb)
     }
@@ -1285,7 +1286,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
             itemKey: found.key, title: found.title, year: found.year,
             type: (found.type === 'movie' ? 'movie' : 'show'),
             source: 'mediux', thumb: thumb ?? found.thumb, setId: s.id, uploader: s.uploader,
-            posterUrls: memberRes.appliedUrls, appliedAt: new Date().toISOString(),
+            posterUrls: memberRes.appliedUrls, slots: memberRes.appliedSlots, appliedAt: new Date().toISOString(),
           })
           if (thumb) onItemPoster(found.key, thumb)
         }
@@ -1303,7 +1304,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
           records.push({
             itemKey: coll.key, title: coll.title, type: 'collection',
             source: 'mediux', thumb: mainThumb(collectionArt) ?? coll.thumb, setId: s.id, uploader: s.uploader,
-            posterUrls: collRes.appliedUrls, appliedAt: new Date().toISOString(),
+            posterUrls: collRes.appliedUrls, slots: collRes.appliedSlots, appliedAt: new Date().toISOString(),
           })
         }
       }
@@ -2293,6 +2294,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
 
     let totalDone = 0, totalFailed = 0
     const allAppliedUrls: string[] = []
+    const allAppliedSlots: string[] = []
 
     if (s.matchedKey) {
       const mainRes = await applyPosters(s.matchedKey, mainPosters, allTypes,
@@ -2300,6 +2302,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       totalDone   += mainRes.done
       totalFailed += mainRes.failed
       allAppliedUrls.push(...mainRes.appliedUrls)
+      allAppliedSlots.push(...mainRes.appliedSlots)
     } else if (mainPosters.length > 0) {
       totalFailed += mainPosters.filter(p => allTypes.has(posterFileType(p))).length
     }
@@ -2312,12 +2315,13 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         totalDone   += collRes.done
         totalFailed += collRes.failed
         allAppliedUrls.push(...collRes.appliedUrls)
+        allAppliedSlots.push(...collRes.appliedSlots)
         if (collRes.done > 0) {
           void recordApplied({
             itemKey: coll.key, title: coll.title, type: 'collection',
             source: 'mediux', thumb: collectionArt[0].thumbUrl ?? collectionArt[0].url,
             setId: s.id, uploader: s.uploader,
-            posterUrls: collRes.appliedUrls, appliedAt: new Date().toISOString(),
+            posterUrls: collRes.appliedUrls, slots: collRes.appliedSlots, appliedAt: new Date().toISOString(),
           })
         }
       } else {
@@ -2344,13 +2348,14 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         totalDone   += memberRes.done
         totalFailed += memberRes.failed
         allAppliedUrls.push(...memberRes.appliedUrls)
+        allAppliedSlots.push(...memberRes.appliedSlots)
         if (memberRes.done > 0) {
           void recordApplied({
             itemKey: found.key, title: found.title, year: found.year,
             type: (found.type === 'movie' ? 'movie' : 'show'),
             source: 'mediux', thumb: found.thumb,
             setId: s.id, uploader: s.uploader,
-            posterUrls: memberRes.appliedUrls, appliedAt: new Date().toISOString(),
+            posterUrls: memberRes.appliedUrls, slots: memberRes.appliedSlots, appliedAt: new Date().toISOString(),
           })
         }
       }
@@ -2360,7 +2365,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       void recordApplied({
         itemKey: s.matchedKey, title: s.title, year: s.year, type: s.matchedType ?? 'movie',
         source: 'mediux', thumb: s.previewUrl, setId: s.id, uploader: s.uploader,
-        posterUrls: allAppliedUrls, appliedAt: new Date().toISOString(),
+        posterUrls: allAppliedUrls, slots: allAppliedSlots, appliedAt: new Date().toISOString(),
       })
       onApplied(s.id, s.matchedKey, s.title, s.year, allAppliedUrls)
     }
@@ -2381,12 +2386,12 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         setApplyMap(m => ({ ...m, [key]: { status: 'error', done: 0, total: 1, error: 'No matching Plex Collection' } }))
         return
       }
-      const { done, appliedUrls, lastError } = await applyPosters(coll.key, [file], allTypes, () => {})
+      const { done, appliedUrls, appliedSlots, lastError } = await applyPosters(coll.key, [file], allTypes, () => {})
       if (done) {
         void recordApplied({
           itemKey: coll.key, title: coll.title, type: 'collection',
           source: 'mediux', thumb: file.thumbUrl ?? file.url, setId: s.id, uploader: s.uploader,
-          posterUrls: appliedUrls, appliedAt: new Date().toISOString(),
+          posterUrls: appliedUrls, slots: appliedSlots, appliedAt: new Date().toISOString(),
         })
       }
       setApplyMap(m => ({ ...m, [key]: { status: done ? 'done' : 'error', done, total: 1, error: lastError } }))
@@ -2394,12 +2399,12 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     }
 
     if (!s.matchedKey) return
-    const { done, appliedUrls, lastError } = await applyPosters(s.matchedKey, [file], allTypes, () => {})
+    const { done, appliedUrls, appliedSlots, lastError } = await applyPosters(s.matchedKey, [file], allTypes, () => {})
     if (done) {
       void recordApplied({
         itemKey: s.matchedKey, title: s.title, year: s.year, type: s.matchedType ?? 'movie',
         source: 'mediux', thumb: file.thumbUrl ?? file.url, setId: s.id, uploader: s.uploader,
-        posterUrls: appliedUrls, appliedAt: new Date().toISOString(),
+        posterUrls: appliedUrls, slots: appliedSlots, appliedAt: new Date().toISOString(),
       })
       onApplied(s.id, s.matchedKey, s.title, s.year, appliedUrls)
     }

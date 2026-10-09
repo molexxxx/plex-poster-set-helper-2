@@ -280,6 +280,10 @@ export async function startServer() {
     const q = req.query as { expr?: string }
     return handlers.scheduler.preview(q.expr ?? '')
   })
+  app.put('/api/scheduler/order', async (req) => {
+    const b = (req.body ?? {}) as { ids?: string[] }
+    return handlers.scheduler.reorder(b.ids ?? [])
+  })
 
   // Browser
   app.get('/api/browser/status', async () => handlers.browser.getStatus())

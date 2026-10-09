@@ -1,4 +1,4 @@
-import type { AppliedRecord, CronPreview, JobRun, ScheduledJob } from '../ipc/types'
+import type { AppliedRecord, CronPreview, JobRun, JobRunDetails, PosterInfo, ScheduledJob } from '../ipc/types'
 import { classifyUrl } from '../scrapers/urlSource'
 
 /** Schedule the quick Schedule and Sync actions use until the user picks another. */
@@ -11,6 +11,8 @@ export const MAX_APPLIED_RECORDS = 2000
 export const HOUR_INTERVALS = [1, 2, 3, 4, 6, 8, 12]
 /** Status message for a job that was running when the app stopped. */
 export const INTERRUPTED_MESSAGE = 'Interrupted - the app stopped while this job was running'
+/** Titles listed per category in a run's details before the list is cut off. */
+export const MAX_RUN_DETAIL = 100
 
 const MAX_NAME_LENGTH = 120
 const LOOKAHEAD_DAYS = 366 * 30
@@ -703,6 +705,7 @@ export function normalizeJob(input: unknown, existing: ScheduledJob | undefined,
     enabled: raw.enabled !== false,
     skipApplied: raw.skipApplied !== false,
   }
+  if (raw.fillGaps === true) job.fillGaps = true
   if (creator) job.creator = creator
   if (existing?.lastRun) job.lastRun = existing.lastRun
   if (existing?.lastStatus) job.lastStatus = existing.lastStatus
@@ -937,7 +940,8 @@ export function appliedUrlIndex(records: AppliedRecord[]): Map<string, Set<strin
 
 /**
  * Merges new applied entries into history. Entries dedupe on item and set, the
- * per-poster URLs accumulate, and the newest entries move to the front.
+ * per-poster URLs and slots accumulate, and the newest entries move to the
+ * front.
  *
  * @param existing - Current history, newest first.
  * @param incoming - Entries to record.
@@ -952,9 +956,125 @@ export function mergeAppliedRecords(existing: AppliedRecord[], incoming: Applied
     const same = (r: AppliedRecord) => r.itemKey === rec.itemKey && r.setId === rec.setId
     const prior = list.find(same)
     const posterUrls = [...new Set([...(prior?.posterUrls ?? []), ...(rec.posterUrls ?? [])])]
-    list = [{ ...rec, posterUrls }, ...list.filter(r => !same(r))]
+    const merged: AppliedRecord = { ...rec, posterUrls }
+    if (prior?.slots || rec.slots) merged.slots = [...new Set([...(prior?.slots ?? []), ...(rec.slots ?? [])])]
+    list = [merged, ...list.filter(r => !same(r))]
   }
   return list.slice(0, cap)
+}
+
+/**
+ * Names the art slot a poster fills on its Plex item.
+ *
+ * @param p - The poster.
+ * @returns poster, backdrop, s<n> for a season poster, or s<n>e<n> for a title card.
+ */
+export function posterSlot(p: Pick<PosterInfo, 'season' | 'episode'>): string
+{
+  if (p.season === 'Backdrop') return 'backdrop'
+  if (p.episode != null) return `s${p.season ?? '?'}e${p.episode}`
+  if (typeof p.season === 'number') return `s${p.season}`
+  return 'poster'
+}
+
+/** Which sets have filled each slot on each item, for fill-gaps jobs. */
+export interface SlotCoverage
+{
+  /** Item key to the set ids (empty string when unknown) of slotless records. */
+  whole: Map<string, Set<string>>
+  /** Item key to slot to the set ids that filled it. */
+  slots: Map<string, Map<string, Set<string>>>
+}
+
+/**
+ * Indexes applied-poster history by item and slot.
+ *
+ * @param records - Applied-poster history.
+ * @returns The coverage index for {@link isSlotCovered}.
+ */
+export function slotCoverage(records: AppliedRecord[]): SlotCoverage
+{
+  const coverage: SlotCoverage = { whole: new Map(), slots: new Map() }
+  for (const r of records)
+  {
+    const setId = r.setId ?? ''
+    if (!r.slots)
+    {
+      let sets = coverage.whole.get(r.itemKey)
+      if (!sets) coverage.whole.set(r.itemKey, (sets = new Set()))
+      sets.add(setId)
+      continue
+    }
+    let bySlot = coverage.slots.get(r.itemKey)
+    if (!bySlot) coverage.slots.set(r.itemKey, (bySlot = new Map()))
+    for (const slot of r.slots)
+    {
+      let sets = bySlot.get(slot)
+      if (!sets) bySlot.set(slot, (sets = new Set()))
+      sets.add(setId)
+    }
+  }
+  return coverage
+}
+
+/**
+ * Marks a slot as filled by a set, so later posters in the same run see it.
+ *
+ * @param coverage - Index from {@link slotCoverage}.
+ * @param itemKey - Plex item.
+ * @param slot - Slot from {@link posterSlot}.
+ * @param setId - The set that filled it.
+ */
+export function addSlotCoverage(coverage: SlotCoverage, itemKey: string, slot: string, setId?: string): void
+{
+  let bySlot = coverage.slots.get(itemKey)
+  if (!bySlot) coverage.slots.set(itemKey, (bySlot = new Map()))
+  let sets = bySlot.get(slot)
+  if (!sets) bySlot.set(slot, (sets = new Set()))
+  sets.add(setId ?? '')
+}
+
+/**
+ * Classifies a poster by the MediUX file type filter it falls under.
+ *
+ * @param p - The poster.
+ * @returns backdrop for background art, title_card for episode art, else poster.
+ */
+export function posterKind(p: Pick<PosterInfo, 'season' | 'episode'>): 'poster' | 'backdrop' | 'title_card'
+{
+  if (p.season === 'Backdrop') return 'backdrop'
+  if (p.episode != null) return 'title_card'
+  return 'poster'
+}
+
+/**
+ * Tells whether art from another set already fills a slot. Records without
+ * slots predate slot tracking and count as covering every slot on their item.
+ * The poster's own set never blocks it, so an updated card still applies.
+ *
+ * @param coverage - Index from {@link slotCoverage}.
+ * @param itemKey - Plex item.
+ * @param slot - Slot from {@link posterSlot}.
+ * @param setId - The set the poster comes from.
+ * @returns true when a different set has filled the slot.
+ */
+export function isSlotCovered(coverage: SlotCoverage, itemKey: string, slot: string, setId?: string): boolean
+{
+  const own = setId ?? ''
+  const other = (sets?: Set<string>) => !!sets && [...sets].some(s => s !== own)
+  return other(coverage.whole.get(itemKey)) || other(coverage.slots.get(itemKey)?.get(slot))
+}
+
+/**
+ * Label for a title in run details.
+ *
+ * @param title - Media title.
+ * @param year - Release year, when known.
+ * @returns "Title (Year)" or the bare title.
+ */
+export function titleLabel(title: string, year?: number): string
+{
+  return year ? `${title} (${year})` : title
 }
 
 /** Counters collected while a job runs. */
@@ -966,7 +1086,14 @@ export interface RunTally
   unmatched: number
   failed: number
   urlErrors: number
+  covered: number
   firstError?: string
+  /** Title label to posters applied. */
+  appliedTitles: Map<string, number>
+  /** Title labels not found in the library. */
+  unmatchedTitles: Set<string>
+  /** Title label to the first upload error. */
+  failedTitles: Map<string, string>
 }
 
 /**
@@ -977,7 +1104,56 @@ export interface RunTally
  */
 export function emptyTally(urlCount: number): RunTally
 {
-  return { urlCount, uploaded: 0, skipped: 0, unmatched: 0, failed: 0, urlErrors: 0 }
+  return {
+    urlCount, uploaded: 0, skipped: 0, unmatched: 0, failed: 0, urlErrors: 0, covered: 0,
+    appliedTitles: new Map(), unmatchedTitles: new Set(), failedTitles: new Map(),
+  }
+}
+
+function capList(items: string[]): string[]
+{
+  if (items.length <= MAX_RUN_DETAIL) return items
+  return [...items.slice(0, MAX_RUN_DETAIL), `and ${items.length - MAX_RUN_DETAIL} more`]
+}
+
+/**
+ * Builds the per-title details of a run from its tally.
+ *
+ * @param tally - Counters from the run.
+ * @returns The details, or undefined when nothing was recorded.
+ */
+export function runDetails(tally: RunTally): JobRunDetails | undefined
+{
+  if (!tally.appliedTitles.size && !tally.unmatchedTitles.size && !tally.failedTitles.size) return undefined
+  return {
+    applied: capList([...tally.appliedTitles].map(([t, n]) => `${t} · ${plural(n, 'poster')}`)),
+    unmatched: capList([...tally.unmatchedTitles]),
+    failed: capList([...tally.failedTitles].map(([t, e]) => `${t} · ${e}`)),
+  }
+}
+
+/**
+ * Puts jobs in the order given, keeping any job not listed at the end in its
+ * current order.
+ *
+ * @param jobs - Stored jobs.
+ * @param ids - Job ids in the wanted order.
+ * @returns The reordered list.
+ */
+export function reorderJobs(jobs: ScheduledJob[], ids: string[]): ScheduledJob[]
+{
+  const byId = new Map(jobs.map(j => [j.id, j]))
+  const ordered: ScheduledJob[] = []
+  for (const id of ids)
+  {
+    const job = byId.get(id)
+    if (job)
+    {
+      ordered.push(job)
+      byId.delete(id)
+    }
+  }
+  return [...ordered, ...byId.values()]
 }
 
 /**
@@ -1006,7 +1182,10 @@ export function finishRun(tally: RunTally, startedAt: Date, finishedAt: Date, tr
     failed: tally.failed,
     urlErrors: tally.urlErrors,
   }
+  if (tally.covered) run.covered = tally.covered
   if (tally.firstError && status !== 'success') run.error = tally.firstError
+  const details = runDetails(tally)
+  if (details) run.details = details
   return run
 }
 
@@ -1051,6 +1230,7 @@ export function describeRun(run: JobRun): string
   const parts: string[] = []
   if (run.uploaded) parts.push(`${plural(run.uploaded, 'poster')} applied`)
   if (run.skipped) parts.push(`${run.skipped} already applied`)
+  if (run.covered) parts.push(`${run.covered} left to other art`)
   if (run.unmatched) parts.push(`${plural(run.unmatched, 'title')} not in library`)
   if (run.failed) parts.push(`${run.failed} failed`)
   if (run.urlErrors) parts.push(`${plural(run.urlErrors, 'URL')} could not be read`)

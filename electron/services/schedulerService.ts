@@ -6,23 +6,34 @@ import type { BrowserWindow } from 'electron'
 import { ConfigService } from './config'
 import { Logger } from './logger'
 import { PlexService } from './plexService'
+import { CreatorSetsService } from './creatorSetsService'
 import { ScraperFactory } from '../scrapers/scraperFactory'
-import type { AppliedRecord, CronPreview, JobRun, PosterInfo, ScheduledJob, SchedulerEngineStatus } from '../ipc/types'
+import type { AppliedRecord, CronPreview, JobProgress, JobRun, PosterInfo, ScheduledJob, SchedulerEngineStatus } from '../ipc/types'
 import { getUserDataPath } from '../runtime/paths'
 import { appEvents } from '../runtime/events'
 import { isWebMode } from '../runtime/runtime'
 import {
-  appliedUrlIndex, creatorOfUrl, describeRun, emptyTally, failedRun, finishRun, mediuxSetId,
-  mergeAppliedRecords, normalizeJob, previewCron, recordRun, recoverInterrupted, withNextRun,
+  addSlotCoverage, appliedUrlIndex, creatorOfUrl, describeRun, emptyTally, failedRun, finishRun, isSlotCovered,
+  mediuxSetId, mergeAppliedRecords, normalizeJob, posterKind, posterSlot, previewCron, recordRun, recoverInterrupted,
+  reorderJobs, slotCoverage, titleLabel, withNextRun, type RunTally, type SlotCoverage,
 } from './scheduleUtils'
 
 const ENGINE_FILE     = 'scheduler-engine.json'
 const ENGINE_WRITE_MS = 30_000
 const ENGINE_FRESH_MS = 90_000
 const WATCH_MS        = 30_000
+/** A scheduled run resyncs a cached creator catalog older than this before applying. */
+const CATALOG_MAX_AGE_MS = 60_000
+/** Progress updates reach the UI at most this often. */
+const PROGRESS_EMIT_MS = 1_000
 
 const tasks = new Map<string, ScheduledTask>()
-const running = new Set<string>()
+const queue: Array<{ id: string; trigger: JobRun['trigger'] }> = []
+const queued = new Set<string>()
+const progress = new Map<string, JobProgress>()
+let currentId: string | null = null
+let draining = false
+let lastProgressEmit = 0
 let _win: BrowserWindow | null = null
 let _isEngine = false
 let _engineTimer: NodeJS.Timeout | null = null
@@ -39,9 +50,42 @@ interface ResolvedItem {
   libraryTitle: string
 }
 
+/** Where a poster came from, for history records and matching. */
+interface PosterSource {
+  setId?: string
+  uploader?: string
+  mediaType?: 'movie' | 'show'
+}
+
+/** State shared by every poster in one run. */
+interface RunContext {
+  job: ScheduledJob
+  tally: RunTally
+  /** Item key to image URLs already applied; null when the job re-applies everything. */
+  applied: Map<string, Set<string>> | null
+  /** Slot coverage for fill-gaps jobs; null otherwise. */
+  coverage: SlotCoverage | null
+  /** MediUX file types the user has enabled. */
+  filters: Set<string>
+  lookups: Map<string, Promise<ResolvedItem | null>>
+  records: Map<string, AppliedRecord>
+  mainThumb: Set<string>
+}
+
+/** Adds live queue and progress state to stored jobs for display. */
+function decorate(jobs: ScheduledJob[]): ScheduledJob[] {
+  return withNextRun(jobs, new Date()).map(job => {
+    const out = { ...job }
+    if (queued.has(job.id)) out.queued = true
+    const p = progress.get(job.id)
+    if (p) out.progress = p
+    return out
+  })
+}
+
 function emit(jobs: ScheduledJob[]) {
   _lastSnapshot = JSON.stringify(jobs)
-  const payload = withNextRun(jobs, new Date())
+  const payload = decorate(jobs)
   appEvents.emitEvent('scheduler:onChange', payload)
   _win?.webContents.send('scheduler:onChange', payload)
 }
@@ -67,7 +111,7 @@ function localTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 }
 
-/** Runs scheduled scrape-and-apply jobs via node-cron. */
+/** Runs scheduled scrape-and-apply jobs via node-cron, one job at a time. */
 export const SchedulerService = {
   init(win: BrowserWindow | null) {
     _win = win
@@ -87,9 +131,9 @@ export const SchedulerService = {
     Logger.info('Scheduler', `Loaded ${jobs.length} job(s)`)
   },
 
-  /** Jobs with their next firing time attached, for display. */
+  /** Jobs with their next firing time and live run state attached, for display. */
   list(): ScheduledJob[] {
-    return withNextRun(this._stored(), new Date())
+    return decorate(this._stored())
   },
 
   /**
@@ -112,10 +156,13 @@ export const SchedulerService = {
 
     this._rescheduleAll(jobs)
     emit(jobs)
-    return withNextRun([job], new Date())[0]
+    return decorate([job])[0]
   },
 
   delete(id: string): void {
+    const at = queue.findIndex(q => q.id === id)
+    if (at >= 0) queue.splice(at, 1)
+    queued.delete(id)
     const jobs = this._stored().filter(j => j.id !== id)
     ConfigService.set({ scheduledJobs: jobs })
     this._rescheduleAll(jobs)
@@ -123,17 +170,33 @@ export const SchedulerService = {
   },
 
   /**
-   * Starts a job immediately without waiting for it to finish; progress
-   * arrives through scheduler:onChange.
+   * Stores the jobs in a new order. Jobs due at the same time run in list
+   * order, so this is also the run priority.
+   *
+   * @param ids - Job ids in the wanted order; unlisted jobs keep their place at the end.
+   * @returns The reordered jobs.
+   */
+  reorder(ids: string[]): ScheduledJob[] {
+    const jobs = reorderJobs(this._stored(), Array.isArray(ids) ? ids.filter(id => typeof id === 'string') : [])
+    ConfigService.set({ scheduledJobs: jobs })
+    this._rescheduleAll(jobs)
+    emit(jobs)
+    return decorate(jobs)
+  },
+
+  /**
+   * Queues a job to run ahead of any scheduled runs waiting, without waiting
+   * for it to finish; progress arrives through scheduler:onChange.
    *
    * @param id - Job id.
-   * @throws Error when the job does not exist or is already running.
+   * @throws Error when the job does not exist or is already running or queued.
    */
   runNow(id: string): void {
     const job = this._stored().find(j => j.id === id)
     if (!job) throw new Error('This job no longer exists')
-    if (running.has(id)) throw new Error(`"${job.name}" is already running`)
-    void this._execute(job, 'manual')
+    if (currentId === id) throw new Error(`"${job.name}" is already running`)
+    if (queued.has(id)) throw new Error(`"${job.name}" is already queued`)
+    this._enqueue(id, 'manual')
   },
 
   /**
@@ -244,14 +307,41 @@ export const SchedulerService = {
         Logger.info('Scheduler', `"${fresh.name}" is handled by the 24/7 engine - skipping local run`)
         return
       }
-      if (running.has(fresh.id)) {
-        Logger.info('Scheduler', `"${fresh.name}" is still running from its previous trigger - skipping this one`)
+      if (currentId === fresh.id || queued.has(fresh.id)) {
+        Logger.info('Scheduler', `"${fresh.name}" is still running or waiting from its previous trigger - skipping this one`)
         return
       }
-      void this._execute(fresh, 'schedule')
+      this._enqueue(fresh.id, 'schedule')
     })
     tasks.set(job.id, task)
     Logger.info('Scheduler', `Scheduled "${job.name}" [${job.cronExpr}]`)
+  },
+
+  /** Adds a run to the queue; manual runs go ahead of waiting scheduled runs. */
+  _enqueue(id: string, trigger: JobRun['trigger']): void {
+    queued.add(id)
+    if (trigger === 'manual') queue.unshift({ id, trigger })
+    else queue.push({ id, trigger })
+    emit(this._stored())
+    void this._drain()
+  },
+
+  /** Works through the queue one job at a time. */
+  async _drain(): Promise<void> {
+    if (draining) return
+    draining = true
+    try {
+      while (queue.length) {
+        const next = queue.shift()!
+        queued.delete(next.id)
+        // The job may have been deleted or edited while it waited.
+        const job = this._stored().find(j => j.id === next.id)
+        if (!job) continue
+        await this._execute(job, next.trigger)
+      }
+    } finally {
+      draining = false
+    }
   },
 
   _updateStatus(id: string, patch: Partial<ScheduledJob>): void {
@@ -263,13 +353,25 @@ export const SchedulerService = {
     emit(jobs)
   },
 
-  _recordRun(id: string, run: JobRun): void {
+  /** Clears the run's live state, then stores its result. */
+  _finishRun(id: string, run: JobRun): void {
+    progress.delete(id)
+    if (currentId === id) currentId = null
     const jobs = this._stored()
     const idx = jobs.findIndex(j => j.id === id)
-    if (idx < 0) return
-    jobs[idx] = recordRun(jobs[idx], run)
-    ConfigService.set({ scheduledJobs: jobs })
+    if (idx >= 0) {
+      jobs[idx] = recordRun(jobs[idx], run)
+      ConfigService.set({ scheduledJobs: jobs })
+    }
     emit(jobs)
+  },
+
+  _setProgress(id: string, next: JobProgress, force = false): void {
+    progress.set(id, next)
+    const now = Date.now()
+    if (!force && now - lastProgressEmit < PROGRESS_EMIT_MS) return
+    lastProgressEmit = now
+    emit(this._stored())
   },
 
   /** Reconnects to Plex from saved config when the connection was lost. */
@@ -283,10 +385,10 @@ export const SchedulerService = {
   },
 
   /** Finds a poster's Plex target, sharing lookups across a run's posters for the same title. */
-  _resolveItem(poster: PosterInfo, cache: Map<string, Promise<ResolvedItem | null>>): Promise<ResolvedItem | null> {
+  _resolveItem(poster: PosterInfo, cache: Map<string, Promise<ResolvedItem | null>>, mediaType?: 'movie' | 'show'): Promise<ResolvedItem | null> {
     const cacheKey = poster.isCollection
       ? `collection|${poster.title.toLowerCase()}`
-      : `item|${poster.title.toLowerCase()}|${poster.year ?? ''}|${poster.tmdbId ?? ''}`
+      : `item|${poster.title.toLowerCase()}|${poster.year ?? ''}|${poster.tmdbId ?? ''}|${mediaType ?? ''}`
     let pending = cache.get(cacheKey)
     if (!pending) {
       pending = (async (): Promise<ResolvedItem | null> => {
@@ -299,6 +401,7 @@ export const SchedulerService = {
           year: poster.year,
           libraries: [],
           tmdbId: poster.tmdbId,
+          type: mediaType,
         })
         if (!item) return null
         return { key: item.key, title: item.title, year: item.year, type: item.type === 'movie' ? 'movie' : 'show', libraryTitle: item.libraryTitle }
@@ -308,103 +411,172 @@ export const SchedulerService = {
     return pending
   },
 
+  /** Matches one poster to Plex and uploads it unless the job's rules skip it. */
+  async _applyPoster(ctx: RunContext, poster: PosterInfo, source: PosterSource): Promise<void> {
+    const { tally } = ctx
+    const label = titleLabel(poster.title, poster.year)
+    try {
+      const target = await this._resolveItem(poster, ctx.lookups, source.mediaType)
+      if (!target) {
+        tally.unmatchedTitles.add(label)
+        return
+      }
+      const targetLabel = titleLabel(target.title, target.year)
+      if (ctx.applied?.get(target.key)?.has(poster.url)) {
+        tally.skipped++
+        return
+      }
+      const slot = posterSlot(poster)
+      if (ctx.coverage && isSlotCovered(ctx.coverage, target.key, slot, source.setId)) {
+        tally.covered++
+        return
+      }
+
+      const res = await PlexService.uploadPoster({
+        itemKey: target.key,
+        imageUrl: poster.url,
+        source: poster.source,
+        season: poster.season,
+        episode: poster.episode,
+        isCollection: poster.isCollection,
+      })
+      if (res.skipped) return
+      if (!res.success) {
+        tally.failed++
+        tally.firstError ??= res.error
+        if (!tally.failedTitles.has(targetLabel)) tally.failedTitles.set(targetLabel, res.error ?? 'Upload failed')
+        return
+      }
+
+      tally.uploaded++
+      tally.appliedTitles.set(targetLabel, (tally.appliedTitles.get(targetLabel) ?? 0) + 1)
+      if (ctx.coverage) addSlotCoverage(ctx.coverage, target.key, slot, source.setId)
+
+      const recKey = `${target.key}|${source.setId ?? ''}`
+      const isMain = poster.season == null && poster.episode == null
+      const thumb = poster.thumbUrl ?? poster.url
+      const rec = ctx.records.get(recKey)
+      if (rec) {
+        rec.posterUrls = [...(rec.posterUrls ?? []), poster.url]
+        rec.slots = [...(rec.slots ?? []), slot]
+        if (isMain && !ctx.mainThumb.has(recKey)) { rec.thumb = thumb; ctx.mainThumb.add(recKey) }
+      } else {
+        ctx.records.set(recKey, {
+          itemKey: target.key, title: target.title, year: target.year, type: target.type,
+          source: poster.source, libraryTitle: target.libraryTitle, thumb, setId: source.setId, uploader: source.uploader,
+          posterUrls: [poster.url], slots: [slot], appliedAt: new Date().toISOString(),
+        })
+        if (isMain) ctx.mainThumb.add(recKey)
+      }
+    } catch (err) {
+      tally.failed++
+      tally.firstError ??= errorText(err)
+      if (!tally.failedTitles.has(label)) tally.failedTitles.set(label, errorText(err))
+    }
+  },
+
+  /** Applies every set in a creator's catalog, reading it through the creator cache. */
+  async _syncCreator(ctx: RunContext, creator: string, url: string): Promise<void> {
+    const { job, tally } = ctx
+    const reading = (collected: number) => this._setProgress(job.id, { phase: 'reading', done: collected, total: 0, current: `@${creator}` })
+    this._setProgress(job.id, { phase: 'reading', done: 0, total: 0, current: `@${creator}` }, true)
+    const off = appEvents.onEvent('library:userSetsChunk', chunk => {
+      if (chunk.username.toLowerCase() === creator) reading(chunk.collected)
+    })
+
+    let sets
+    try {
+      const catalog = await CreatorSetsService.catalog(creator, CATALOG_MAX_AGE_MS)
+      sets = catalog.sets
+      if (catalog.capped) Logger.warn('Scheduler', `@${creator} has more sets than one crawl reads; the newest ${sets.length} were used`)
+    } catch (err) {
+      tally.urlErrors++
+      tally.firstError ??= `${url}: ${errorText(err)}`
+      Logger.warn('Scheduler', `Creator sync failed in job "${job.name}": ${errorText(err)}`)
+      return
+    } finally {
+      off()
+    }
+
+    Logger.info('Scheduler', `@${creator}: ${sets.length} set(s) to check for "${job.name}"`)
+    for (let i = 0; i < sets.length; i++) {
+      const set = sets[i]
+      this._setProgress(job.id, { phase: 'applying', done: i, total: sets.length, current: titleLabel(set.title, set.year) })
+      const posters = set.posters.filter(p => ctx.filters.has(posterKind(p)))
+      for (const poster of posters) {
+        await this._applyPoster(ctx, poster, { setId: set.id, uploader: set.uploader, mediaType: set.mediaType })
+      }
+    }
+  },
+
+  /** Scrapes one set, show, or boxset URL and applies what it finds. */
+  async _syncUrl(ctx: RunContext, url: string): Promise<void> {
+    const { job, tally } = ctx
+    let scrapeError: string | undefined
+    const posters = await ScraperFactory.scrapeUrl(url, p => {
+      if (p.status === 'error') scrapeError = p.error ?? 'Scrape failed'
+    })
+    if (scrapeError && !posters.length) {
+      tally.urlErrors++
+      tally.firstError ??= `${url}: ${scrapeError}`
+      Logger.warn('Scheduler', `URL failed in job "${job.name}": ${scrapeError}`)
+      return
+    }
+    const source: PosterSource = { setId: mediuxSetId(url) ?? undefined, uploader: job.creator }
+    for (const poster of posters) await this._applyPoster(ctx, poster, source)
+  },
+
   async _execute(job: ScheduledJob, trigger: JobRun['trigger']): Promise<void> {
-    if (running.has(job.id)) return
-    running.add(job.id)
+    if (currentId === job.id) return
+    currentId = job.id
     const startedAt = new Date()
     Logger.session('Scheduler', `Running job "${job.name}"`)
     this._updateStatus(job.id, { lastRun: startedAt.toISOString(), lastStatus: 'running' })
 
     try {
       await this._ensurePlex()
-      const applied = job.skipApplied === false ? null : appliedUrlIndex(ConfigService.get().appliedPosters ?? [])
-      const tally = emptyTally(job.urls.length)
-      const unmatched = new Set<string>()
-      const lookups = new Map<string, Promise<ResolvedItem | null>>()
-      const records = new Map<string, AppliedRecord>()
-      const mainThumb = new Set<string>()
+      const cfg = ConfigService.get()
+      const history = cfg.appliedPosters ?? []
+      const ctx: RunContext = {
+        job,
+        tally: emptyTally(job.urls.length),
+        applied: job.skipApplied === false ? null : appliedUrlIndex(history),
+        coverage: job.fillGaps ? slotCoverage(history) : null,
+        filters: new Set(cfg.mediuxFilters ?? ['poster', 'backdrop', 'title_card']),
+        lookups: new Map(),
+        records: new Map(),
+        mainThumb: new Set(),
+      }
 
-      for (const url of job.urls) {
-        let scrapeError: string | undefined
-        const posters = await ScraperFactory.scrapeUrl(url, p => {
-          if (p.status === 'error') scrapeError = p.error ?? 'Scrape failed'
-        })
-        if (scrapeError && !posters.length) {
-          tally.urlErrors++
-          tally.firstError ??= `${url}: ${scrapeError}`
-          Logger.warn('Scheduler', `URL failed in job "${job.name}": ${scrapeError}`)
-          continue
-        }
-
-        const setId = mediuxSetId(url) ?? undefined
-        const uploader = job.creator ?? creatorOfUrl(url) ?? undefined
-        for (const poster of posters) {
-          try {
-            const target = await this._resolveItem(poster, lookups)
-            if (!target) {
-              unmatched.add(`${poster.isCollection ? 'c' : 'i'}|${poster.title.toLowerCase()}|${poster.year ?? ''}`)
-              continue
-            }
-            if (applied?.get(target.key)?.has(poster.url)) {
-              tally.skipped++
-              continue
-            }
-
-            const res = await PlexService.uploadPoster({
-              itemKey: target.key,
-              imageUrl: poster.url,
-              source: poster.source,
-              season: poster.season,
-              episode: poster.episode,
-              isCollection: poster.isCollection,
-            })
-            if (res.skipped) continue
-            if (!res.success) {
-              tally.failed++
-              tally.firstError ??= res.error
-              continue
-            }
-
-            tally.uploaded++
-            const recKey = `${target.key}|${setId ?? ''}`
-            const isMain = poster.season == null && poster.episode == null
-            const thumb = poster.thumbUrl ?? poster.url
-            const rec = records.get(recKey)
-            if (rec) {
-              rec.posterUrls = [...(rec.posterUrls ?? []), poster.url]
-              if (isMain && !mainThumb.has(recKey)) { rec.thumb = thumb; mainThumb.add(recKey) }
-            } else {
-              records.set(recKey, {
-                itemKey: target.key, title: target.title, year: target.year, type: target.type,
-                source: poster.source, libraryTitle: target.libraryTitle, thumb, setId, uploader,
-                posterUrls: [poster.url], appliedAt: new Date().toISOString(),
-              })
-              if (isMain) mainThumb.add(recKey)
-            }
-          } catch (err) {
-            tally.failed++
-            tally.firstError ??= errorText(err)
-          }
+      for (let i = 0; i < job.urls.length; i++) {
+        const url = job.urls[i]
+        const creator = creatorOfUrl(url)
+        if (creator) {
+          await this._syncCreator(ctx, creator, url)
+        } else {
+          this._setProgress(job.id, { phase: 'applying', done: i, total: job.urls.length, current: url }, true)
+          await this._syncUrl(ctx, url)
         }
       }
 
-      tally.unmatched = unmatched.size
-      if (records.size) {
+      ctx.tally.unmatched = ctx.tally.unmatchedTitles.size
+      if (ctx.records.size) {
         const existing = ConfigService.get().appliedPosters ?? []
-        ConfigService.set({ appliedPosters: mergeAppliedRecords(existing, [...records.values()]) })
+        ConfigService.set({ appliedPosters: mergeAppliedRecords(existing, [...ctx.records.values()]) })
       }
 
-      const run = finishRun(tally, startedAt, new Date(), trigger)
+      const run = finishRun(ctx.tally, startedAt, new Date(), trigger)
       const summary = describeRun(run)
       if (run.status === 'success') Logger.success('Scheduler', `Job "${job.name}" done - ${summary}`)
       else Logger.warn('Scheduler', `Job "${job.name}" finished with problems - ${summary}`)
-      this._recordRun(job.id, run)
+      this._finishRun(job.id, run)
     } catch (err) {
       const msg = errorText(err)
       Logger.error('Scheduler', `Job "${job.name}" failed: ${msg}`)
-      this._recordRun(job.id, failedRun(msg, startedAt, new Date(), trigger))
+      this._finishRun(job.id, failedRun(msg, startedAt, new Date(), trigger))
     } finally {
-      running.delete(job.id)
+      progress.delete(job.id)
+      if (currentId === job.id) currentId = null
     }
   },
 }

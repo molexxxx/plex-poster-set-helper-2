@@ -1,4 +1,4 @@
-import { BaseScraper, USER_AGENTS, pick, sleepConfig, mapPool } from './baseScraper'
+import { BaseScraper, USER_AGENTS, pick, sleep, sleepConfig, mapPool } from './baseScraper'
 import { Logger } from '../services/logger'
 import { ConfigService } from '../services/config'
 import type { PosterInfo, MediuxSetSummary, MediuxUserSet } from '../ipc/types'
@@ -15,6 +15,11 @@ import type { Page } from 'playwright'
  */
 
 const ASSET_BASE = 'https://api.mediux.pro/assets'
+/** Creator pages server-render up to 10 MB of set data, so they get a longer fetch budget. */
+const USER_PAGE_TIMEOUT_MS = 60_000
+const USER_PAGE_RETRY_MS = 2_000
+/** Creator pages fetched concurrently during a catalog crawl. */
+const USER_CRAWL_BATCH = 4
 
 interface SeasonEntry { id?: string | number; season_number?: number }
 
@@ -763,7 +768,21 @@ export class MediuxScraper extends BaseScraper {
     // batch/summary lines in browseAllUserSets carry the progress instead.
 
     const allTypes = new Set(['poster', 'backdrop', 'title_card'])
-    let sets = (await this._fetchSets(url))?.sets
+
+    // A page that loaded with no sets is the end of the catalog; a page that
+    // could not be loaded is an error. Conflating the two made a slow connection
+    // look like a short catalog, so transport failures retry once, then fall
+    // back to the browser, then throw.
+    let sets: MediuxSet[] | null = null
+    let lastError: unknown
+    for (let attempt = 0; attempt < 2 && sets === null; attempt++) {
+      try {
+        sets = (await this._fetchSets(url, USER_PAGE_TIMEOUT_MS, true))?.sets ?? []
+      } catch (err) {
+        lastError = err
+        if (attempt === 0) await sleep(USER_PAGE_RETRY_MS)
+      }
+    }
 
     if (!sets?.length) {
       const { context, page: pg } = await this.newContext()
@@ -772,15 +791,19 @@ export class MediuxScraper extends BaseScraper {
         await pg.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 })
         await pg.waitForSelector('script', { timeout: 5_000 }).catch(() => {})
         await pg.waitForTimeout(1500)
-        sets = setsFromScripts(await this._readScripts(pg))
+        const found = setsFromScripts(await this._readScripts(pg))
+        if (found.length) sets = found
       } finally {
         await context.close()
+      }
+      if (sets === null) {
+        throw new Error(`Could not load page ${page} of @${username}'s sets: ${lastError instanceof Error ? lastError.message : lastError}`)
       }
     }
 
     // An empty page is normal at the end of a crawl; stay quiet and let the
     // caller detect the end of the catalog.
-    if (!sets?.length) return []
+    if (!sets.length) return []
 
     // The page can include other creators' sets (recommendations) - keep only this
     // creator's own (plus any set lacking a denormalised username, to be safe)
@@ -819,8 +842,12 @@ export class MediuxScraper extends BaseScraper {
    * for the whole crawl. A `signal` overrides the shared abort flag so a
    * background crawl survives a foreground scrape cancel (and vice-versa).
    *
+   * A page that cannot be loaded rejects the crawl rather than ending it, so a
+   * caller never mistakes a partial catalog for a complete one.
+   *
    * @param username - Creator to browse.
-   * @param opts.batchSize - Pages fetched concurrently per round (default 8).
+   * @param opts.batchSize - Pages fetched concurrently per round (default 4;
+   *   each page is several MB, so more parallel fetches start timing out).
    * @param opts.maxPages - Safety bound on total pages crawled (default 400 ~=
    *   4800 sets at +12/page).
    * @param opts.signal - Per-crawl abort token; when present it replaces the
@@ -838,7 +865,7 @@ export class MediuxScraper extends BaseScraper {
       onBatch?: (newSets: MediuxUserSet[], info: { page: number; done: boolean; capped: boolean }) => void | Promise<void>
     } = {},
   ): Promise<{ sets: MediuxUserSet[]; capped: boolean }> {
-    const batchSize = Math.max(1, opts.batchSize ?? 8)
+    const batchSize = Math.max(1, opts.batchSize ?? USER_CRAWL_BATCH)
     const maxPages  = Math.max(batchSize, opts.maxPages ?? 400)
     const { signal, onBatch } = opts
     // A per-crawl signal takes over abort control entirely, decoupling a
@@ -898,11 +925,16 @@ export class MediuxScraper extends BaseScraper {
    * RSC payload into sets.
    *
    * @param url - Page to fetch.
+   * @param timeoutMs - Fetch budget.
+   * @param strict - Throw on a transport failure or empty body instead of
+   *   returning null, for callers that must tell a failed page from one with
+   *   no sets.
    * @returns The sets plus an og:title fallback, or null when none were found.
    */
   private async _fetchSets(
     url: string,
     timeoutMs = 25_000,
+    strict = false,
   ): Promise<{ sets: MediuxSet[]; fallback: Fallback } | null> {
     try {
       const res = await fetch(url, {
@@ -920,6 +952,7 @@ export class MediuxScraper extends BaseScraper {
       const html = await res.text()
       if (!html || html.length < 500) {
         Logger.warn('MediUX', `HTTP ${res.status}, empty/short body for: ${url}`)
+        if (strict) throw new Error(`HTTP ${res.status} with an empty page`)
         return null
       }
       if (!res.ok) Logger.scrape('MediUX', `HTTP ${res.status} but parsing body anyway`)
@@ -936,6 +969,7 @@ export class MediuxScraper extends BaseScraper {
       return sets.length ? { sets, fallback } : null
     } catch (err) {
       Logger.warn('MediUX', `HTTP fetch failed: ${err instanceof Error ? err.message : err}`)
+      if (strict) throw err instanceof Error ? err : new Error(String(err))
       return null
     }
   }

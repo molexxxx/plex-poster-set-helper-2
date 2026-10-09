@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   CalendarClock, Plus, Play, Trash2, ToggleLeft, ToggleRight, Clock, CheckCircle2, AlertCircle,
-  AlertTriangle, Loader2, Pencil, X, Save, Power, Server, History, Zap,
+  AlertTriangle, Loader2, Pencil, X, Save, Power, Server, History, Zap, ArrowUp, ArrowDown, Hourglass,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Switch from '../../components/ui/Switch'
@@ -73,17 +73,34 @@ function useCronPreview(expr: string): { preview: CronPreview | null; current: b
   return { preview: result?.preview ?? null, current: result?.expr === expr }
 }
 
+type CardStatus = JobRun['status'] | 'running' | 'queued'
+
 /** Icon for a run or job status. */
-function StatusIcon({ status, size = 12 }: { status?: JobRun['status'] | 'running'; size?: number }) {
+function StatusIcon({ status, size = 12 }: { status?: CardStatus; size?: number }) {
   if (status === 'running') return <Loader2 size={size} className={styles.iconSpin} />
+  if (status === 'queued') return <Hourglass size={size} className={styles.iconMuted} />
   if (status === 'success') return <CheckCircle2 size={size} className={styles.iconSuccess} />
   if (status === 'partial') return <AlertTriangle size={size} className={styles.iconWarning} />
   if (status === 'error') return <AlertCircle size={size} className={styles.iconError} />
   return null
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  running: 'Running', success: 'Succeeded', partial: 'Partly failed', error: 'Failed',
+const STATUS_LABEL: Record<CardStatus, string> = {
+  running: 'Running', queued: 'Queued', success: 'Succeeded', partial: 'Partly failed', error: 'Failed',
+}
+
+/**
+ * Describes where a running job is.
+ *
+ * @param p - The job's progress.
+ * @returns A label such as "Reading @creator's sets · 312 found".
+ */
+function progressLabel(p: NonNullable<ScheduledJob['progress']>): string {
+  if (p.phase === 'reading') {
+    return `Reading ${p.current ?? 'the creator'}'s sets${p.done ? ` · ${p.done.toLocaleString()} found` : ''}`
+  }
+  const position = p.total ? ` · ${Math.min(p.done + 1, p.total).toLocaleString()} of ${p.total.toLocaleString()}` : ''
+  return `${p.current ?? 'Applying'}${position}`
 }
 
 
@@ -100,6 +117,7 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
   const [schedule,    setSchedule]    = useState<ScheduleForm>(() => cronToForm(initial?.cronExpr ?? '0 3 * * *'))
   const [enabled,     setEnabled]     = useState(initial?.enabled ?? true)
   const [skipApplied, setSkipApplied] = useState(initial?.skipApplied !== false)
+  const [fillGaps,    setFillGaps]    = useState(initial?.fillGaps === true)
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState<string | null>(null)
 
@@ -128,6 +146,7 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
         cronExpr,
         enabled,
         skipApplied,
+        fillGaps,
       }, runAfterSave)
     } catch (err) {
       setError(errorMessage(err))
@@ -364,6 +383,13 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
           />
 
           <Switch
+            label="Only fill gaps"
+            description="Leaves any poster, season, or episode that other art already covers, whether from another job or applied by hand. Use this for a backup creator that should only add what your main creator is missing."
+            checked={fillGaps}
+            onChange={setFillGaps}
+          />
+
+          <Switch
             label="Enable this job"
             description="Disabled jobs are saved but won't run on schedule."
             checked={enabled}
@@ -409,20 +435,37 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
 }
 
 
-interface JobCardProps {
-  job:      ScheduledJob
-  now:      number
-  starting: boolean
-  onEdit:   () => void
-  onDelete: () => void
-  onToggle: () => void
-  onRunNow: () => void
+/** One category of a run's per-title details. */
+function DetailList({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div className={styles.detailGroup}>
+      <span className={styles.detailLabel}>{label}</span>
+      <ul className={styles.detailItems}>
+        {items.map((item, i) => <li key={i}>{item}</li>)}
+      </ul>
+    </div>
+  )
 }
 
-/** Card for one scheduled job with its status, last result, history, and actions. */
-function JobCard({ job, now, starting, onEdit, onDelete, onToggle, onRunNow }: JobCardProps) {
+
+interface JobCardProps {
+  job:        ScheduledJob
+  now:        number
+  starting:   boolean
+  canMoveUp:  boolean
+  canMoveDown: boolean
+  onEdit:     () => void
+  onDelete:   () => void
+  onToggle:   () => void
+  onRunNow:   () => void
+  onMove:     (delta: -1 | 1) => void
+}
+
+/** Card for one scheduled job with its status, progress, last result, history, and actions. */
+function JobCard({ job, now, starting, canMoveUp, canMoveDown, onEdit, onDelete, onToggle, onRunNow, onMove }: JobCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showHistory,   setShowHistory]   = useState(false)
+  const [openRun,       setOpenRun]       = useState<string | null>(null)
 
   useEffect(() => {
     if (!confirmDelete) return
@@ -431,9 +474,10 @@ function JobCard({ job, now, starting, onEdit, onDelete, onToggle, onRunNow }: J
   }, [confirmDelete])
 
   const isRunning = starting || job.lastStatus === 'running'
-  const status    = isRunning ? 'running' : job.lastStatus
+  const status: CardStatus | undefined = isRunning ? 'running' : job.queued ? 'queued' : job.lastStatus
   const lastRun   = job.history?.[0]
   const history   = job.history ?? []
+  const hasDetails = (run: JobRun) => !!run.details && (run.details.applied.length + run.details.unmatched.length + run.details.failed.length) > 0
 
   return (
     <div className={`${styles.card} ${!job.enabled ? styles.cardOff : ''}`} data-job-id={job.id}>
@@ -469,7 +513,11 @@ function JobCard({ job, now, starting, onEdit, onDelete, onToggle, onRunNow }: J
                 <><span className={styles.dot} /><span title={new Date(job.lastRun).toLocaleString()}>last ran {relativeTime(job.lastRun, now)}</span></>
               )}
               {job.skipApplied === false && <><span className={styles.dot} /><span>re-applies everything</span></>}
+              {job.fillGaps && <><span className={styles.dot} /><span>fills gaps only</span></>}
             </div>
+            {isRunning && job.progress && (
+              <span className={styles.cardProgress} title={job.progress.current}>{progressLabel(job.progress)}</span>
+            )}
             {!isRunning && lastRun && (
               <span className={`${styles.cardResult} ${lastRun.status === 'error' ? styles.metaError : lastRun.status === 'partial' ? styles.metaWarning : ''}`} title={job.lastError}>
                 {describeRun(lastRun)}
@@ -482,7 +530,13 @@ function JobCard({ job, now, starting, onEdit, onDelete, onToggle, onRunNow }: J
         </div>
 
         <div className={styles.cardActions}>
-          <button className={styles.actionBtn} onClick={onRunNow} disabled={isRunning} title={isRunning ? 'Running…' : 'Run now'}>
+          <button className={styles.actionBtn} onClick={() => onMove(-1)} disabled={!canMoveUp} title="Run earlier">
+            <ArrowUp size={13} />
+          </button>
+          <button className={styles.actionBtn} onClick={() => onMove(1)} disabled={!canMoveDown} title="Run later">
+            <ArrowDown size={13} />
+          </button>
+          <button className={styles.actionBtn} onClick={onRunNow} disabled={isRunning || job.queued} title={isRunning ? 'Running…' : job.queued ? 'Queued' : 'Run now'}>
             {isRunning ? <Spinner size="xs" color="current" /> : <Play size={13} />}
           </button>
           {history.length > 0 && (
@@ -519,14 +573,33 @@ function JobCard({ job, now, starting, onEdit, onDelete, onToggle, onRunNow }: J
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            {history.map(run => (
-              <li key={run.startedAt} className={styles.historyRow} title={run.error}>
-                <StatusIcon status={run.status} size={11} />
-                <span className={styles.historyWhen} title={new Date(run.startedAt).toLocaleString()}>{formatWhen(run.startedAt)}</span>
-                <span className={styles.historyTrigger}>{run.trigger === 'manual' ? 'Manual' : 'Scheduled'}</span>
-                <span className={styles.historySummary}>{describeRun(run)}</span>
-              </li>
-            ))}
+            {history.map(run => {
+              const expandable = hasDetails(run)
+              const open = expandable && openRun === run.startedAt
+              return (
+                <li key={run.startedAt} className={styles.historyItem}>
+                  <button
+                    type="button"
+                    className={`${styles.historyRow} ${expandable ? styles.historyRowExpandable : ''}`}
+                    onClick={() => { if (expandable) setOpenRun(open ? null : run.startedAt) }}
+                    title={run.error ?? (expandable ? 'Show which titles this run touched' : undefined)}
+                    aria-expanded={expandable ? open : undefined}
+                  >
+                    <StatusIcon status={run.status} size={11} />
+                    <span className={styles.historyWhen} title={new Date(run.startedAt).toLocaleString()}>{formatWhen(run.startedAt)}</span>
+                    <span className={styles.historyTrigger}>{run.trigger === 'manual' ? 'Manual' : 'Scheduled'}</span>
+                    <span className={styles.historySummary}>{describeRun(run)}</span>
+                  </button>
+                  {open && run.details && (
+                    <div className={styles.runDetails}>
+                      {run.details.applied.length > 0 && <DetailList label="Applied" items={run.details.applied} />}
+                      {run.details.failed.length > 0 && <DetailList label="Failed" items={run.details.failed} />}
+                      {run.details.unmatched.length > 0 && <DetailList label="Not in your library" items={run.details.unmatched} />}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
           </motion.ul>
         )}
       </AnimatePresence>
@@ -613,6 +686,16 @@ export default function SchedulerPage() {
     if (runAfterSave) void runNow(saved.id)
   }
 
+  function moveJob(id: string, delta: -1 | 1) {
+    const ids = jobs.map(j => j.id)
+    const from = ids.indexOf(id)
+    const to = from + delta
+    if (from < 0 || to < 0 || to >= ids.length) return
+    ids.splice(from, 1)
+    ids.splice(to, 0, id)
+    void attempt(async () => setJobs(await window.api.scheduler.reorder(ids)))
+  }
+
   function changeQuickCron(expr: string) {
     setQuickCron(expr)
     void attempt(() => window.api.config.set({ schedulerQuickCron: expr }))
@@ -637,6 +720,7 @@ export default function SchedulerPage() {
           <p className="page-subtitle">
             Run poster scrape &amp; upload jobs automatically on a recurring schedule.
             {jobs.length > 0 && ` ${enabledCount} of ${jobs.length} active.`}
+            {jobs.length > 1 && ' Jobs run one at a time, in this order.'}
           </p>
         </div>
         <div className={styles.headerActions}>
@@ -715,9 +799,10 @@ export default function SchedulerPage() {
       ) : (
         <div className={styles.list}>
           <AnimatePresence initial={false}>
-            {jobs.map(job => (
+            {jobs.map((job, index) => (
               <motion.div
                 key={job.id}
+                layout
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
@@ -727,10 +812,13 @@ export default function SchedulerPage() {
                   job={job}
                   now={now}
                   starting={starting.has(job.id)}
+                  canMoveUp={index > 0}
+                  canMoveDown={index < jobs.length - 1}
                   onEdit={() => setEditing(job)}
                   onDelete={() => void attempt(() => window.api.scheduler.delete(job.id))}
                   onToggle={() => void attempt(() => window.api.scheduler.save({ ...job, enabled: !job.enabled }))}
                   onRunNow={() => void runNow(job.id)}
+                  onMove={delta => moveJob(job.id, delta)}
                 />
               </motion.div>
             ))}

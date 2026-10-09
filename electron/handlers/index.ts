@@ -338,6 +338,7 @@ export const handlers = {
     getAutoStart: () => SchedulerService.getAutoStart(),
     engineStatus: () => SchedulerService.engineStatus(),
     preview: (expr: string) => SchedulerService.preview(expr),
+    reorder: (ids: string[]) => SchedulerService.reorder(ids),
   },
 
   browser: {

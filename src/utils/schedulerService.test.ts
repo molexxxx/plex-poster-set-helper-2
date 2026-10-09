@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import os from 'os'
 import path from 'path'
-import type { AppConfig, AppliedRecord, PosterInfo, ScheduledJob, ScrapeProgress } from '../../electron/ipc/types'
+import type { AppConfig, AppliedRecord, MediuxUserSet, PosterInfo, ScheduledJob, ScrapeProgress } from '../../electron/ipc/types'
 
 const state = vi.hoisted(() => ({ config: {} as Partial<AppConfig> }))
 
@@ -32,6 +32,10 @@ vi.mock('../../electron/services/plexService', () => ({
   },
 }))
 
+vi.mock('../../electron/services/creatorSetsService', () => ({
+  CreatorSetsService: { catalog: vi.fn() },
+}))
+
 vi.mock('../../electron/scrapers/scraperFactory', () => ({
   ScraperFactory: { scrapeUrl: vi.fn() },
 }))
@@ -42,11 +46,12 @@ vi.mock('../../electron/runtime/paths', () => ({
 
 vi.mock('../../electron/runtime/runtime', () => ({ isWebMode: () => true }))
 
-vi.mock('../../electron/runtime/events', () => ({ appEvents: { emitEvent: vi.fn() } }))
+vi.mock('../../electron/runtime/events', () => ({ appEvents: { emitEvent: vi.fn(), onEvent: vi.fn(() => () => {}) } }))
 
 const { SchedulerService } = await import('../../electron/services/schedulerService')
-const { ScheduleValidationError, INTERRUPTED_MESSAGE } = await import('../../electron/services/scheduleUtils')
+const { ScheduleValidationError, INTERRUPTED_MESSAGE, creatorSyncUrl } = await import('../../electron/services/scheduleUtils')
 const { PlexService } = await import('../../electron/services/plexService')
+const { CreatorSetsService } = await import('../../electron/services/creatorSetsService')
 const { ScraperFactory } = await import('../../electron/scrapers/scraperFactory')
 const { appEvents } = await import('../../electron/runtime/events')
 
@@ -63,9 +68,17 @@ function job(overrides: Partial<ScheduledJob> = {}): ScheduledJob
   return { id: 'job-1', name: 'Show sync', urls: [SET_URL], cronExpr: '0 3 * * 0', enabled: true, ...overrides }
 }
 
-function applied(itemKey: string, posterUrls: string[]): AppliedRecord
+function applied(itemKey: string, posterUrls: string[], extra: Partial<AppliedRecord> = {}): AppliedRecord
 {
-  return { itemKey, title: 'Show', type: 'show', source: 'mediux', posterUrls, appliedAt: '2026-10-01T00:00:00.000Z' }
+  return { itemKey, title: 'Show', type: 'show', source: 'mediux', posterUrls, appliedAt: '2026-10-01T00:00:00.000Z', ...extra }
+}
+
+function userSet(id: string, title: string, posters: PosterInfo[], extra: Partial<MediuxUserSet> = {}): MediuxUserSet
+{
+  return {
+    id, setName: `${title} (2020) Set`, uploader: 'willtong93', posterCount: 0, backdropCount: 0, titleCardCount: 0,
+    posters, title, year: 2020, mediaType: 'show', ...extra,
+  }
 }
 
 function storedJob(id = 'job-1'): ScheduledJob
@@ -90,10 +103,11 @@ function scrapeReturns(byUrl: Record<string, PosterInfo[] | string>)
 beforeEach(() =>
 {
   vi.clearAllMocks()
-  state.config = { scheduledJobs: [], appliedPosters: [] }
+  state.config = { scheduledJobs: [], appliedPosters: [], mediuxFilters: ['poster', 'backdrop', 'title_card'] }
   vi.mocked(PlexService.getConnection).mockReturnValue({ baseUrl: 'http://plex', token: 't', serverName: 'Plex', libraries: [] })
   vi.mocked(PlexService.findInLibrary).mockImplementation(async (req) => (req.title === 'Show' ? SHOW : null) as never)
   vi.mocked(PlexService.uploadPoster).mockResolvedValue({ success: true })
+  vi.mocked(ScraperFactory.scrapeUrl).mockResolvedValue([])
 })
 
 describe('SchedulerService.save', () =>
@@ -121,6 +135,24 @@ describe('SchedulerService.save', () =>
     expect(() => SchedulerService.save(job({ urls: ['https://example.com/set/1'] }))).toThrow(ScheduleValidationError)
     expect(() => SchedulerService.save(job({ cronExpr: '0 3 * *' }))).toThrow('Expected 5 fields')
     expect(state.config.scheduledJobs).toEqual([])
+  })
+
+  it('never stores live queue or progress fields', () =>
+  {
+    SchedulerService.save(job({ queued: true, progress: { phase: 'applying', done: 1, total: 2 } }))
+    expect(storedJob().queued).toBeUndefined()
+    expect(storedJob().progress).toBeUndefined()
+  })
+})
+
+describe('SchedulerService.reorder', () =>
+{
+  it('stores the jobs in the order given', () =>
+  {
+    state.config.scheduledJobs = [job({ id: 'a' }), job({ id: 'b' }), job({ id: 'c' })]
+    const result = SchedulerService.reorder(['c', 'a'])
+    expect(result.map(j => j.id)).toEqual(['c', 'a', 'b'])
+    expect(state.config.scheduledJobs.map(j => j.id)).toEqual(['c', 'a', 'b'])
   })
 })
 
@@ -163,7 +195,8 @@ describe('SchedulerService._execute', () =>
     expect(stored.lastStatus).toBe('success')
     expect(stored.history).toHaveLength(1)
     expect(stored.history![0]).toMatchObject({ trigger: 'manual', status: 'success', uploaded: 2, skipped: 1, unmatched: 1, failed: 0, urlErrors: 0 })
-    expect(state.config.appliedPosters![0]).toMatchObject({ itemKey: '10', setId: '100', posterUrls: ['main', 'e1'], thumb: 'main' })
+    expect(stored.history![0].details).toEqual({ applied: ['Show (2020) · 2 posters'], unmatched: ['Missing (2020)'], failed: [] })
+    expect(state.config.appliedPosters![0]).toMatchObject({ itemKey: '10', setId: '100', posterUrls: ['main', 'e1'], slots: ['poster', 's1e1'], thumb: 'main' })
   })
 
   it('re-applies everything when skipping applied artwork is turned off', async () =>
@@ -177,6 +210,32 @@ describe('SchedulerService._execute', () =>
 
     expect(PlexService.uploadPoster).toHaveBeenCalledTimes(2)
     expect(storedJob().history![0]).toMatchObject({ uploaded: 2, skipped: 0 })
+  })
+
+  it('leaves slots other art already fills when the job only fills gaps', async () =>
+  {
+    const backup = job({ fillGaps: true })
+    state.config.scheduledJobs = [backup]
+    state.config.appliedPosters = [applied('10', ['other-e1'], { setId: '7', slots: ['s1e1'] })]
+    scrapeReturns({ [SET_URL]: [poster('main'), poster('e1', { season: 1, episode: 1 }), poster('e2', { season: 1, episode: 2 })] })
+
+    await SchedulerService._execute(backup, 'schedule')
+
+    expect(vi.mocked(PlexService.uploadPoster).mock.calls.map(c => c[0].imageUrl)).toEqual(['main', 'e2'])
+    expect(storedJob().history![0]).toMatchObject({ uploaded: 2, covered: 1, status: 'success' })
+  })
+
+  it('treats art applied before slot tracking as covering the whole show', async () =>
+  {
+    const backup = job({ fillGaps: true })
+    state.config.scheduledJobs = [backup]
+    state.config.appliedPosters = [applied('10', ['old'], { setId: '7' })]
+    scrapeReturns({ [SET_URL]: [poster('main'), poster('e1', { season: 1, episode: 1 })] })
+
+    await SchedulerService._execute(backup, 'schedule')
+
+    expect(PlexService.uploadPoster).not.toHaveBeenCalled()
+    expect(storedJob().history![0]).toMatchObject({ uploaded: 0, covered: 2 })
   })
 
   it('is partial when an upload fails, without counting seasons Plex does not have', async () =>
@@ -194,6 +253,7 @@ describe('SchedulerService._execute', () =>
 
     expect(storedJob()).toMatchObject({ lastStatus: 'partial', lastError: 'Image download failed: 404' })
     expect(storedJob().history![0]).toMatchObject({ uploaded: 1, failed: 1 })
+    expect(storedJob().history![0].details!.failed).toEqual(['Show (2020) · Image download failed: 404'])
   })
 
   it('fails when no URL can be read', async () =>
@@ -251,9 +311,99 @@ describe('SchedulerService._execute', () =>
   })
 })
 
+describe('creator sync', () =>
+{
+  const CREATOR_URL = creatorSyncUrl('willtong93')
+
+  it('reads the whole catalog through the creator cache and applies every matching set', async () =>
+  {
+    const creatorJob = job({ urls: [CREATOR_URL], creator: 'willtong93' })
+    state.config.scheduledJobs = [creatorJob]
+    state.config.mediuxFilters = ['poster', 'title_card']
+    vi.mocked(CreatorSetsService.catalog).mockResolvedValue({
+      capped: false,
+      sets: [
+        userSet('20066', 'Show', [poster('main'), poster('bg', { season: 'Backdrop' }), poster('e1', { season: 1, episode: 1 })]),
+        userSet('19633', 'Missing', [poster('m-main', { title: 'Missing' })]),
+      ],
+    })
+
+    await SchedulerService._execute(creatorJob, 'schedule')
+
+    expect(CreatorSetsService.catalog).toHaveBeenCalledWith('willtong93', 60_000)
+    expect(ScraperFactory.scrapeUrl).not.toHaveBeenCalled()
+    expect(vi.mocked(PlexService.uploadPoster).mock.calls.map(c => c[0].imageUrl)).toEqual(['main', 'e1'])
+    expect(vi.mocked(PlexService.findInLibrary).mock.calls.map(c => [c[0].title, c[0].type])).toEqual([['Show', 'show'], ['Missing', 'show']])
+    expect(state.config.appliedPosters![0]).toMatchObject({ itemKey: '10', setId: '20066', uploader: 'willtong93', slots: ['poster', 's1e1'] })
+    const run = storedJob().history![0]
+    expect(run).toMatchObject({ status: 'success', uploaded: 2, unmatched: 1 })
+    expect(run.details).toEqual({ applied: ['Show (2020) · 2 posters'], unmatched: ['Missing (2020)'], failed: [] })
+  })
+
+  it('reports a creator whose catalog cannot be read as a failed URL', async () =>
+  {
+    const creatorJob = job({ urls: [CREATOR_URL] })
+    state.config.scheduledJobs = [creatorJob]
+    vi.mocked(CreatorSetsService.catalog).mockRejectedValue(new Error("Could not load page 3 of @willtong93's sets: fetch failed"))
+
+    await SchedulerService._execute(creatorJob, 'schedule')
+
+    expect(storedJob()).toMatchObject({ lastStatus: 'error', lastError: `${CREATOR_URL}: Could not load page 3 of @willtong93's sets: fetch failed` })
+    expect(storedJob().history![0]).toMatchObject({ status: 'error', urlErrors: 1 })
+  })
+})
+
+describe('run queue', () =>
+{
+  const urlOf = (id: string) => `https://mediux.pro/sets/${id}`
+
+  it('runs jobs one at a time, with manual runs ahead of waiting scheduled runs', async () =>
+  {
+    state.config.scheduledJobs = ['1', '2', '3'].map(id => job({ id, name: `Job ${id}`, urls: [urlOf(id)] }))
+    const order: string[] = []
+    vi.mocked(ScraperFactory.scrapeUrl).mockImplementation(async (url: string) =>
+    {
+      order.push(url)
+      await new Promise(r => setTimeout(r, 5))
+      return []
+    })
+
+    SchedulerService._enqueue('1', 'schedule')
+    SchedulerService._enqueue('2', 'schedule')
+    SchedulerService.runNow('3')
+
+    expect(storedJob('1').lastStatus).toBe('running')
+    const live = SchedulerService.list()
+    expect(live.map(j => [j.id, !!j.queued])).toEqual([['1', false], ['2', true], ['3', true]])
+    expect(() => SchedulerService.runNow('1')).toThrow('"Job 1" is already running')
+    expect(() => SchedulerService.runNow('2')).toThrow('"Job 2" is already queued')
+
+    await vi.waitFor(() => expect(storedJob('2').lastStatus).toBe('success'))
+    expect(order).toEqual([urlOf('1'), urlOf('3'), urlOf('2')])
+    expect(SchedulerService.list().some(j => j.queued)).toBe(false)
+  })
+
+  it('drops a job deleted while it waited in the queue', async () =>
+  {
+    state.config.scheduledJobs = [job({ id: '1', urls: [urlOf('1')] }), job({ id: '2', urls: [urlOf('2')] })]
+    vi.mocked(ScraperFactory.scrapeUrl).mockImplementation(async () =>
+    {
+      await new Promise(r => setTimeout(r, 5))
+      return []
+    })
+
+    SchedulerService._enqueue('1', 'schedule')
+    SchedulerService._enqueue('2', 'schedule')
+    SchedulerService.delete('2')
+
+    await vi.waitFor(() => expect(storedJob('1').lastStatus).toBe('success'))
+    expect(vi.mocked(ScraperFactory.scrapeUrl).mock.calls.map(c => c[0])).toEqual([urlOf('1')])
+  })
+})
+
 describe('SchedulerService.runNow', () =>
 {
-  it('returns before the run finishes and refuses to start it twice', async () =>
+  it('returns before the run finishes and records the run as manual', async () =>
   {
     state.config.scheduledJobs = [job()]
     let finishScrape: (posters: PosterInfo[]) => void = () => {}
@@ -261,7 +411,6 @@ describe('SchedulerService.runNow', () =>
 
     SchedulerService.runNow('job-1')
     expect(storedJob().lastStatus).toBe('running')
-    expect(() => SchedulerService.runNow('job-1')).toThrow('"Show sync" is already running')
 
     await vi.waitFor(() => expect(ScraperFactory.scrapeUrl).toHaveBeenCalled())
     finishScrape([poster('main')])

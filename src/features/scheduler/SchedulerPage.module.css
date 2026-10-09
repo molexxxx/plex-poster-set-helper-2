@@ -239,6 +239,14 @@
   white-space: nowrap;
 }
 
+.cardProgress {
+  font-size: var(--text-2xs);
+  color: var(--color-accent-interactive);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cardResult.metaError {
   max-width: 100%;
   color: var(--color-accent-error);
@@ -267,6 +275,10 @@
   border-color: color-mix(in srgb, var(--color-accent-interactive) 35%, transparent);
 }
 
+.status_queued {
+  color: var(--color-text-secondary);
+}
+
 .status_success {
   color: var(--color-accent-success);
   border-color: color-mix(in srgb, var(--color-accent-success) 30%, transparent);
@@ -293,14 +305,75 @@
   overflow: hidden;
 }
 
+.historyItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 .historyRow {
   display: grid;
   grid-template-columns: 12px auto auto 1fr;
   align-items: center;
   gap: var(--space-2);
+  width: 100%;
+  padding: 2px 4px;
+  margin: 0 -4px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
   font-size: var(--text-2xs);
+  font-family: inherit;
+  text-align: left;
   color: var(--color-text-muted);
   min-width: 0;
+  cursor: default;
+}
+
+.historyRowExpandable {
+  cursor: pointer;
+}
+
+.historyRowExpandable:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-secondary);
+}
+
+.runDetails {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0 var(--space-2) 20px;
+}
+
+.detailGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detailLabel {
+  font-size: var(--text-2xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-secondary);
+}
+
+.detailItems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.detailItems li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .historyWhen {
@@ -419,6 +492,11 @@
 
 .iconWarning {
   color: var(--color-accent-warning);
+  flex-shrink: 0;
+}
+
+.iconMuted {
+  color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
