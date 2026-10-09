@@ -125,7 +125,7 @@ describe('run details', () =>
     for (let i = 0; i < MAX_RUN_DETAIL + 50; i++) tally.unmatchedTitles.add(`Show ${i}`)
     const details = runDetails(tally)!
     expect(details.unmatched).toHaveLength(MAX_RUN_DETAIL + 1)
-    expect(details.unmatched.at(-1)).toBe('and 50 more')
+    expect(details.unmatched[details.unmatched.length - 1]).toBe('and 50 more')
   })
 
   it('labels titles with their year when known', () =>
