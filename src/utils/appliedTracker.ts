@@ -1,4 +1,5 @@
 import type { AppliedRecord } from '../../electron/ipc/types'
+import { mergeAppliedRecords } from '../../electron/services/scheduleUtils'
 
 /**
  * Records an applied poster set in local history - the single source of truth
@@ -26,14 +27,7 @@ export async function recordApplied(rec: AppliedRecord) {
 export async function recordAppliedBatch(recs: AppliedRecord[]) {
   if (!recs.length) return
   const cfg = await window.api.config.get()
-  let list = cfg.appliedPosters ?? []
-  for (const rec of recs) {
-    const existing = list.find(r => r.itemKey === rec.itemKey && r.setId === rec.setId)
-    const mergedUrls = [...new Set([...(existing?.posterUrls ?? []), ...(rec.posterUrls ?? [])])]
-    const merged: AppliedRecord = { ...rec, posterUrls: mergedUrls }
-    list = [merged, ...list.filter(r => !(r.itemKey === rec.itemKey && r.setId === rec.setId))]
-  }
-  await window.api.config.set({ appliedPosters: list.slice(0, 2000) })
+  await window.api.config.set({ appliedPosters: mergeAppliedRecords(cfg.appliedPosters ?? [], recs) })
 }
 
 /**

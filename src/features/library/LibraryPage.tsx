@@ -12,6 +12,10 @@ import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
 import { groupPosters, posterFileType, ALL_TYPES, defaultSetApplyScope, type FileType, type SetApplyScope } from '../../utils/posterGroups'
 import { recordApplied, recordAppliedBatch, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
 import { uuid } from '../../utils/uuid'
+import { errorMessage } from '../../utils/errorMessage'
+import {
+  DEFAULT_QUICK_CRON, coveringJob, creatorSyncUrl, describeCron, describeQuickSync, planQuickSync, scheduleCoverage,
+} from '../../../electron/services/scheduleUtils'
 import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
 import type {
@@ -807,8 +811,13 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
   // the "N movies" count matches exactly what "apply all" will touch.
   const [memberInLib, setMemberInLib] = useState<Map<string, boolean>>(new Map())
   const [appliedIdx, setAppliedIdx] = useState<AppliedIndex>({ setIds: new Set(), titles: new Set(), posterUrls: new Set(), currentByItem: new Map(), currentPosterUrls: new Set() })
-  const [scheduledSetIds, setScheduledSetIds] = useState<Set<string>>(new Set())
+  const [schedJobs, setSchedJobs] = useState<ScheduledJob[]>([])
+  const [quickCron, setQuickCron] = useState(DEFAULT_QUICK_CRON)
   const [schedulingId, setSchedulingId] = useState<string | null>(null)
+  const [scheduleError, setScheduleError] = useState<{ setId: string; message: string } | null>(null)
+  const coverage = useMemo(() => scheduleCoverage(schedJobs), [schedJobs])
+  const { navigate } = useAppContext()
+  const goScheduler = useNavStore(s => s.goScheduler)
   const [setsReloadKey, setSetsReloadKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const [artSlots, setArtSlots] = useState<PlexArtSlot[]>([])
@@ -841,37 +850,44 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
 
   useEffect(() => { loadAppliedIndex().then(setAppliedIdx) }, [])
 
-  // Which of this title's sets already have a scheduled sync job.
+  // Scheduled jobs, kept live so the Scheduled tags follow edits made elsewhere.
   useEffect(() => {
-    window.api.scheduler.list().then((jobs: ScheduledJob[]) => {
-      const ids = new Set<string>()
-      for (const j of jobs) for (const u of j.urls) { const m = u.match(/\/sets\/(\d+)/); if (m) ids.add(m[1]) }
-      setScheduledSetIds(ids)
-    }).catch(() => { /* scheduler unavailable */ })
+    window.api.scheduler.list().then(setSchedJobs).catch(() => { /* scheduler unavailable */ })
+    return window.api.scheduler.onChange(setSchedJobs)
   }, [])
 
-  // Create a weekly sync job for a single set, straight from the library.
+  // Schedule a single set straight from the library, reusing any job that
+  // already covers it (the set itself or a whole-creator sync).
   async function scheduleSet(s: MediuxSetSummary) {
-    if (scheduledSetIds.has(s.id) || schedulingId) return
+    if (schedulingId) return
     setSchedulingId(s.id)
+    setScheduleError(null)
     try {
-      await window.api.scheduler.save({
-        id: uuid(),
-        name: `${item.title}${item.year ? ` (${item.year})` : ''} - ${s.setName}`,
+      const plan = planQuickSync(await window.api.scheduler.list(), {
         urls: [`https://mediux.pro/sets/${s.id}`],
-        cronExpr: '0 3 * * 0',
-        enabled: true,
-      })
-      setScheduledSetIds(prev => new Set(prev).add(s.id))
+        name: `${item.title}${item.year ? ` (${item.year})` : ''} - ${s.setName}`,
+        cronExpr: quickCron,
+        creator: s.uploader,
+      }, uuid)
+      if (plan.kind !== 'exists') await window.api.scheduler.save(plan.job)
+      setSchedJobs(await window.api.scheduler.list())
+    } catch (err) {
+      setScheduleError({ setId: s.id, message: errorMessage(err) })
     } finally {
       setSchedulingId(null)
     }
+  }
+
+  function openScheduledJob(jobId: string) {
+    goScheduler(jobId)
+    navigate('scheduler')
   }
 
   useEffect(() => {
     window.api.config.get().then(c => {
       if (c.mediuxFilters?.length) setTypes(new Set(c.mediuxFilters as FileType[]))
       setHasTmdbKey(Boolean(c.tmdbApiKey?.trim()))
+      setQuickCron(c.schedulerQuickCron || DEFAULT_QUICK_CRON)
       const w = clampPanelWidth(c.libraryPanelWidth ?? PANEL_WIDTH_DEFAULT)
       panelWidthRef.current = w
       setPanelWidth(w)
@@ -1481,6 +1497,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
           const applyScope = collectionScope[s.id] ?? defaultSetApplyScope(hasCollectionArt, collectionInLib)
           const showScope = hasCollectionArt || collectionInLib > 1
             || (isCollectionItem && memberIds.some(k => memberInLib.get(k)))
+          const scheduledBy = coveringJob(coverage, s.id, s.uploader)
           return (
             <SetCard
               key={s.id}
@@ -1491,7 +1508,10 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
               followed={subSet.has(s.uploader.toLowerCase())}
               badge={badge}
               onSchedule={() => scheduleSet(s)}
-              scheduled={scheduledSetIds.has(s.id)}
+              scheduledBy={scheduledBy ? `${scheduledBy.name} · ${describeCron(scheduledBy.cronExpr)}` : undefined}
+              onOpenSchedule={scheduledBy ? () => openScheduledJob(scheduledBy.id) : undefined}
+              scheduleHint={describeCron(quickCron)}
+              scheduleError={scheduleError?.setId === s.id ? scheduleError.message : undefined}
               scheduling={schedulingId === s.id}
               collectionMovies={collectionInLib}
               collectionTotal={collectionTotal}
@@ -1537,7 +1557,7 @@ function ThumbButton({ url, label, episode, onClick }: { url: string; label: str
 }
 
 /** Expandable card for one MediUX set: preview, uploader, counts, apply state, and grouped posters. */
-function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, followed, selectable, checked, onToggleSelect, onSchedule, scheduled, scheduling, collectionMovies, collectionTotal, hasCollectionArt, applyScope, scopeContext, onApplyScopeChange }: {
+function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, followed, selectable, checked, onToggleSelect, onSchedule, scheduledBy, onOpenSchedule, scheduleHint, scheduleError, scheduling, collectionMovies, collectionTotal, hasCollectionArt, applyScope, scopeContext, onApplyScopeChange }: {
   set: MediuxSetSummary
   apply?: ApplyState
   onApply: () => void
@@ -1554,10 +1574,16 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
   selectable?: boolean
   checked?: boolean
   onToggleSelect?: () => void
-  /** Creates a weekly sync job for this set (library view). */
+  /** Creates a sync job for this set (library view). */
   onSchedule?: () => void
-  /** This set already has a scheduled job. */
-  scheduled?: boolean
+  /** Name and schedule of the job that already syncs this set. */
+  scheduledBy?: string
+  /** Opens the covering job in the Scheduler. */
+  onOpenSchedule?: () => void
+  /** Plain-language schedule a new job would use. */
+  scheduleHint?: string
+  /** Why the last schedule request for this set failed. */
+  scheduleError?: string
   /** A schedule request for this set is in flight. */
   scheduling?: boolean
   /** How many of this collection set's movies are in the library (the spread target count). */
@@ -1666,13 +1692,25 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, fo
               </span>
             )}
             {onSchedule && !disabled && (
-              scheduled
-                ? <span className={styles.scheduledTag} title="A weekly sync is scheduled for this set"><CalendarClock size={12} /> Scheduled weekly</span>
-                : <button className={styles.scheduleBtn} onClick={onSchedule} disabled={scheduling} title="Sync this set automatically every week">
+              scheduledBy
+                ? <button className={styles.scheduledTag} onClick={onOpenSchedule} title={`Synced by ${scheduledBy}. Click to open it in the Scheduler.`}>
+                    <CalendarClock size={12} /> Scheduled
+                  </button>
+                : <button
+                    className={styles.scheduleBtn}
+                    onClick={onSchedule}
+                    disabled={scheduling}
+                    title={`Apply new artwork from this set automatically${scheduleHint ? ` (${scheduleHint})` : ''}`}
+                  >
                     {scheduling ? <Loader2 size={12} className={styles.spin} /> : <CalendarClock size={12} />} Schedule
                   </button>
             )}
           </div>
+          {scheduleError && (
+            <div className={styles.scheduleError} role="alert">
+              <AlertCircle size={12} /> Couldn&apos;t schedule: {scheduleError}
+            </div>
+          )}
         </div>
       </div>
 
@@ -2061,15 +2099,22 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
   const setsRef = useRef<MediuxUserSet[]>([])
   useEffect(() => { setsRef.current = sets }, [sets])
 
-  // Sets already covered by a saved schedule, individually or by a
-  // whole-creator "/user/{name}/sets" sync job
-  const [scheduledSetIds, setScheduledSetIds] = useState<Set<string>>(new Set())
-  const [creatorScheduled, setCreatorScheduled] = useState(false)
+  // Saved jobs, kept live; a set is covered individually or by a whole-creator
+  // "/user/{name}/sets" sync job.
+  const [schedJobs, setSchedJobs] = useState<ScheduledJob[]>([])
+  const [quickCron, setQuickCron] = useState(DEFAULT_QUICK_CRON)
+  const [scheduling, setScheduling] = useState(false)
+  const [scheduledJobId, setScheduledJobId] = useState<string | null>(null)
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
+  const goScheduler = useNavStore(s => s.goScheduler)
+  const coverage = useMemo(() => scheduleCoverage(schedJobs), [schedJobs])
+  const creatorJob = coverage.creators.get(username.toLowerCase())
 
   const [allTypes, setAllTypes] = useState<Set<FileType>>(new Set(ALL_TYPES))
   useEffect(() => {
     window.api.config.get().then(c => {
       if (c.mediuxFilters?.length) setAllTypes(new Set(c.mediuxFilters as FileType[]))
+      setQuickCron(c.schedulerQuickCron || DEFAULT_QUICK_CRON)
     })
   }, [])
 
@@ -2158,25 +2203,10 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     return () => clearInterval(id)
   }, [lastChecked])
 
-  const loadSchedule = useCallback(() => {
-    window.api.scheduler.list().then((jobs) => {
-      const ids = new Set<string>()
-      let whole = false
-      const userRe = new RegExp(`mediux\\.pro/user/${username}(?:/|$|\\?)`, 'i')
-      for (const j of jobs) {
-        if (!j.enabled) continue
-        for (const url of j.urls) {
-          const m = url.match(/\/sets\/(\d+)/)
-          if (m) ids.add(m[1])
-          if (userRe.test(url)) whole = true
-        }
-      }
-      setScheduledSetIds(ids)
-      setCreatorScheduled(whole)
-    })
-  }, [username])
-
-  useEffect(() => { loadSchedule() }, [loadSchedule])
+  useEffect(() => {
+    window.api.scheduler.list().then(setSchedJobs).catch(() => { /* scheduler unavailable */ })
+    return window.api.scheduler.onChange(setSchedJobs)
+  }, [])
 
   // Deep search across the creator's whole catalog (beyond the browse cap): match
   // the query to the user's library, then fetch this creator's sets for those titles
@@ -2376,25 +2406,40 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     setApplyMap(m => ({ ...m, [key]: { status: done ? 'done' : 'error', done, total: 1, error: lastError } }))
   }
 
-  /** Saves a weekly sync job for the selected sets, or the whole creator when none are selected. */
-  async function scheduleWeekly() {
+  /**
+   * Syncs the selected sets, or the whole creator when none are selected,
+   * merging into this creator's existing job instead of stacking new ones.
+   */
+  async function scheduleSync() {
     const chosen = setsFiltered.filter(s => selected.has(s.id))
-    const useSelection = chosen.length > 0
-    const urls = useSelection
+    const urls = chosen.length
       ? chosen.map(s => `https://mediux.pro/sets/${s.id}`)
-      : [`https://mediux.pro/user/${username}/sets`]
-    const job: ScheduledJob = {
-      id: uuid(),
-      name: useSelection ? `Sync @${username} (${urls.length} sets)` : `Sync @${username}`,
-      urls,
-      cronExpr: '0 9 * * 1',   // Mondays at 09:00 local time
-      enabled: true,
+      : [creatorSyncUrl(username)]
+    setScheduling(true)
+    setScheduleError(null)
+    setScheduledMsg(null)
+    try {
+      const plan = planQuickSync(await window.api.scheduler.list(), {
+        urls,
+        name: chosen.length ? `Sync @${username} (${urls.length} ${urls.length === 1 ? 'set' : 'sets'})` : `Sync @${username}`,
+        cronExpr: quickCron,
+        creator: username,
+        groupByCreator: true,
+      }, uuid)
+      const saved = plan.kind === 'exists' ? plan.job : await window.api.scheduler.save(plan.job)
+      setSchedJobs(await window.api.scheduler.list())
+      setScheduledJobId(saved.id)
+      setScheduledMsg(describeQuickSync({ ...plan, job: saved }, chosen.length, username))
+    } catch (err) {
+      setScheduleError(errorMessage(err))
+    } finally {
+      setScheduling(false)
     }
-    await window.api.scheduler.save(job)
-    loadSchedule()
-    setScheduledMsg(useSelection
-      ? `Weekly sync saved for ${urls.length} selected set${urls.length !== 1 ? 's' : ''}.`
-      : `Weekly sync saved - newest matching uploads apply automatically.`)
+  }
+
+  function openScheduledJob() {
+    if (scheduledJobId) goScheduler(scheduledJobId)
+    navigate('scheduler')
   }
 
   // Scoped to the visible (search-filtered) sets so the toolbar counts track the view
@@ -2405,7 +2450,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     const isCurrent    = !!s.matchedKey && appliedIdx.currentByItem.get(s.matchedKey) === s.id
     const wasApplied   = appliedIdx.setIds.has(s.id)
     const titleApplied = appliedIdx.titles.has(appliedKey(s.title, s.year))
-    const isScheduled  = creatorScheduled || scheduledSetIds.has(s.id)
+    const isScheduled  = !!coveringJob(coverage, s.id, username)
     const matchBadge = s.matchedKey
       ? isCurrent
         ? <span className={styles.matchBadge}><CheckCircle2 size={11} /> Applied</span>
@@ -2535,13 +2580,17 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
             <button className={styles.selectBtn} onClick={selectInLibrary} disabled={!matchCount}>In library ({matchCount})</button>
             <button className={styles.selectBtn} onClick={clearSelection} disabled={!selected.size}>Clear</button>
             <Button
-              variant="primary"
+              variant={creatorJob && selectedVisible === 0 ? 'secondary' : 'primary'}
               size="sm"
-              icon={<CalendarClock size={12} />}
-              onClick={scheduleWeekly}
+              icon={creatorJob && selectedVisible === 0 ? <CheckCircle2 size={12} /> : <CalendarClock size={12} />}
+              onClick={scheduleSync}
+              loading={scheduling}
               className={styles.syncWeeklyBtn}
+              title={creatorJob
+                ? `Every set from @${username} is synced by "${creatorJob.name}" (${describeCron(creatorJob.cronExpr)})`
+                : `Apply new uploads automatically (${describeCron(quickCron)}). Change the default in the Scheduler.`}
             >
-              {selectedVisible > 0 ? `Sync ${selectedVisible} weekly` : 'Sync all weekly'}
+              {selectedVisible > 0 ? `Sync ${selectedVisible} selected` : creatorJob ? 'Syncing all' : 'Sync all'}
             </Button>
           </div>
         </div>
@@ -2549,16 +2598,19 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
 
       {/* Post-schedule tip */}
       <AnimatePresence>
-        {scheduledMsg && (
+        {(scheduledMsg || scheduleError) && (
           <motion.div
-            className={styles.scheduleTip}
+            className={`${styles.scheduleTip} ${scheduleError ? styles.scheduleTipError : ''}`}
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
+            role={scheduleError ? 'alert' : 'status'}
           >
-            <CheckCircle2 size={14} />
-            <span>{scheduledMsg} Fine-tune timing &amp; URLs in the <button className={styles.tipLink} onClick={() => navigate('scheduler')}>Scheduler</button>.</span>
-            <button className={styles.tipClose} onClick={() => setScheduledMsg(null)}><X size={13} /></button>
+            {scheduleError ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
+            {scheduleError
+              ? <span>Couldn&apos;t save the sync: {scheduleError}</span>
+              : <span>{scheduledMsg} <button className={styles.tipLink} onClick={openScheduledJob}>Open in Scheduler</button></span>}
+            <button className={styles.tipClose} onClick={() => { setScheduledMsg(null); setScheduleError(null) }}><X size={13} /></button>
           </motion.div>
         )}
       </AnimatePresence>

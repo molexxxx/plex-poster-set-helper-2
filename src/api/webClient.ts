@@ -1,7 +1,7 @@
 import type { Api } from '../../electron/preload'
 import type {
   AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress,
-  AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus, BrowserActionResult, BrowserInstallState,
+  AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, BrowserStatus, BrowserActionResult, BrowserInstallState,
   SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq,
   CurrentArtReq, CurrentArtRes, UserSetsChunk,
 } from '../../electron/ipc/types'
@@ -64,8 +64,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText })) as { error?: string }
-    throw new Error(err.error ?? `Request failed: ${res.status}`)
+    // Fastify's default error reply puts the thrown message in `message` and the
+    // HTTP status text in `error`; explicit route replies only set `error`.
+    const err = await res.json().catch(() => ({ error: res.statusText })) as { error?: string; message?: string }
+    throw new Error(err.message ?? err.error ?? `Request failed: ${res.status}`)
   }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
@@ -186,6 +188,7 @@ export function createWebClient(): Api {
         return res.enabled
       },
       engineStatus: (): Promise<SchedulerEngineStatus> => apiFetch('/api/scheduler/engine-status'),
+      preview: (expr: string): Promise<CronPreview> => apiFetch(`/api/scheduler/preview?expr=${encodeURIComponent(expr)}`),
       onChange: (cb: (jobs: ScheduledJob[]) => void) =>
         onSse('scheduler:onChange', (_, data) => cb(data as ScheduledJob[])),
     },

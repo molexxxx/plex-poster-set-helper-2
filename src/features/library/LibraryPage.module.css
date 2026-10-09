@@ -1144,14 +1144,16 @@
   gap: 5px;
   padding: 4px var(--space-2);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong, var(--color-border));
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   cursor: pointer;
   transition: color var(--duration-fast), border-color var(--duration-fast), background var(--duration-fast);
 }
+
+.scheduleBtn svg { color: var(--color-accent); }
 
 .scheduleBtn:hover:not(:disabled) {
   color: var(--color-accent);
@@ -1165,10 +1167,32 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-accent-border);
+  background: var(--color-accent-soft);
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   color: var(--color-accent);
+  cursor: pointer;
+  transition: background var(--duration-fast);
 }
+
+.scheduledTag:hover {
+  background: var(--color-accent-soft-hover);
+}
+
+.scheduleError {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: var(--space-2);
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  color: var(--color-accent-error);
+}
+
+.scheduleError svg { flex-shrink: 0; margin-top: 1px; }
 
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -1616,6 +1640,11 @@
   flex-shrink: 0;
 }
 .scheduleTip > svg { color: var(--color-accent); flex-shrink: 0; }
+.scheduleTipError {
+  background: rgba(248, 113, 113, 0.07);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+.scheduleTipError > svg { color: var(--color-accent-error); }
 .tipLink {
   color: var(--color-accent);
   font-weight: 600;

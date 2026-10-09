@@ -80,6 +80,8 @@ export interface UploadReq {
 export interface UploadRes {
   success: boolean
   error?: string
+  /** The target season or episode is not in Plex, so nothing was attempted. */
+  skipped?: boolean
 }
 
 export interface LabelReq {
@@ -156,6 +158,8 @@ export interface AppConfig {
   /** Friendly name of the connected Plex server. */
   plexServerName?: string
   scheduledJobs?: ScheduledJob[]
+  /** Schedule used by the quick Schedule and Sync actions in the Library Browser. */
+  schedulerQuickCron?: string
   /** Optional - enables tvdb/imdb to tmdb resolution for legacy/HAMA libraries. */
   tmdbApiKey?: string
   /** Followed MediUX usernames. */
@@ -318,15 +322,60 @@ export interface BrowserActionResult {
   status: BrowserStatus
 }
 
+export type JobRunStatus = 'success' | 'partial' | 'error'
+
+/** Outcome of one scheduled job run. */
+export interface JobRun {
+  /** ISO timestamp the run started. */
+  startedAt: string
+  /** ISO timestamp the run finished. */
+  finishedAt: string
+  /** What started the run. */
+  trigger: 'schedule' | 'manual'
+  status: JobRunStatus
+  /** Posters uploaded to Plex. */
+  uploaded: number
+  /** Posters skipped because the same image was already applied to the item. */
+  skipped: number
+  /** Distinct titles or collections that are not in the Plex library. */
+  unmatched: number
+  /** Posters that failed to upload. */
+  failed: number
+  /** URLs that could not be scraped. */
+  urlErrors: number
+  /** First error message, when any. */
+  error?: string
+}
+
 export interface ScheduledJob {
   id: string
   name: string
   urls: string[]
   cronExpr: string
   enabled: boolean
+  /** Upload only artwork not already applied to each item. Treated as true when unset. */
+  skipApplied?: boolean
+  /** MediUX creator this job syncs, set for jobs created from the Creators view. */
+  creator?: string
   lastRun?: string
-  lastStatus?: 'success' | 'error' | 'running'
+  lastStatus?: JobRunStatus | 'running'
   lastError?: string
+  /** Most recent runs, newest first. */
+  history?: JobRun[]
+  /** Next firing as an ISO timestamp, computed by the scheduler and never stored. */
+  nextRun?: string
+}
+
+/** Server-side evaluation of a cron expression for the job editor. */
+export interface CronPreview {
+  valid: boolean
+  error?: string
+  /** Plain-language description in the scheduler's local time. */
+  description: string
+  /** Upcoming firings as ISO timestamps. */
+  nextRuns: string[]
+  /** IANA time zone the scheduler evaluates expressions in. */
+  timeZone: string
 }
 
 export interface SchedulerEngineStatus {
@@ -571,6 +620,7 @@ export type IpcChannels = {
   'scheduler:setAutoStart':{ req: boolean; res: void }
   'scheduler:getAutoStart':{ req: void; res: boolean }
   'scheduler:engineStatus':{ req: void; res: SchedulerEngineStatus }
+  'scheduler:preview':     { req: string; res: CronPreview }
   'scheduler:onChange':    { event: ScheduledJob[] }
   'browser:status':          { req: void; res: BrowserStatus }
   'browser:install':         { req: { force?: boolean } | undefined; res: BrowserActionResult }

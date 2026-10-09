@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk } from './ipc/types'
 
 /** Typed IPC bridge exposed to the renderer as window.api. */
 const api = {
@@ -129,6 +129,7 @@ const api = {
     setAutoStart: (v: boolean): Promise<void> => ipcRenderer.invoke('scheduler:setAutoStart', v),
     getAutoStart: (): Promise<boolean> => ipcRenderer.invoke('scheduler:getAutoStart'),
     engineStatus: (): Promise<SchedulerEngineStatus> => ipcRenderer.invoke('scheduler:engineStatus'),
+    preview: (expr: string): Promise<CronPreview> => ipcRenderer.invoke('scheduler:preview', expr),
     onChange: (cb: (jobs: ScheduledJob[]) => void) =>
     {
       const handler = (_: unknown, data: ScheduledJob[]) => cb(data)

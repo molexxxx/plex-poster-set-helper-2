@@ -272,6 +272,10 @@ export async function startServer() {
   })
   app.get('/api/scheduler/auto-start', async () => ({ enabled: handlers.scheduler.getAutoStart() }))
   app.get('/api/scheduler/engine-status', async () => handlers.scheduler.engineStatus())
+  app.get('/api/scheduler/preview', async (req) => {
+    const q = req.query as { expr?: string }
+    return handlers.scheduler.preview(q.expr ?? '')
+  })
 
   // Browser
   app.get('/api/browser/status', async () => handlers.browser.getStatus())

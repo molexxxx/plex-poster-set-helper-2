@@ -1042,7 +1042,7 @@ export const PlexService = {
         const resolved = await PlexService.resolveTarget(itemKey, season, episode)
         if (resolved.kind === 'skip') {
           Logger.scrape('Plex', `Skipped upload - ${resolved.reason} (key ${itemKey})`)
-          return { success: false, error: resolved.reason }
+          return { success: false, error: resolved.reason, skipped: true }
         }
         target = resolved
       }

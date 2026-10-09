@@ -12,6 +12,7 @@ export function registerSchedulerHandlers(_ipcMain: IpcMain) {
   ipcMain.handle('scheduler:setAutoStart', (_e, enable: boolean) => handlers.scheduler.setAutoStart(enable))
   ipcMain.handle('scheduler:getAutoStart', () => handlers.scheduler.getAutoStart())
   ipcMain.handle('scheduler:engineStatus', () => handlers.scheduler.engineStatus())
+  ipcMain.handle('scheduler:preview', (_e, expr: string) => handlers.scheduler.preview(expr))
 }
 
 /** Wire scheduler change events to an Electron window. */

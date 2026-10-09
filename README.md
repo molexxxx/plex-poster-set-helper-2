@@ -148,8 +148,12 @@ That's it - head to the **Library Browser** and start applying posters.
 
 ## Scheduling - keep posters up to date automatically
 
-The **Scheduler** lets you re‑apply a set on a repeating schedule, which is great for shows that keep getting new episodes (so new title cards get art too).
+The **Scheduler** keeps sets and creators synced on a repeating schedule, which is great for shows that keep getting new episodes (so new title cards get art too) and for creators who keep uploading.
 
+- **Quick sync from the Library Browser:** click **Schedule** on any MediUX set, or **Sync all** on a creator, and new uploads that match your library are applied automatically. Repeat clicks never stack duplicate jobs, and a creator's sets are grouped into one job. Pick the schedule these buttons use under **Scheduler → Quick sync**.
+- **Only new artwork:** each run skips posters already applied to an item, so Plex doesn't collect duplicate uploads. Turn it off for a job to re-apply the full set every run.
+- **Flexible schedules:** hourly, daily, weekly on any mix of days, monthly, or a custom cron expression, with a live preview of the next runs.
+- **Run history:** every job shows its last result and its 10 most recent runs, so you can see what was applied, skipped, or failed.
 - **In the desktop app (Windows / Linux):** schedules run whenever the app is open **and** while it's **minimized to the system tray** - close the window and it keeps running quietly in the background. You can also enable **launch on startup** so it's always there after a reboot. No server required.
 - **For 24/7 on a server:** run it in Docker. The container keeps your schedules firing around the clock - just set them up in the app and leave it running. See the [Docker guide](docker/README.md).
 

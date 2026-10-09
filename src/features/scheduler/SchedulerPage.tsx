@@ -1,147 +1,170 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  CalendarClock, Plus, Play, Trash2, ToggleLeft, ToggleRight,
-  Clock, CheckCircle2, AlertCircle, Loader2, ChevronRight, X, Save,
-  Power, Server,
+  CalendarClock, Plus, Play, Trash2, ToggleLeft, ToggleRight, Clock, CheckCircle2, AlertCircle,
+  AlertTriangle, Loader2, Pencil, X, Save, Power, Server, History, Zap,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Switch from '../../components/ui/Switch'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
-import type { ScheduledJob, SchedulerEngineStatus, AppEnv } from '../../../electron/ipc/types'
+import type { ScheduledJob, SchedulerEngineStatus, AppEnv, CronPreview, JobRun } from '../../../electron/ipc/types'
+import {
+  DEFAULT_QUICK_CRON, HOUR_INTERVALS, analyzeUrls, cronToForm, describeCron, describeRun, formToCron, relativeTime,
+  type ScheduleForm, type SchedulePreset,
+} from '../../../electron/services/scheduleUtils'
 import { useNavStore } from '../../app/navStore'
 import { uuid } from '../../utils/uuid'
+import { errorMessage } from '../../utils/errorMessage'
 import styles from './SchedulerPage.module.css'
 
+const PRESETS: Array<{ id: SchedulePreset; label: string }> = [
+  { id: 'hourly', label: 'Hourly' },
+  { id: 'daily', label: 'Daily' },
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'monthly', label: 'Monthly' },
+  { id: 'custom', label: 'Custom' },
+]
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MINUTE_STEPS = Array.from({ length: 12 }, (_, i) => i * 5)
+const DAYS_OF_MONTH = Array.from({ length: 31 }, (_, i) => i + 1)
+const QUICK_SCHEDULES = ['0 3 * * *', '0 3 * * 0', '0 9 * * 1', '0 */12 * * *', '0 3 1 * *']
+const BROWSER_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 
-type Preset = 'daily' | 'weekly' | 'custom'
-const DAYS    = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const HOURS   = Array.from({ length: 24 }, (_, i) => i)
-const MINUTES = [0, 15, 30, 45]
+const pad2 = (n: number) => String(n).padStart(2, '0')
 
 /**
- * Builds a cron expression from the form's preset fields.
+ * Formats a run time for display in the viewer's locale.
  *
- * @param preset - daily, weekly, monthly, or custom.
- * @param hour - Hour of day (0-23).
- * @param minute - Minute of hour (0-59).
- * @param day - Weekday (weekly) or day of month (monthly).
- * @param custom - Raw expression used when preset is custom.
- * @returns The cron expression.
+ * @param iso - ISO timestamp.
+ * @returns A label such as "Sun, Oct 11, 3:00 AM".
  */
-function buildCron(preset: Preset, hour: number, minute: number, day: number, custom: string): string {
-  if (preset === 'custom') return custom
-  if (preset === 'weekly') return `${minute} ${hour} * * ${day}`
-  return `${minute} ${hour} * * *`
+function formatWhen(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+/** Re-renders on an interval so relative times stay current. */
+function useNow(intervalMs = 30_000): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs)
+    return () => clearInterval(id)
+  }, [intervalMs])
+  return now
 }
 
 /**
- * Parses a cron expression back into form fields.
+ * Asks the scheduler to evaluate an expression, debounced while the user types.
  *
- * @param expr - Expression to parse.
- * @returns The matching preset and time fields; unrecognised shapes come back
- *   as the custom preset.
+ * @param expr - Cron expression.
+ * @returns The latest preview, and whether it belongs to `expr` yet.
  */
-function parseCron(expr: string): { preset: Preset; hour: number; minute: number; day: number } {
-  const parts = expr.trim().split(/\s+/)
-  if (parts.length !== 5) return { preset: 'custom', hour: 3, minute: 0, day: 0 }
-  const [min, hr, , , dow] = parts
-  const hour   = parseInt(hr) || 0
-  const minute = parseInt(min) || 0
-  const day    = parseInt(dow)
-  if (dow === '*')    return { preset: 'daily',  hour, minute, day: 0 }
-  if (!isNaN(day))    return { preset: 'weekly', hour, minute, day }
-  return { preset: 'custom', hour, minute, day: 0 }
+function useCronPreview(expr: string): { preview: CronPreview | null; current: boolean } {
+  const [result, setResult] = useState<{ expr: string; preview: CronPreview } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    const t = setTimeout(() => {
+      window.api.scheduler.preview(expr)
+        .then(preview => { if (!cancelled) setResult({ expr, preview }) })
+        .catch(() => { /* preview is advisory; the save call validates */ })
+    }, 200)
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [expr])
+  return { preview: result?.preview ?? null, current: result?.expr === expr }
 }
 
-/**
- * Human-readable time until the next cron firing.
- *
- * @param cronExpr - Expression to evaluate.
- * @returns A label like "in 2h 15m", or an empty string when invalid.
- */
-function nextRunLabel(cronExpr: string): string {
-  try {
-    const parts = cronExpr.trim().split(/\s+/)
-    if (parts.length !== 5) return 'invalid schedule'
-    const [min, hr, , , dow] = parts
-    const h = parseInt(hr); const m = parseInt(min)
-    if (isNaN(h) || isNaN(m)) return 'custom schedule'
-    const now  = new Date()
-    const next = new Date(now)
-    next.setSeconds(0); next.setMilliseconds(0)
-    next.setHours(h);   next.setMinutes(m)
-    if (dow !== '*') {
-      const target = parseInt(dow)
-      const diff   = (target - now.getDay() + 7) % 7 || (next <= now ? 7 : 0)
-      next.setDate(now.getDate() + diff)
-    } else if (next <= now) {
-      next.setDate(next.getDate() + 1)
-    }
-    const ms = next.getTime() - now.getTime()
-    const hh = Math.floor(ms / 3_600_000)
-    const mm = Math.floor((ms % 3_600_000) / 60_000)
-    if (hh >= 24) return `in ${Math.floor(hh / 24)}d ${hh % 24}h`
-    if (hh > 0)   return `in ${hh}h ${mm}m`
-    return `in ${mm}m`
-  } catch { return '-' }
+/** Icon for a run or job status. */
+function StatusIcon({ status, size = 12 }: { status?: JobRun['status'] | 'running'; size?: number }) {
+  if (status === 'running') return <Loader2 size={size} className={styles.iconSpin} />
+  if (status === 'success') return <CheckCircle2 size={size} className={styles.iconSuccess} />
+  if (status === 'partial') return <AlertTriangle size={size} className={styles.iconWarning} />
+  if (status === 'error') return <AlertCircle size={size} className={styles.iconError} />
+  return null
 }
 
-/**
- * Describes a cron expression in plain words.
- *
- * @param cronExpr - Expression to describe.
- * @returns A label like "Weekly on Monday at 9:00 AM".
- */
-function humanSchedule(cronExpr: string): string {
-  const p    = parseCron(cronExpr)
-  const time = `${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`
-  if (p.preset === 'daily')  return `Daily at ${time}`
-  if (p.preset === 'weekly') return `Every ${DAYS[p.day]} at ${time}`
-  return cronExpr
+const STATUS_LABEL: Record<string, string> = {
+  running: 'Running', success: 'Succeeded', partial: 'Partly failed', error: 'Failed',
 }
 
 
 interface JobFormProps {
   initial?: ScheduledJob
-  onSave:  (job: ScheduledJob) => void
+  onSave:  (job: ScheduledJob, runAfterSave: boolean) => Promise<void>
   onClose: () => void
 }
 
 /** Drawer form for creating or editing a scheduled job. */
 function JobForm({ initial, onSave, onClose }: JobFormProps) {
-  const parsed = initial ? parseCron(initial.cronExpr) : { preset: 'daily' as Preset, hour: 3, minute: 0, day: 1 }
+  const [name,        setName]        = useState(initial?.name ?? '')
+  const [urls,        setUrls]        = useState((initial?.urls ?? []).join('\n'))
+  const [schedule,    setSchedule]    = useState<ScheduleForm>(() => cronToForm(initial?.cronExpr ?? '0 3 * * *'))
+  const [enabled,     setEnabled]     = useState(initial?.enabled ?? true)
+  const [skipApplied, setSkipApplied] = useState(initial?.skipApplied !== false)
+  const [saving,      setSaving]      = useState(false)
+  const [error,       setError]       = useState<string | null>(null)
 
-  const [name,    setName]    = useState(initial?.name ?? '')
-  const [urls,    setUrls]    = useState((initial?.urls ?? []).join('\n'))
-  const [preset,  setPreset]  = useState<Preset>(parsed.preset)
-  const [hour,    setHour]    = useState(parsed.hour)
-  const [minute,  setMinute]  = useState(parsed.minute)
-  const [day,     setDay]     = useState(parsed.day)
-  const [custom,  setCustom]  = useState(initial?.cronExpr ?? '0 3 * * *')
-  const [enabled, setEnabled] = useState(initial?.enabled ?? true)
+  const cronExpr  = formToCron(schedule)
+  const { preview, current } = useCronPreview(cronExpr)
+  const urlInfo   = useMemo(() => analyzeUrls(urls), [urls])
+  const cronError = current && preview && !preview.valid ? preview.error ?? 'This schedule is not valid' : null
+  const valid     = name.trim().length > 0 && urlInfo.urls.length > 0 && urlInfo.unsupported.length === 0 && !cronError
 
-  const cronExpr = buildCron(preset, hour, minute, day, custom)
-  const urlList  = urls.split('\n').map(l => l.trim()).filter(Boolean)
+  const update = (patch: Partial<ScheduleForm>) => setSchedule(s => ({ ...s, ...patch }))
 
   // Only close on a true backdrop click - not when a text-selection drag that
   // started inside the drawer happens to release over the overlay.
   const downOnOverlay = useRef(false)
-  const valid    = name.trim().length > 0 && urlList.length > 0
 
-  function submit() {
-    if (!valid) return
-    onSave({
-      id: initial?.id ?? uuid(),
-      name: name.trim(),
-      urls: urlList,
-      cronExpr,
-      enabled,
-      lastRun:    initial?.lastRun,
-      lastStatus: initial?.lastStatus,
-    })
+  async function submit(runAfterSave: boolean) {
+    if (!valid || saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      await onSave({
+        ...initial,
+        id: initial?.id ?? uuid(),
+        name: name.trim(),
+        urls: urlInfo.urls,
+        cronExpr,
+        enabled,
+        skipApplied,
+      }, runAfterSave)
+    } catch (err) {
+      setError(errorMessage(err))
+      setSaving(false)
+    }
   }
+
+  const submitRef = useRef(submit)
+  useEffect(() => { submitRef.current = submit })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void submitRef.current(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  function toggleDay(i: number) {
+    const days = schedule.days.includes(i) ? schedule.days.filter(d => d !== i) : [...schedule.days, i]
+    if (days.length) update({ days })
+  }
+
+  const timeInput = (
+    <input
+      type="time"
+      className={`${styles.input} ${styles.timeInput}`}
+      value={`${pad2(schedule.hour)}:${pad2(schedule.minute)}`}
+      onChange={e => {
+        const [h, m] = e.target.value.split(':').map(Number)
+        if (!Number.isNaN(h) && !Number.isNaN(m)) update({ hour: h, minute: m })
+      }}
+      required
+    />
+  )
+  const minuteOptions = MINUTE_STEPS.includes(schedule.minute) ? MINUTE_STEPS : [...MINUTE_STEPS, schedule.minute].sort((a, b) => a - b)
+  const otherTimeZone = preview && preview.timeZone !== BROWSER_TIME_ZONE ? preview.timeZone : null
 
   return (
     <motion.div
@@ -159,14 +182,15 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.28 }}
+        role="dialog"
+        aria-label={initial ? 'Edit job' : 'New scheduled job'}
       >
         <div className={styles.drawerHeader}>
           <span className={styles.drawerTitle}>{initial ? 'Edit Job' : 'New Scheduled Job'}</span>
-          <button className={styles.drawerClose} onClick={onClose}><X size={14} /></button>
+          <button className={styles.drawerClose} onClick={onClose} title="Close (Esc)"><X size={14} /></button>
         </div>
 
         <div className={styles.drawerBody}>
-          {/* Name */}
           <div className={styles.field}>
             <label className={styles.label}>Job name</label>
             <input
@@ -175,17 +199,17 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Nightly poster sync"
               spellCheck={false}
+              autoFocus={!initial}
             />
           </div>
 
-          {/* URLs */}
           <div className={styles.field}>
             <label className={styles.label}>
               URLs
               <span className={styles.labelMeta}>one per line</span>
             </label>
             <textarea
-              className={styles.textarea}
+              className={`${styles.textarea} ${urlInfo.unsupported.length ? styles.inputInvalid : ''}`}
               value={urls}
               onChange={e => {
                 const v = e.target.value
@@ -199,87 +223,146 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
                   return m ? `${m[1]} (${setCount} ${setCount === 1 ? 'set' : 'sets'})` : prev
                 })
               }}
-              placeholder={'https://mediux.pro/sets/...\nhttps://theposterdb.com/set/...'}
+              placeholder={'https://mediux.pro/sets/...\nhttps://mediux.pro/user/<creator>/sets\nhttps://theposterdb.com/set/...'}
               rows={5}
               spellCheck={false}
             />
-            {urlList.length > 0 && (
-              <span className={styles.fieldMeta}>{urlList.length} URL{urlList.length !== 1 ? 's' : ''}</span>
+            {urlInfo.urls.length > 0 && (
+              <span className={styles.fieldMeta}>
+                {urlInfo.urls.length} URL{urlInfo.urls.length !== 1 ? 's' : ''}
+                {urlInfo.duplicates > 0 && ` · ${urlInfo.duplicates} duplicate${urlInfo.duplicates !== 1 ? 's' : ''} will be removed`}
+              </span>
+            )}
+            {urlInfo.unsupported.length > 0 && (
+              <div className={styles.fieldError}>
+                <AlertCircle size={11} />
+                <span>
+                  Only theposterdb.com and mediux.pro links are supported:{' '}
+                  {urlInfo.unsupported.slice(0, 3).join(', ')}
+                  {urlInfo.unsupported.length > 3 && ` and ${urlInfo.unsupported.length - 3} more`}
+                </span>
+              </div>
             )}
           </div>
 
-          {/* Schedule */}
           <div className={styles.field}>
             <label className={styles.label}>Schedule</label>
             <div className={styles.presets}>
-              {(['daily', 'weekly', 'custom'] as Preset[]).map(p => (
+              {PRESETS.map(p => (
                 <button
-                  key={p}
-                  className={`${styles.presetBtn} ${preset === p ? styles.presetActive : ''}`}
-                  onClick={() => setPreset(p)}
+                  key={p.id}
+                  type="button"
+                  className={`${styles.presetBtn} ${schedule.preset === p.id ? styles.presetActive : ''}`}
+                  onClick={() => update({ preset: p.id, custom: schedule.preset === 'custom' ? schedule.custom : cronExpr })}
                 >
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                  {p.label}
                 </button>
               ))}
             </div>
 
-            {preset !== 'custom' && (
+            {schedule.preset === 'hourly' && (
+              <div className={styles.timeRow}>
+                <span className={styles.timeLabel}>Every</span>
+                <select className={styles.select} value={schedule.everyHours} onChange={e => update({ everyHours: Number(e.target.value) })}>
+                  {HOUR_INTERVALS.map(h => <option key={h} value={h}>{h === 1 ? 'hour' : `${h} hours`}</option>)}
+                </select>
+                <span className={styles.timeLabel}>at minute</span>
+                <select className={styles.select} value={schedule.minute} onChange={e => update({ minute: Number(e.target.value) })}>
+                  {minuteOptions.map(m => <option key={m} value={m}>:{pad2(m)}</option>)}
+                </select>
+              </div>
+            )}
+
+            {schedule.preset === 'daily' && (
+              <div className={styles.timeRow}>
+                <span className={styles.timeLabel}>At</span>
+                {timeInput}
+              </div>
+            )}
+
+            {schedule.preset === 'weekly' && (
               <div className={styles.timePicker}>
-                {preset === 'weekly' && (
-                  <div className={styles.dayRow}>
-                    {DAYS.map((d, i) => (
-                      <button
-                        key={d}
-                        className={`${styles.dayBtn} ${day === i ? styles.dayActive : ''}`}
-                        onClick={() => setDay(i)}
-                      >{d}</button>
-                    ))}
-                  </div>
-                )}
+                <div className={styles.dayRow}>
+                  {DAYS.map((d, i) => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`${styles.dayBtn} ${schedule.days.includes(i) ? styles.dayActive : ''}`}
+                      onClick={() => toggleDay(i)}
+                      aria-pressed={schedule.days.includes(i)}
+                    >{d}</button>
+                  ))}
+                </div>
                 <div className={styles.timeRow}>
-                  <select
-                    className={styles.select}
-                    value={hour}
-                    onChange={e => setHour(Number(e.target.value))}
-                  >
-                    {HOURS.map(h => (
-                      <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
-                    ))}
-                  </select>
-                  <span className={styles.timeSep}>:</span>
-                  <select
-                    className={styles.select}
-                    value={minute}
-                    onChange={e => setMinute(Number(e.target.value))}
-                  >
-                    {MINUTES.map(m => (
-                      <option key={m} value={m}>{String(m).padStart(2, '0')}</option>
-                    ))}
-                  </select>
+                  <span className={styles.timeLabel}>At</span>
+                  {timeInput}
+                  <span className={styles.fieldMeta}>Pick one or more days</span>
                 </div>
               </div>
             )}
 
-            {preset === 'custom' && (
-              <div className={styles.customRow}>
-                <input
-                  className={styles.input}
-                  value={custom}
-                  onChange={e => setCustom(e.target.value)}
-                  placeholder="0 3 * * *"
-                  spellCheck={false}
-                />
-                <span className={styles.fieldMeta}>min · hour · day · month · weekday</span>
+            {schedule.preset === 'monthly' && (
+              <div className={styles.timePicker}>
+                <div className={styles.timeRow}>
+                  <span className={styles.timeLabel}>On day</span>
+                  <select className={styles.select} value={schedule.dayOfMonth} onChange={e => update({ dayOfMonth: Number(e.target.value) })}>
+                    {DAYS_OF_MONTH.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <span className={styles.timeLabel}>at</span>
+                  {timeInput}
+                </div>
+                {schedule.dayOfMonth > 28 && (
+                  <span className={styles.fieldMeta}>Months without a day {schedule.dayOfMonth} are skipped.</span>
+                )}
               </div>
             )}
 
-            <div className={styles.cronPreview}>
-              <Clock size={11} />
-              <span>{humanSchedule(cronExpr)} · next run {nextRunLabel(cronExpr)}</span>
-            </div>
+            {schedule.preset === 'custom' && (
+              <div className={styles.customRow}>
+                <input
+                  className={`${styles.input} ${styles.mono} ${cronError ? styles.inputInvalid : ''}`}
+                  value={schedule.custom}
+                  onChange={e => update({ custom: e.target.value })}
+                  placeholder="0 3 * * 0"
+                  spellCheck={false}
+                />
+                <span className={styles.fieldMeta}>minute · hour · day of month · month · weekday</span>
+              </div>
+            )}
+
+            {cronError ? (
+              <div className={`${styles.cronPreview} ${styles.cronPreviewError}`}>
+                <AlertCircle size={11} />
+                <span>{cronError}</span>
+              </div>
+            ) : (
+              <div className={styles.cronPreview}>
+                <div className={styles.cronPreviewRow}>
+                  <Clock size={11} />
+                  <span className={styles.cronPreviewTitle}>{describeCron(cronExpr)}</span>
+                </div>
+                {preview?.valid && preview.nextRuns.length > 0 && (
+                  <div className={`${styles.cronPreviewRuns} ${current ? '' : styles.stale}`}>
+                    Next: {formatWhen(preview.nextRuns[0])} ({relativeTime(preview.nextRuns[0])})
+                    {preview.nextRuns.length > 1 && `, then ${preview.nextRuns.slice(1).map(formatWhen).join(' and ')}`}
+                  </div>
+                )}
+                {otherTimeZone && (
+                  <div className={styles.cronPreviewRuns}>
+                    The time you pick runs on the server&apos;s clock ({otherTimeZone}); upcoming runs are shown in your time zone.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Enabled */}
+          <Switch
+            label="Only apply new artwork"
+            description="Skips posters already applied to an item, so each run only adds new uploads and Plex doesn't pile up duplicate copies. Turn off to re-apply the full set every run."
+            checked={skipApplied}
+            onChange={setSkipApplied}
+          />
+
           <Switch
             label="Enable this job"
             description="Disabled jobs are saved but won't run on schedule."
@@ -289,16 +372,36 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
         </div>
 
         <div className={styles.drawerFooter}>
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<Save size={13} />}
-            onClick={submit}
-            disabled={!valid}
-          >
-            {initial ? 'Save Changes' : 'Create Job'}
-          </Button>
+          {error && (
+            <div className={styles.footerError} role="alert">
+              <AlertCircle size={12} />
+              <span>{error}</span>
+            </div>
+          )}
+          <div className={styles.footerActions}>
+            <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Play size={12} />}
+              onClick={() => submit(true)}
+              disabled={!valid || saving}
+              title="Save, then run the job once right away"
+            >
+              Save &amp; run
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Save size={13} />}
+              onClick={() => submit(false)}
+              disabled={!valid}
+              loading={saving}
+              title="Save (Ctrl+Enter)"
+            >
+              {initial ? 'Save Changes' : 'Create Job'}
+            </Button>
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -308,73 +411,125 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
 
 interface JobCardProps {
   job:      ScheduledJob
-  running:  boolean
+  now:      number
+  starting: boolean
   onEdit:   () => void
   onDelete: () => void
   onToggle: () => void
   onRunNow: () => void
 }
 
-/** Card for one scheduled job with enable toggle, run-now, edit, and delete. */
-function JobCard({ job, running, onEdit, onDelete, onToggle, onRunNow }: JobCardProps) {
+/** Card for one scheduled job with its status, last result, history, and actions. */
+function JobCard({ job, now, starting, onEdit, onDelete, onToggle, onRunNow }: JobCardProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showHistory,   setShowHistory]   = useState(false)
+
+  useEffect(() => {
+    if (!confirmDelete) return
+    const t = setTimeout(() => setConfirmDelete(false), 4000)
+    return () => clearTimeout(t)
+  }, [confirmDelete])
+
+  const isRunning = starting || job.lastStatus === 'running'
+  const status    = isRunning ? 'running' : job.lastStatus
+  const lastRun   = job.history?.[0]
+  const history   = job.history ?? []
+
   return (
     <div className={`${styles.card} ${!job.enabled ? styles.cardOff : ''}`} data-job-id={job.id}>
-      <div className={styles.cardLeft}>
-        <button
-          className={`${styles.toggle} ${job.enabled ? styles.toggleOn : ''}`}
-          onClick={onToggle}
-          title={job.enabled ? 'Disable' : 'Enable'}
-        >
-          {job.enabled ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
-        </button>
+      <div className={styles.cardMain}>
+        <div className={styles.cardLeft}>
+          <button
+            className={`${styles.toggle} ${job.enabled ? styles.toggleOn : ''}`}
+            onClick={onToggle}
+            title={job.enabled ? 'Disable' : 'Enable'}
+            aria-pressed={job.enabled}
+          >
+            {job.enabled ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
+          </button>
 
-        <div className={styles.cardInfo}>
-          <div className={styles.cardNameRow}>
-            <span className={styles.cardName}>{job.name}</span>
-            {job.lastStatus === 'success' && (
-              <CheckCircle2 size={11} className={styles.iconSuccess} />
+          <div className={styles.cardInfo}>
+            <div className={styles.cardNameRow}>
+              <span className={styles.cardName} title={job.name}>{job.name}</span>
+              {status && (
+                <span className={`${styles.statusChip} ${styles[`status_${status}`] ?? ''}`}>
+                  <StatusIcon status={status} size={11} />
+                  {STATUS_LABEL[status]}
+                </span>
+              )}
+            </div>
+            <span className={styles.cardSchedule}>{describeCron(job.cronExpr)}</span>
+            <div className={styles.cardMeta}>
+              <span>{job.urls.length} URL{job.urls.length !== 1 ? 's' : ''}</span>
+              {job.enabled && job.nextRun && (
+                <><span className={styles.dot} /><span title={formatWhen(job.nextRun)}>next {relativeTime(job.nextRun, now)}</span></>
+              )}
+              {!job.enabled && <><span className={styles.dot} /><span>paused</span></>}
+              {job.lastRun && (
+                <><span className={styles.dot} /><span title={new Date(job.lastRun).toLocaleString()}>last ran {relativeTime(job.lastRun, now)}</span></>
+              )}
+              {job.skipApplied === false && <><span className={styles.dot} /><span>re-applies everything</span></>}
+            </div>
+            {!isRunning && lastRun && (
+              <span className={`${styles.cardResult} ${lastRun.status === 'error' ? styles.metaError : lastRun.status === 'partial' ? styles.metaWarning : ''}`} title={job.lastError}>
+                {describeRun(lastRun)}
+              </span>
             )}
-            {job.lastStatus === 'error' && (
-              <AlertCircle size={11} className={styles.iconError} />
-            )}
-            {running && <Loader2 size={12} className={styles.iconSpin} />}
-          </div>
-          <span className={styles.cardSchedule}>{humanSchedule(job.cronExpr)}</span>
-          <div className={styles.cardMeta}>
-            <span>{job.urls.length} URL{job.urls.length !== 1 ? 's' : ''}</span>
-            {job.enabled && (
-              <><span className={styles.dot} /><span>next {nextRunLabel(job.cronExpr)}</span></>
-            )}
-            {job.lastRun && (
-              <><span className={styles.dot} /><span>last ran {new Date(job.lastRun).toLocaleDateString()}</span></>
-            )}
-            {job.lastStatus === 'error' && job.lastError && (
-              <><span className={styles.dot} /><span className={styles.metaError}>{job.lastError}</span></>
+            {!isRunning && !lastRun && job.lastStatus === 'error' && job.lastError && (
+              <span className={`${styles.cardResult} ${styles.metaError}`} title={job.lastError}>{job.lastError}</span>
             )}
           </div>
         </div>
+
+        <div className={styles.cardActions}>
+          <button className={styles.actionBtn} onClick={onRunNow} disabled={isRunning} title={isRunning ? 'Running…' : 'Run now'}>
+            {isRunning ? <Spinner size="xs" color="current" /> : <Play size={13} />}
+          </button>
+          {history.length > 0 && (
+            <button
+              className={`${styles.actionBtn} ${showHistory ? styles.actionActive : ''}`}
+              onClick={() => setShowHistory(v => !v)}
+              title="Recent runs"
+              aria-expanded={showHistory}
+            >
+              <History size={13} />
+            </button>
+          )}
+          <button className={styles.actionBtn} onClick={onEdit} title="Edit">
+            <Pencil size={13} />
+          </button>
+          {confirmDelete ? (
+            <button className={styles.confirmDelete} onClick={onDelete} title="Click again to delete this job">
+              Delete?
+            </button>
+          ) : (
+            <button className={`${styles.actionBtn} ${styles.actionDanger}`} onClick={() => setConfirmDelete(true)} title="Delete">
+              <Trash2 size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className={styles.cardActions}>
-        <button
-          className={styles.actionBtn}
-          onClick={onRunNow}
-          disabled={running}
-          title="Run now"
-        >
-          {running ? <Spinner size="xs" color="current" /> : <Play size={13} />}
-        </button>
-        <button className={styles.actionBtn} onClick={onEdit} title="Edit">
-          <ChevronRight size={13} />
-        </button>
-        <button
-          className={`${styles.actionBtn} ${styles.actionDanger}`}
-          onClick={onDelete}
-          title="Delete"
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
+      <AnimatePresence initial={false}>
+        {showHistory && history.length > 0 && (
+          <motion.ul
+            className={styles.history}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            {history.map(run => (
+              <li key={run.startedAt} className={styles.historyRow} title={run.error}>
+                <StatusIcon status={run.status} size={11} />
+                <span className={styles.historyWhen} title={new Date(run.startedAt).toLocaleString()}>{formatWhen(run.startedAt)}</span>
+                <span className={styles.historyTrigger}>{run.trigger === 'manual' ? 'Manual' : 'Scheduled'}</span>
+                <span className={styles.historySummary}>{describeRun(run)}</span>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -382,36 +537,51 @@ function JobCard({ job, running, onEdit, onDelete, onToggle, onRunNow }: JobCard
 
 /** Scheduler page: manage cron jobs that scrape and apply poster sets automatically. */
 export default function SchedulerPage() {
-  const [jobs,       setJobs]       = useState<ScheduledJob[]>([])
-  const [editing,    setEditing]    = useState<ScheduledJob | 'new' | null>(null)
-  const [running,    setRunning]    = useState<Set<string>>(new Set())
-  const [autoStart,  setAutoStart]  = useState(false)
-  const [engine,     setEngine]     = useState<SchedulerEngineStatus>({ external: false })
-  const [env,        setEnv]        = useState<AppEnv | null>(null)
+  const [jobs,        setJobs]        = useState<ScheduledJob[]>([])
+  const [editing,     setEditing]     = useState<ScheduledJob | 'new' | null>(null)
+  const [starting,    setStarting]    = useState<Set<string>>(new Set())
+  const [autoStart,   setAutoStart]   = useState(false)
+  const [engine,      setEngine]      = useState<SchedulerEngineStatus>({ external: false })
+  const [env,         setEnv]         = useState<AppEnv | null>(null)
+  const [quickCron,   setQuickCron]   = useState(DEFAULT_QUICK_CRON)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const now = useNow()
+
+  const attempt = useCallback(async (action: () => Promise<unknown>) => {
+    setActionError(null)
+    try {
+      await action()
+    } catch (err) {
+      setActionError(errorMessage(err))
+    }
+  }, [])
 
   const load = useCallback(async () => {
-    const [list, auto, eng, appEnv] = await Promise.all([
-      window.api.scheduler.list() as Promise<ScheduledJob[]>,
-      window.api.scheduler.getAutoStart() as Promise<boolean>,
-      window.api.scheduler.engineStatus() as Promise<SchedulerEngineStatus>,
-      window.api.app.getEnv() as Promise<AppEnv>,
+    const [list, auto, eng, appEnv, cfg] = await Promise.all([
+      window.api.scheduler.list(),
+      window.api.scheduler.getAutoStart(),
+      window.api.scheduler.engineStatus(),
+      window.api.app.getEnv(),
+      window.api.config.get(),
     ])
     setJobs(list)
     setAutoStart(auto)
     setEngine(eng)
     setEnv(appEnv)
+    setQuickCron(cfg.schedulerQuickCron || DEFAULT_QUICK_CRON)
   }, [])
 
   useEffect(() => {
-    void load()
+    void attempt(load)
     const off = window.api.scheduler.onChange((updated: ScheduledJob[]) => setJobs(updated))
     // The engine heartbeat can come and go (container started/stopped) while
-    // this page is open - poll it so the banner reflects reality.
+    // this page is open, and each job's next run moves on once it fires.
     const poll = setInterval(() => {
-      void (window.api.scheduler.engineStatus() as Promise<SchedulerEngineStatus>).then(setEngine)
+      void window.api.scheduler.engineStatus().then(setEngine).catch(() => {})
+      void window.api.scheduler.list().then(setJobs).catch(() => {})
     }, 30_000)
     return () => { off(); clearInterval(poll) }
-  }, [load])
+  }, [load, attempt])
 
   // Command-palette deep link: scroll to and briefly highlight the requested job.
   const schedulerJobId = useNavStore(s => s.schedulerJobId)
@@ -431,37 +601,36 @@ export default function SchedulerPage() {
     return () => clearTimeout(t)
   }, [schedulerJobId, jobs, clearScheduler])
 
-  async function saveJob(job: ScheduledJob) {
-    await window.api.scheduler.save(job)
-    setEditing(null)
-  }
-
-  async function deleteJob(id: string) {
-    await window.api.scheduler.delete(id)
-  }
-
-  async function toggleJob(job: ScheduledJob) {
-    await window.api.scheduler.save({ ...job, enabled: !job.enabled })
-  }
-
   async function runNow(id: string) {
-    setRunning(prev => new Set(prev).add(id))
-    try { await window.api.scheduler.runNow(id) }
-    finally { setRunning(prev => { const s = new Set(prev); s.delete(id); return s }) }
+    setStarting(prev => new Set(prev).add(id))
+    await attempt(() => window.api.scheduler.runNow(id))
+    setStarting(prev => { const s = new Set(prev); s.delete(id); return s })
+  }
+
+  async function saveJob(job: ScheduledJob, runAfterSave: boolean) {
+    const saved = await window.api.scheduler.save(job)
+    setEditing(null)
+    if (runAfterSave) void runNow(saved.id)
+  }
+
+  function changeQuickCron(expr: string) {
+    setQuickCron(expr)
+    void attempt(() => window.api.config.set({ schedulerQuickCron: expr }))
   }
 
   async function toggleAutoStart(v: boolean) {
     setAutoStart(v)
-    await window.api.scheduler.setAutoStart(v)
+    await attempt(() => window.api.scheduler.setAutoStart(v))
   }
 
-  const enabledCount = jobs.filter(j => j.enabled).length
-  const errorCount   = jobs.filter(j => j.lastStatus === 'error').length
+  const closeEditor   = useCallback(() => setEditing(null), [])
+  const enabledCount  = jobs.filter(j => j.enabled).length
+  const troubleCount  = jobs.filter(j => j.lastStatus === 'error' || j.lastStatus === 'partial').length
+  const quickOptions  = QUICK_SCHEDULES.includes(quickCron) ? QUICK_SCHEDULES : [...QUICK_SCHEDULES, quickCron]
 
   return (
     <div className={styles.page}>
 
-      {/* Header */}
       <div className={styles.header}>
         <div>
           <h1 className="page-title">Scheduler</h1>
@@ -471,6 +640,13 @@ export default function SchedulerPage() {
           </p>
         </div>
         <div className={styles.headerActions}>
+          <label className={styles.autoStart} title="Schedule used by the Schedule and Sync buttons in the Library Browser">
+            <Zap size={12} className={styles.autoStartIcon} />
+            <span>Quick sync</span>
+            <select className={`${styles.select} ${styles.headerSelect}`} value={quickCron} onChange={e => changeQuickCron(e.target.value)}>
+              {quickOptions.map(expr => <option key={expr} value={expr}>{describeCron(expr)}</option>)}
+            </select>
+          </label>
           {/* "Launch at login" only matters on a standalone desktop install. In a
               container the OS setting is a no-op (the container restart policy keeps
               it alive), and when a 24/7 engine is running, launching the desktop app
@@ -493,7 +669,6 @@ export default function SchedulerPage() {
         </div>
       </div>
 
-      {/* 24/7 engine notice - a headless container is running these jobs */}
       {engine.external && (
         <div className={styles.engineNotice}>
           <Server size={13} />
@@ -504,20 +679,28 @@ export default function SchedulerPage() {
         </div>
       )}
 
-      {/* Error notice */}
-      {errorCount > 0 && (
-        <div className={styles.errorNotice}>
+      {actionError && (
+        <div className={styles.errorNotice} role="alert">
           <AlertCircle size={13} />
-          <span>{errorCount} job{errorCount !== 1 ? 's' : ''} failed on last run. Edit to review or run again.</span>
+          <span>{actionError}</span>
+          <button className={styles.noticeClose} onClick={() => setActionError(null)} title="Dismiss"><X size={12} /></button>
         </div>
       )}
 
-      {/* Job list / empty */}
+      {troubleCount > 0 && (
+        <div className={styles.warnNotice}>
+          <AlertTriangle size={13} />
+          <span>
+            {troubleCount} job{troubleCount !== 1 ? 's' : ''} had problems on the last run. Open a job&apos;s recent runs to see what happened, or run it again.
+          </span>
+        </div>
+      )}
+
       {jobs.length === 0 ? (
         <EmptyState
           icon={<CalendarClock size={22} />}
           title="No scheduled jobs"
-          description="Create a job to automatically scrape and upload posters on a recurring schedule."
+          description="Create a job here, or use Schedule on a set or Sync on a creator in the Library Browser. New artwork that matches your library is applied automatically."
           action={
             <Button
               variant="primary"
@@ -542,11 +725,12 @@ export default function SchedulerPage() {
               >
                 <JobCard
                   job={job}
-                  running={running.has(job.id)}
+                  now={now}
+                  starting={starting.has(job.id)}
                   onEdit={() => setEditing(job)}
-                  onDelete={() => deleteJob(job.id)}
-                  onToggle={() => toggleJob(job)}
-                  onRunNow={() => runNow(job.id)}
+                  onDelete={() => void attempt(() => window.api.scheduler.delete(job.id))}
+                  onToggle={() => void attempt(() => window.api.scheduler.save({ ...job, enabled: !job.enabled }))}
+                  onRunNow={() => void runNow(job.id)}
                 />
               </motion.div>
             ))}
@@ -554,13 +738,12 @@ export default function SchedulerPage() {
         </div>
       )}
 
-      {/* Drawer */}
       <AnimatePresence>
         {editing !== null && (
           <JobForm
             initial={editing === 'new' ? undefined : editing}
             onSave={saveJob}
-            onClose={() => setEditing(null)}
+            onClose={closeEditor}
           />
         )}
       </AnimatePresence>

@@ -337,6 +337,7 @@ export const handlers = {
     setAutoStart: (enable: boolean) => SchedulerService.setAutoStart(enable),
     getAutoStart: () => SchedulerService.getAutoStart(),
     engineStatus: () => SchedulerService.engineStatus(),
+    preview: (expr: string) => SchedulerService.preview(expr),
   },
 
   browser: {

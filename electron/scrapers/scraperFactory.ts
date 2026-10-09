@@ -5,28 +5,9 @@ import { BaseScraper } from './baseScraper'
 import { Logger } from '../services/logger'
 import { ConfigService } from '../services/config'
 import type { PosterInfo, ScrapeProgress } from '../ipc/types'
+import { classifyUrl, type ScraperSource } from './urlSource'
 
-export type ScraperSource = 'posterdb' | 'mediux' | 'unknown'
-
-/**
- * Classifies a URL by its scraping source site.
- *
- * @param url - URL to inspect.
- * @returns posterdb, mediux, or unknown.
- */
-export function classifyUrl(url: string): ScraperSource {
-  // Match on the parsed hostname, not a substring: `includes('mediux.pro')`
-  // would also accept evil.com/?mediux.pro or mediux.pro.evil.com.
-  let host: string
-  try {
-    host = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname.toLowerCase()
-  } catch {
-    return 'unknown'
-  }
-  if (host === 'theposterdb.com' || host.endsWith('.theposterdb.com')) return 'posterdb'
-  if (host === 'mediux.pro' || host.endsWith('.mediux.pro')) return 'mediux'
-  return 'unknown'
-}
+export { classifyUrl, type ScraperSource }
 
 // Scraper instances are reused across calls within a session
 let _posterdb: PosterdbScraper | null = null
