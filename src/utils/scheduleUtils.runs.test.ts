@@ -67,7 +67,7 @@ describe('slot coverage', () =>
     const coverage = slotCoverage([rec({ setId: 'A', slots: ['s1e1', 'poster'] })])
     expect(isSlotCovered(coverage, '1', 's1e1', 'B')).toBe(true)
     expect(isSlotCovered(coverage, '1', 'poster', 'B')).toBe(true)
-    expect(isSlotCovered(coverage, '1', 's1e2', 'B')).toBe(true === false)
+    expect(isSlotCovered(coverage, '1', 's1e2', 'B')).toBe(false)
     expect(isSlotCovered(coverage, '1', 's1e1', 'A')).toBe(false)
   })
 
