@@ -166,9 +166,13 @@ export async function startServer() {
       '/api/browser/install',
       '/api/app/env',
       '/api/app/version',
-      '/api/config',
     ]
-    if (publicPaths.some(p => req.url.split('?')[0] === p)) return
+    // Reading config is public so the sign-in screen can render (the token is
+    // blanked for unauthenticated reads); changing it always needs a session.
+    const publicReadPaths = ['/api/config']
+    const urlPath = req.url.split('?')[0]
+    if (publicPaths.includes(urlPath)) return
+    if (req.method === 'GET' && publicReadPaths.includes(urlPath)) return
     if (!requireAuth(req, reply)) return
   })
 
