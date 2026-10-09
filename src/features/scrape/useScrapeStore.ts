@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { PosterInfo } from '../../../electron/ipc/types'
+import { uuid } from '../../utils/uuid'
 
 export type EntryStatus = 'idle' | 'scraping' | 'done' | 'error'
 export type UploadStatus = 'idle' | 'matching' | 'uploading' | 'done' | 'error' | 'no_match'
@@ -70,7 +71,7 @@ export const useScrapeStore = create<ScrapeStore>((set, get) => ({
       .map(normaliseUrl)
       .filter(url => url.length > 0 && isSupported(url) && !existing.has(url))
       .map(url => ({
-        id: crypto.randomUUID(),
+        id: uuid(),
         url,
         status: 'idle' as EntryStatus,
         posters: [],

@@ -11,6 +11,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
 import type { ScheduledJob, SchedulerEngineStatus, AppEnv } from '../../../electron/ipc/types'
 import { useNavStore } from '../../app/navStore'
+import { uuid } from '../../utils/uuid'
 import styles from './SchedulerPage.module.css'
 
 
@@ -132,7 +133,7 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
   function submit() {
     if (!valid) return
     onSave({
-      id: initial?.id ?? crypto.randomUUID(),
+      id: initial?.id ?? uuid(),
       name: name.trim(),
       urls: urlList,
       cronExpr,

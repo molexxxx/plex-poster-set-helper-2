@@ -11,6 +11,7 @@ import Pager from '../../components/ui/Pager'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
 import { groupPosters, posterFileType, ALL_TYPES, defaultSetApplyScope, type FileType, type SetApplyScope } from '../../utils/posterGroups'
 import { recordApplied, recordAppliedBatch, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
+import { uuid } from '../../utils/uuid'
 import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
 import type {
@@ -855,7 +856,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
     setSchedulingId(s.id)
     try {
       await window.api.scheduler.save({
-        id: crypto.randomUUID(),
+        id: uuid(),
         name: `${item.title}${item.year ? ` (${item.year})` : ''} - ${s.setName}`,
         urls: [`https://mediux.pro/sets/${s.id}`],
         cronExpr: '0 3 * * 0',
@@ -2383,7 +2384,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       ? chosen.map(s => `https://mediux.pro/sets/${s.id}`)
       : [`https://mediux.pro/user/${username}/sets`]
     const job: ScheduledJob = {
-      id: crypto.randomUUID(),
+      id: uuid(),
       name: useSelection ? `Sync @${username} (${urls.length} sets)` : `Sync @${username}`,
       urls,
       cronExpr: '0 9 * * 1',   // Mondays at 09:00 local time

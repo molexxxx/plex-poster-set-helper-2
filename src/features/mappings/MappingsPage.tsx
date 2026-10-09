@@ -6,6 +6,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
 import styles from './MappingsPage.module.css'
+import { uuid } from '../../utils/uuid'
 
 
 interface MappingRow {
@@ -37,7 +38,7 @@ export default function MappingsPage() {
   useEffect(() => {
     window.api.config.get().then(cfg => {
       const existing = Object.entries(cfg.titleMappings ?? {}).map(([k, v]) => ({
-        id: crypto.randomUUID(),
+        id: uuid(),
         plexTitle: k,
         scraperTitle: v as string,
       }))
@@ -49,7 +50,7 @@ export default function MappingsPage() {
 
 
   function addRow() {
-    const row: MappingRow = { id: crypto.randomUUID(), plexTitle: '', scraperTitle: '' }
+    const row: MappingRow = { id: uuid(), plexTitle: '', scraperTitle: '' }
     setRows(r => [...r, row])
     // focus the new Plex title input after render
     setTimeout(() => {
