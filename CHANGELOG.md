@@ -4,6 +4,14 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.7.1
+
+### Sets land on the right entry in a crowded franchise
+When a set's title and year didn't both line up exactly with a Plex entry, the matcher took the closest title within a year either side, so in a library holding the Battlestar Galactica miniseries (2003) next to the series "Battlestar Galactica (2003)" (2004), a set for the series could land on the miniseries. Its cards were then dropped one by one because the miniseries has no such seasons, and the run reported no problem. A candidate from the set's own year now wins unless its title is clearly the worse fit.
+
+### Every reason a poster was not applied is now visible
+A run's details list the titles whose matched Plex entry has no such season or episode (the sign of a lookalike match) and, for fill-gaps jobs, the titles left to other art. The run summary counts both, and the log records which Plex entry each title matched, with its year and library.
+
 ## What's new in v2.7.0
 
 ### Filter the Library Browser by applied artwork
