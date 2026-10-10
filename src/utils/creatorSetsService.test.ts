@@ -25,7 +25,7 @@ vi.mock('../../electron/services/logger', () => ({
 vi.mock('../../electron/runtime/events', () => ({ appEvents: { emitEvent: vi.fn() } }))
 vi.mock('../../electron/runtime/paths', () => ({ getUserDataPath: () => dir }))
 
-const { CreatorSetsService } = await import('../../electron/services/creatorSetsService')
+const { CreatorSetsService, CREATOR_CACHE_VERSION } = await import('../../electron/services/creatorSetsService')
 const { ScraperFactory } = await import('../../electron/scrapers/scraperFactory')
 
 function userSet(id: string, dateUpdated: string): MediuxUserSet
@@ -97,6 +97,29 @@ describe('CreatorSetsService.catalog', () =>
 
     expect(ScraperFactory.browseMediuxUserAll).toHaveBeenCalledOnce()
     expect(ScraperFactory.browseMediuxUser).not.toHaveBeenCalled()
+  })
+
+  it('serves a catalog cached by this version from disk without crawling', async () =>
+  {
+    const cached = { username: 'Alice', sets: [userSet('cached', 'd0')], capped: false, fetchedAt: Date.now() }
+    fs.writeFileSync(path.join(dir, 'creator-sets.json'), JSON.stringify({ version: CREATOR_CACHE_VERSION, creators: { alice: cached } }))
+
+    const { sets } = await CreatorSetsService.catalog('Alice')
+
+    expect(sets.map(s => s.id)).toEqual(['cached'])
+    expect(ScraperFactory.browseMediuxUserAll).not.toHaveBeenCalled()
+  })
+
+  it('drops a catalog cached by an older version and crawls again', async () =>
+  {
+    const stale = { username: 'Alice', sets: [userSet('stale', 'd0')], capped: false, fetchedAt: Date.now() }
+    fs.writeFileSync(path.join(dir, 'creator-sets.json'), JSON.stringify({ version: CREATOR_CACHE_VERSION - 1, creators: { alice: stale } }))
+    crawlReturns([userSet('1', 'd1')])
+
+    const { sets } = await CreatorSetsService.catalog('Alice')
+
+    expect(sets.map(s => s.id)).toEqual(['1'])
+    expect(ScraperFactory.browseMediuxUserAll).toHaveBeenCalledOnce()
   })
 
   it('rejects when the crawl fails', async () =>

@@ -51,6 +51,12 @@ const FRESH_TTL = 15 * 60 * 1000
 const MAX_CREATORS = 8
 /** Safety bound on pages walked during an incremental resync. */
 const INCREMENTAL_MAX_PAGES = 25
+/**
+ * Bumped whenever the fields parsed from a set change meaning, so a catalog
+ * cached by an older build is crawled again instead of trusted. Version 1
+ * named title-card-only sets after their set name.
+ */
+export const CREATOR_CACHE_VERSION = 2
 
 const cacheFile = () => path.join(getUserDataPath(), 'creator-sets.json')
 
@@ -64,7 +70,11 @@ function ensureLoaded(): void {
   if (loaded) return
   loaded = true
   try {
-    const data = JSON.parse(fs.readFileSync(cacheFile(), 'utf-8')) as { creators?: Record<string, PersistedCreator> }
+    const data = JSON.parse(fs.readFileSync(cacheFile(), 'utf-8')) as { version?: number; creators?: Record<string, PersistedCreator> }
+    if (data.version !== CREATOR_CACHE_VERSION) {
+      Logger.info('Library', 'Creator cache is from an older version - catalogs will be crawled again')
+      return
+    }
     for (const [k, c] of Object.entries(data.creators ?? {})) {
       const sets = c.sets ?? []
       store.set(k, {
@@ -85,7 +95,7 @@ function persist(): void {
       if (s.status === 'crawling') continue   // never persist a partial crawl
       creators[k] = { username: s.username, sets: s.sets, capped: s.capped, fetchedAt: s.fetchedAt }
     }
-    fs.promises.writeFile(cacheFile(), JSON.stringify({ version: 1, creators }), 'utf-8')
+    fs.promises.writeFile(cacheFile(), JSON.stringify({ version: CREATOR_CACHE_VERSION, creators }), 'utf-8')
       .catch(err => Logger.warn('Library', `Failed to persist creator cache: ${err instanceof Error ? err.message : err}`))
   }, 500)
 }
@@ -295,9 +305,10 @@ export const CreatorSetsService = {
     return this.start(username)
   },
 
-  /** Aborts and clears every buffered crawl (e.g. on shutdown). */
+  /** Aborts and clears every buffered crawl (e.g. on shutdown); the next use re-reads the disk cache. */
   clear(): void {
     for (const state of store.values()) state.signal.aborted = true
     store.clear()
+    loaded = false
   },
 }
