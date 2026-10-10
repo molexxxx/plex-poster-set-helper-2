@@ -4,6 +4,14 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.8.0
+
+### Continuing or ended
+The Library Browser's TV tabs gain a status filter: **Continuing** for series that are running, renewed, or in production, and **Ended** for ones that finished or were canceled. Use it with the art filter to find the ongoing shows that still need a schedule, and to skip ended shows that won't be getting new art. The verdict comes from TMDB when a key is set in Settings, looked up once per show and cached (continuing shows are re-checked weekly, ended ones every three months); without a key, a show counts as continuing when an episode aired in the last year.
+
+### Much faster art filters
+Filtering the grid used to read the whole library from Plex with every field, for each filter change and again every half minute. It now reads a light listing (no cast, genres, images, or summaries) and keeps it for five minutes, the "applied" filters read only the titles with history instead of the whole library, sorting and search run locally, and only the page on screen is read in full. Switching filters, sorts, or search terms on a filtered grid is now immediate.
+
 ## What's new in v2.7.1
 
 ### Sets land on the right entry in a crowded franchise
