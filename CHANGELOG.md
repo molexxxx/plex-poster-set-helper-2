@@ -4,6 +4,11 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.9.0
+
+### Clear cached data from Settings
+Creator catalogs, series statuses, and the library listings behind the grid filters are cached so they load instantly, and a stale cache can look exactly like a bug. **Settings → General → Cached Data** now has a **Clear cached data** button that drops all three; the next use reads everything fresh (a large creator takes a few minutes to re-read). Your settings, applied-poster history, logs, and the bundled browser are not touched.
+
 ## What's new in v2.8.2
 
 ### The title fix now reaches cached creators
