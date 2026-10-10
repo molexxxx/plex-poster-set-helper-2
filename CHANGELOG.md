@@ -4,6 +4,11 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.7.0
+
+### Filter the Library Browser by applied artwork
+A new dropdown next to the sort control narrows the grid to the titles you want to work on: **No art applied** to find what still needs sets, **Art applied**, **Applied, not scheduled** for titles whose art no job keeps updated (so you can schedule them or leave them, as with ended shows), or **Applied from @creator** for any creator whose art is on record. The filter works in each library tab and in the all-libraries search.
+
 ## What's new in v2.6.0
 
 ### Creator syncs read the whole catalog
