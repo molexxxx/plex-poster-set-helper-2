@@ -4,6 +4,11 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.8.2
+
+### The title fix now reaches cached creators
+Creator catalogs are cached on disk with the show names parsed at crawl time, and a resync only re-reads sets that are new or changed. So after v2.8.1, a creator you had already synced kept the old, wrong names for their title-card-only sets, and those sets still came back "not in the library". The cache now carries a version; one written by an older build is discarded, and the next job run or visit to the Creators tab crawls the catalog again (a few minutes for a large creator) with the corrected names.
+
 ## What's new in v2.8.1
 
 ### Title-card-only sets find their show
