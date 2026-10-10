@@ -223,6 +223,7 @@ describe('SchedulerService._execute', () =>
 
     expect(vi.mocked(PlexService.uploadPoster).mock.calls.map(c => c[0].imageUrl)).toEqual(['main', 'e2'])
     expect(storedJob().history![0]).toMatchObject({ uploaded: 2, covered: 1, status: 'success' })
+    expect(storedJob().history![0].details!.covered).toEqual(['Show (2020) · 1 poster'])
   })
 
   it('treats art applied before slot tracking as covering the whole show', async () =>
@@ -252,8 +253,9 @@ describe('SchedulerService._execute', () =>
     await SchedulerService._execute(job(), 'schedule')
 
     expect(storedJob()).toMatchObject({ lastStatus: 'partial', lastError: 'Image download failed: 404' })
-    expect(storedJob().history![0]).toMatchObject({ uploaded: 1, failed: 1 })
+    expect(storedJob().history![0]).toMatchObject({ uploaded: 1, failed: 1, noTarget: 1 })
     expect(storedJob().history![0].details!.failed).toEqual(['Show (2020) · Image download failed: 404'])
+    expect(storedJob().history![0].details!.noTarget).toEqual(['Show (2020) · 1 poster'])
   })
 
   it('fails when no URL can be read', async () =>

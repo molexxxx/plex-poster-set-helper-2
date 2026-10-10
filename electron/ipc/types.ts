@@ -351,6 +351,8 @@ export interface JobRun {
   urlErrors: number
   /** Posters left alone because other art already fills their slot (fill-gaps jobs). */
   covered?: number
+  /** Posters whose season or episode does not exist on the matched Plex item. */
+  noTarget?: number
   /** First error message, when any. */
   error?: string
   /** Per-title breakdown, each list capped with a trailing "and N more" entry. */
@@ -364,6 +366,10 @@ export interface JobRunDetails {
   unmatched: string[]
   /** Titles with a failed upload, as "Title (Year) · error". */
   failed: string[]
+  /** Titles left alone because other art fills their slots, as "Title (Year) · N posters". */
+  covered?: string[]
+  /** Titles whose matched Plex item lacks the season or episode, as "Title (Year) · N posters". */
+  noTarget?: string[]
 }
 
 /** Live position of a running job, computed by the scheduler and never stored. */

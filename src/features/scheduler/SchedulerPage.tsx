@@ -477,7 +477,9 @@ function JobCard({ job, now, starting, canMoveUp, canMoveDown, onEdit, onDelete,
   const status: CardStatus | undefined = isRunning ? 'running' : job.queued ? 'queued' : job.lastStatus
   const lastRun   = job.history?.[0]
   const history   = job.history ?? []
-  const hasDetails = (run: JobRun) => !!run.details && (run.details.applied.length + run.details.unmatched.length + run.details.failed.length) > 0
+  const hasDetails = (run: JobRun) => !!run.details && (
+    run.details.applied.length + run.details.unmatched.length + run.details.failed.length
+    + (run.details.covered?.length ?? 0) + (run.details.noTarget?.length ?? 0)) > 0
 
   return (
     <div className={`${styles.card} ${!job.enabled ? styles.cardOff : ''}`} data-job-id={job.id}>
@@ -594,6 +596,10 @@ function JobCard({ job, now, starting, canMoveUp, canMoveDown, onEdit, onDelete,
                     <div className={styles.runDetails}>
                       {run.details.applied.length > 0 && <DetailList label="Applied" items={run.details.applied} />}
                       {run.details.failed.length > 0 && <DetailList label="Failed" items={run.details.failed} />}
+                      {(run.details.noTarget?.length ?? 0) > 0 && (
+                        <DetailList label="No matching season or episode in Plex" items={run.details.noTarget!} />
+                      )}
+                      {(run.details.covered?.length ?? 0) > 0 && <DetailList label="Left to other art" items={run.details.covered!} />}
                       {run.details.unmatched.length > 0 && <DetailList label="Not in your library" items={run.details.unmatched} />}
                     </div>
                   )}

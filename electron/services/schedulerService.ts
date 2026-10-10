@@ -391,9 +391,11 @@ export const SchedulerService = {
       : `item|${poster.title.toLowerCase()}|${poster.year ?? ''}|${poster.tmdbId ?? ''}|${mediaType ?? ''}`
     let pending = cache.get(cacheKey)
     if (!pending) {
+      const label = titleLabel(poster.title, poster.year)
       pending = (async (): Promise<ResolvedItem | null> => {
         if (poster.isCollection) {
           const coll = await PlexService.findCollection({ title: poster.title })
+          Logger.scrape('Scheduler', coll ? `Collection "${label}" matched Plex "${coll.title}" (key ${coll.key})` : `Collection "${label}" is not in the library`)
           return coll ? { key: coll.key, title: coll.title, type: 'collection', libraryTitle: coll.libraryTitle } : null
         }
         const item = await PlexService.findInLibrary({
@@ -403,6 +405,11 @@ export const SchedulerService = {
           tmdbId: poster.tmdbId,
           type: mediaType,
         })
+        // The log is the place to see which Plex entry a set landed on when a
+        // library holds several near-identical titles.
+        Logger.scrape('Scheduler', item
+          ? `"${label}" matched Plex "${item.title}" (${item.year ?? 'no year'}, key ${item.key}, ${item.libraryTitle})`
+          : `"${label}" is not in the library`)
         if (!item) return null
         return { key: item.key, title: item.title, year: item.year, type: item.type === 'movie' ? 'movie' : 'show', libraryTitle: item.libraryTitle }
       })()
@@ -429,6 +436,7 @@ export const SchedulerService = {
       const slot = posterSlot(poster)
       if (ctx.coverage && isSlotCovered(ctx.coverage, target.key, slot, source.setId)) {
         tally.covered++
+        tally.coveredTitles.set(targetLabel, (tally.coveredTitles.get(targetLabel) ?? 0) + 1)
         return
       }
 
@@ -440,7 +448,13 @@ export const SchedulerService = {
         episode: poster.episode,
         isCollection: poster.isCollection,
       })
-      if (res.skipped) return
+      if (res.skipped) {
+        // The matched item has no such season or episode. Counted rather than
+        // dropped: a whole set landing here usually means a lookalike title.
+        tally.noTarget++
+        tally.noTargetTitles.set(targetLabel, (tally.noTargetTitles.get(targetLabel) ?? 0) + 1)
+        return
+      }
       if (!res.success) {
         tally.failed++
         tally.firstError ??= res.error

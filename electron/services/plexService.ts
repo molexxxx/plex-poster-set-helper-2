@@ -3,6 +3,7 @@ import { Logger } from './logger'
 import { ConfigService } from './config'
 import { AnimeMappingService } from './animeMappingService'
 import { appliedByItem, artFilterMatches, scheduleCoverage } from './scheduleUtils'
+import { normTitle, pickLibraryMatch } from './libraryMatch'
 import type {
   ConnectReq, ConnectRes, Library,
   FindItemReq, PlexItem, UploadReq, UploadRes,
@@ -154,18 +155,6 @@ function mapMetadata(m: any, libraryTitle: string, libraryType: 'movie' | 'show'
     labels: ((m.Label ?? []) as any[]).map(l => l.tag as string),
     ...extractGuids(m),
   }
-}
-
-/**
- * Normalises a title for tolerant comparison: lowercased, diacritics stripped,
- * and all punctuation collapsed to single spaces. Lets "The Librarian: ..." and
- * "The Librarian - ..." compare equal regardless of how Plex stored the title.
- *
- * @param s - Raw title.
- * @returns The normalised form.
- */
-function normTitle(s: string): string {
-  return s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
 /**
@@ -378,34 +367,9 @@ export const PlexService = {
     }
 
     const candidates = await gather(title)
-
-    // TMDB id is exact and survives Plex renames (e.g. "The Librarian III" vs
-    // TMDB's "The Librarian: ..."), so prefer it when the candidates include the
-    // right item under a different name.
-    if (tmdbId) {
-      const byTmdb = candidates.find(c => c.tmdbId === tmdbId)
-      if (byTmdb) return byTmdb
-    }
-
+    const picked = pickLibraryMatch(candidates, { title, year, tmdbId })
+    if (picked) return picked
     const wanted = normTitle(title)
-    const exact = candidates.find(i => normTitle(i.title) === wanted && (!year || i.year === year))
-    if (exact) return exact
-
-    if (!year) {
-      const exactTitle = candidates.find(i => normTitle(i.title) === wanted)
-      if (exactTitle) return exactTitle
-    }
-
-    // Fuzzy fallback: when a year is provided, only consider candidates within ±1
-    // year so that e.g. "Toy Story (1995)" never fuzzy-matches "Toy Story 2 (1999)".
-    const fuzzyMatch = (pool: PlexItem[]): PlexItem | null => {
-      const scoped = year ? pool.filter(c => c.year != null && Math.abs(c.year - year) <= 1) : pool
-      if (!scoped.length) return null
-      const fuse = new Fuse(scoped, { keys: ['title'], threshold: 0.35 })
-      return fuse.search(title)[0]?.item ?? null
-    }
-    const fuzzy = fuzzyMatch(candidates)
-    if (fuzzy) return fuzzy
 
     // Last resort when the TMDB id is known: Plex's relevance search can drop a
     // long, subtitled franchise entry ("The Librarian: The Curse of the Judas

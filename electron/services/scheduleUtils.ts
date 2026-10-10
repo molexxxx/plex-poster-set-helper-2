@@ -1157,6 +1157,7 @@ export interface RunTally
   failed: number
   urlErrors: number
   covered: number
+  noTarget: number
   firstError?: string
   /** Title label to posters applied. */
   appliedTitles: Map<string, number>
@@ -1164,6 +1165,10 @@ export interface RunTally
   unmatchedTitles: Set<string>
   /** Title label to the first upload error. */
   failedTitles: Map<string, string>
+  /** Title label to posters left to other art. */
+  coveredTitles: Map<string, number>
+  /** Title label to posters whose season or episode is missing in Plex. */
+  noTargetTitles: Map<string, number>
 }
 
 /**
@@ -1175,8 +1180,9 @@ export interface RunTally
 export function emptyTally(urlCount: number): RunTally
 {
   return {
-    urlCount, uploaded: 0, skipped: 0, unmatched: 0, failed: 0, urlErrors: 0, covered: 0,
+    urlCount, uploaded: 0, skipped: 0, unmatched: 0, failed: 0, urlErrors: 0, covered: 0, noTarget: 0,
     appliedTitles: new Map(), unmatchedTitles: new Set(), failedTitles: new Map(),
+    coveredTitles: new Map(), noTargetTitles: new Map(),
   }
 }
 
@@ -1194,12 +1200,17 @@ function capList(items: string[]): string[]
  */
 export function runDetails(tally: RunTally): JobRunDetails | undefined
 {
-  if (!tally.appliedTitles.size && !tally.unmatchedTitles.size && !tally.failedTitles.size) return undefined
-  return {
-    applied: capList([...tally.appliedTitles].map(([t, n]) => `${t} · ${plural(n, 'poster')}`)),
+  const counted = (m: Map<string, number>) => capList([...m].map(([t, n]) => `${t} · ${plural(n, 'poster')}`))
+  if (!tally.appliedTitles.size && !tally.unmatchedTitles.size && !tally.failedTitles.size
+    && !tally.coveredTitles.size && !tally.noTargetTitles.size) return undefined
+  const details: JobRunDetails = {
+    applied: counted(tally.appliedTitles),
     unmatched: capList([...tally.unmatchedTitles]),
     failed: capList([...tally.failedTitles].map(([t, e]) => `${t} · ${e}`)),
   }
+  if (tally.coveredTitles.size) details.covered = counted(tally.coveredTitles)
+  if (tally.noTargetTitles.size) details.noTarget = counted(tally.noTargetTitles)
+  return details
 }
 
 /**
@@ -1253,6 +1264,7 @@ export function finishRun(tally: RunTally, startedAt: Date, finishedAt: Date, tr
     urlErrors: tally.urlErrors,
   }
   if (tally.covered) run.covered = tally.covered
+  if (tally.noTarget) run.noTarget = tally.noTarget
   if (tally.firstError && status !== 'success') run.error = tally.firstError
   const details = runDetails(tally)
   if (details) run.details = details
@@ -1301,6 +1313,7 @@ export function describeRun(run: JobRun): string
   if (run.uploaded) parts.push(`${plural(run.uploaded, 'poster')} applied`)
   if (run.skipped) parts.push(`${run.skipped} already applied`)
   if (run.covered) parts.push(`${run.covered} left to other art`)
+  if (run.noTarget) parts.push(`${run.noTarget} without a season or episode in Plex`)
   if (run.unmatched) parts.push(`${plural(run.unmatched, 'title')} not in library`)
   if (run.failed) parts.push(`${run.failed} failed`)
   if (run.urlErrors) parts.push(`${plural(run.urlErrors, 'URL')} could not be read`)
