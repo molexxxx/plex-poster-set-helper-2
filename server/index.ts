@@ -57,7 +57,9 @@ export async function startServer() {
   SchedulerService.init(null)
   SchedulerService.startEngineHeartbeat()
 
-  const app = Fastify({ logger: false })
+  // Config writes can carry the whole applied-poster history, which outgrows
+  // Fastify's 1 MiB default once a few creators have been synced.
+  const app = Fastify({ logger: false, bodyLimit: 32 * 1024 * 1024 })
 
   // Per-client request budget for the web API: generous enough for the
   // UI's bursts, tight enough to blunt brute force. The browser routes below
@@ -256,6 +258,18 @@ export async function startServer() {
   app.post('/api/app/quit-and-install', async () => { handlers.app.quitAndInstall(); return { ok: true } })
   app.get('/api/app/log-path', async () => ({ path: ConfigService.getLogPath() }))
   app.post('/api/app/clear-caches', async () => handlers.app.clearCaches())
+
+  // Applied-poster history
+  app.post('/api/applied/record', async (req) => {
+    const b = (req.body ?? {}) as { records?: Parameters<typeof handlers.applied.record>[0] }
+    handlers.applied.record(b.records ?? [])
+    return { ok: true }
+  })
+  app.post('/api/applied/forget', async (req) => {
+    const b = (req.body ?? {}) as { itemKey?: string }
+    handlers.applied.forget(b.itemKey ?? '')
+    return { ok: true }
+  })
 
   // Scheduler
   app.get('/api/scheduler/jobs', async () => handlers.scheduler.list())

@@ -1,5 +1,4 @@
 import type { AppliedRecord } from '../../electron/ipc/types'
-import { mergeAppliedRecords } from '../../electron/services/scheduleUtils'
 
 /**
  * Records an applied poster set in local history - the single source of truth
@@ -16,18 +15,26 @@ export async function recordApplied(rec: AppliedRecord) {
 }
 
 /**
- * Records several applied entries in a single config read/write. Applying a
- * whole collection touches multiple Plex items at once; recording each with a
- * separate {@link recordApplied} call races on the shared config (concurrent
- * get/set lose each other's writes), so the per-movie rows would mostly vanish.
- * Batching keeps every item's row.
+ * Records several applied entries in one write. The merge happens in the main
+ * process, so the renderer never has to fetch and resend the whole history,
+ * and a scheduled run writing at the same moment cannot be overwritten.
  *
  * @param recs - Applied entries; merged per item + set with existing history.
+ * @throws When the write fails, so a caller can tell the user.
  */
 export async function recordAppliedBatch(recs: AppliedRecord[]) {
   if (!recs.length) return
-  const cfg = await window.api.config.get()
-  await window.api.config.set({ appliedPosters: mergeAppliedRecords(cfg.appliedPosters ?? [], recs) })
+  await window.api.applied.record(recs)
+}
+
+/**
+ * Records an applied entry where no UI is waiting on the result; a failure
+ * goes to the console instead of being lost.
+ *
+ * @param rec - The applied set to record.
+ */
+export function recordAppliedQuietly(rec: AppliedRecord): Promise<void> {
+  return recordApplied(rec).catch((err: unknown) => { console.error('Applied-art history was not saved', err) })
 }
 
 /**

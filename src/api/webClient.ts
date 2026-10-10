@@ -1,7 +1,7 @@
 import type { Api } from '../../electron/preload'
 import type {
   AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress,
-  AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, BrowserStatus, BrowserActionResult, BrowserInstallState,
+  AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState,
   SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq,
   CurrentArtReq, CurrentArtRes, UserSetsChunk,
 } from '../../electron/ipc/types'
@@ -176,6 +176,11 @@ export function createWebClient(): Api {
         onSse('app:downloadProgress', (_, data) => cb(data as UpdateProgress)),
       onUpdateReady: (cb: () => void) =>
         onSse('app:updateReady', () => cb()),
+    },
+
+    applied: {
+      record: (records: AppliedRecord[]) => apiFetch('/api/applied/record', { method: 'POST', body: JSON.stringify({ records }) }),
+      forget: (itemKey: string) => apiFetch('/api/applied/forget', { method: 'POST', body: JSON.stringify({ itemKey }) }),
     },
 
     scheduler: {

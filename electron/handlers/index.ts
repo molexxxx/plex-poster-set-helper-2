@@ -18,8 +18,9 @@ import type {
   SectionItemsReq, BrowseSetsReq, BrowseSetsRes, UserSetsReq, UserSetsRes,
   UserSetsSnapshot, CollectionsReq, CollectionSetsReq,
   CreatorSearchReq, MediuxUserSet, AppEnv, UpdateInfo,
-  CurrentArtReq, ClearCachesRes,
+  CurrentArtReq, ClearCachesRes, AppliedRecord,
 } from '../ipc/types'
+import { mergeAppliedRecords } from '../services/scheduleUtils'
 
 const REPO = 'molexxxx/plex-poster-set-helper-2'
 const REPO_URL = `https://github.com/${REPO}`
@@ -337,6 +338,21 @@ export const handlers = {
       PlexService.clearGridCaches()
       Logger.info('App', 'Cached data cleared')
       return { cleared: ['Creator catalogs', 'Series statuses', 'Library listings'] }
+    },
+  },
+
+  // Applied-poster history is merged here so the renderer never round-trips
+  // the whole list (which outgrows the web API's body limit as it fills) and
+  // cannot overwrite records a scheduled run wrote in the meantime.
+  applied: {
+    record: (records: AppliedRecord[]): void => {
+      const list = Array.isArray(records) ? records.filter(r => r && typeof r.itemKey === 'string') : []
+      if (!list.length) return
+      ConfigService.set({ appliedPosters: mergeAppliedRecords(ConfigService.get().appliedPosters ?? [], list) })
+    },
+    forget: (itemKey: string): void => {
+      const existing = ConfigService.get().appliedPosters ?? []
+      ConfigService.set({ appliedPosters: existing.filter(r => r.itemKey !== itemKey) })
     },
   },
 

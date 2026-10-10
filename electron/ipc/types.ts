@@ -679,6 +679,8 @@ export type IpcChannels = {
   'app:quitAndInstall': { req: void; res: void }
   'app:openLogFolder': { req: void; res: void }
   'app:clearCaches': { req: void; res: ClearCachesRes }
+  'applied:record': { req: AppliedRecord[]; res: void }
+  'applied:forget': { req: string; res: void }
   'app:updateAvailable': { event: UpdateInfo }
   'app:downloadProgress': { event: UpdateProgress }
   'app:updateReady': { event: void }

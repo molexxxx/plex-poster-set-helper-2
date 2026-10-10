@@ -10,7 +10,7 @@ import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
 import Pager from '../../components/ui/Pager'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
 import { groupPosters, posterFileType, ALL_TYPES, defaultSetApplyScope, type FileType, type SetApplyScope } from '../../utils/posterGroups'
-import { recordApplied, recordAppliedBatch, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
+import { recordApplied, recordAppliedBatch, recordAppliedQuietly, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
 import { uuid } from '../../utils/uuid'
 import { errorMessage } from '../../utils/errorMessage'
 import {
@@ -133,6 +133,21 @@ function timeAgo(ts: number): string {
 
 /** Apply progress for a single set. */
 interface ApplyState { status: 'idle' | 'applying' | 'done' | 'error'; done: number; total: number; error?: string }
+
+/**
+ * Error text for a finished apply: upload failures first, then a failure to
+ * save the history that drives the Applied badges and filters.
+ *
+ * @param failed - Posters that failed to upload.
+ * @param historyError - Why the history write failed, if it did.
+ * @returns The text, or undefined when everything went through.
+ */
+function applyError(failed: number, historyError?: string): string | undefined {
+  const parts: string[] = []
+  if (failed) parts.push(`${failed} failed`)
+  if (historyError) parts.push(`history not saved: ${historyError}`)
+  return parts.length ? parts.join(' · ') : undefined
+}
 
 /**
  * Applies a set's posters to a Plex target, routing each by season/episode.
@@ -1263,8 +1278,9 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
         }
       }
 
+      let historyError: string | undefined
       if (records.length > 0) {
-        void recordAppliedBatch(records)
+        historyError = await recordAppliedBatch(records).then(() => undefined, (err: unknown) => errorMessage(err))
         const appliedUrls = records.flatMap(r => r.posterUrls ?? [])
         setAppliedIdx(prev => ({
           setIds: new Set(prev.setIds).add(s.id),
@@ -1277,7 +1293,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
       }
       setApplyMap(m => ({
         ...m,
-        [s.id]: { status: totalFailed && !totalDone ? 'error' : 'done', done: totalDone, total: enabledTotal, error: totalFailed ? `${totalFailed} failed` : undefined },
+        [s.id]: { status: totalFailed && !totalDone ? 'error' : 'done', done: totalDone, total: enabledTotal, error: applyError(totalFailed, historyError) },
       }))
       return
     }
@@ -1368,8 +1384,9 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
     }
 
     // One atomic write so every touched item keeps its Reset Posters row.
+    let historyError: string | undefined
     if (records.length > 0) {
-      void recordAppliedBatch(records)
+      historyError = await recordAppliedBatch(records).then(() => undefined, (err: unknown) => errorMessage(err))
       const appliedUrls = records.flatMap(r => r.posterUrls ?? [])
       setAppliedIdx(prev => ({
         setIds: new Set(prev.setIds).add(s.id),
@@ -1382,7 +1399,7 @@ function SetsPanel({ item, subs, onClose, onItemPoster }: {
     }
     setApplyMap(m => ({
       ...m,
-      [s.id]: { status: totalFailed && !totalDone ? 'error' : 'done', done: totalDone, total: enabledTotal, error: totalFailed ? `${totalFailed} failed` : undefined },
+      [s.id]: { status: totalFailed && !totalDone ? 'error' : 'done', done: totalDone, total: enabledTotal, error: applyError(totalFailed, historyError) },
     }))
   }
 
@@ -2374,7 +2391,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         allAppliedUrls.push(...collRes.appliedUrls)
         allAppliedSlots.push(...collRes.appliedSlots)
         if (collRes.done > 0) {
-          void recordApplied({
+          void recordAppliedQuietly({
             itemKey: coll.key, title: coll.title, type: 'collection',
             source: 'mediux', thumb: collectionArt[0].thumbUrl ?? collectionArt[0].url,
             setId: s.id, uploader: s.uploader,
@@ -2407,7 +2424,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
         allAppliedUrls.push(...memberRes.appliedUrls)
         allAppliedSlots.push(...memberRes.appliedSlots)
         if (memberRes.done > 0) {
-          void recordApplied({
+          void recordAppliedQuietly({
             itemKey: found.key, title: found.title, year: found.year,
             type: (found.type === 'movie' ? 'movie' : 'show'),
             source: 'mediux', thumb: found.thumb,
@@ -2418,17 +2435,18 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       }
     }
 
+    let historyError: string | undefined
     if (totalDone > 0 && s.matchedKey) {
-      void recordApplied({
+      historyError = await recordApplied({
         itemKey: s.matchedKey, title: s.title, year: s.year, type: s.matchedType ?? 'movie',
         source: 'mediux', thumb: s.previewUrl, setId: s.id, uploader: s.uploader,
         posterUrls: allAppliedUrls, slots: allAppliedSlots, appliedAt: new Date().toISOString(),
-      })
+      }).then(() => undefined, (err: unknown) => errorMessage(err))
       onApplied(s.id, s.matchedKey, s.title, s.year, allAppliedUrls)
     }
     setApplyMap(m => ({
       ...m,
-      [s.id]: { status: totalFailed && !totalDone ? 'error' : 'done', done: totalDone, total: enabledTotal, error: totalFailed ? `${totalFailed} failed` : undefined },
+      [s.id]: { status: totalFailed && !totalDone ? 'error' : 'done', done: totalDone, total: enabledTotal, error: applyError(totalFailed, historyError) },
     }))
   }
 
@@ -2445,7 +2463,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
       }
       const { done, appliedUrls, appliedSlots, lastError } = await applyPosters(coll.key, [file], allTypes, () => {})
       if (done) {
-        void recordApplied({
+        void recordAppliedQuietly({
           itemKey: coll.key, title: coll.title, type: 'collection',
           source: 'mediux', thumb: file.thumbUrl ?? file.url, setId: s.id, uploader: s.uploader,
           posterUrls: appliedUrls, slots: appliedSlots, appliedAt: new Date().toISOString(),
@@ -2458,7 +2476,7 @@ function CreatorSets({ username, following, appliedIdx, onFollow, onUnfollow, on
     if (!s.matchedKey) return
     const { done, appliedUrls, appliedSlots, lastError } = await applyPosters(s.matchedKey, [file], allTypes, () => {})
     if (done) {
-      void recordApplied({
+      void recordAppliedQuietly({
         itemKey: s.matchedKey, title: s.title, year: s.year, type: s.matchedType ?? 'movie',
         source: 'mediux', thumb: file.thumbUrl ?? file.url, setId: s.id, uploader: s.uploader,
         posterUrls: appliedUrls, slots: appliedSlots, appliedAt: new Date().toISOString(),

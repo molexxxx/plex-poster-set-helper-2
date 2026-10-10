@@ -69,9 +69,7 @@ export function ResetProvider({ children }: { children: React.ReactNode }) {
   /** Drops an item from the applied-poster history, then signals a list refresh. */
   const forget = useCallback((key: string) => {
     writeChain.current = writeChain.current.then(async () => {
-      const cfg = await window.api.config.get()
-      const next = (cfg.appliedPosters ?? []).filter(r => r.itemKey !== key)
-      await window.api.config.set({ appliedPosters: next })
+      await window.api.applied.forget(key)
       setRevision(v => v + 1)
     })
     return writeChain.current

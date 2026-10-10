@@ -9,7 +9,7 @@ import Spinner from '../../../components/ui/Spinner'
 import Button from '../../../components/ui/Button'
 import Lightbox, { type LightboxImage } from '../../../components/ui/Lightbox'
 import { groupPosters } from '../../../utils/posterGroups'
-import { recordApplied, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../../utils/appliedTracker'
+import { recordAppliedQuietly, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../../utils/appliedTracker'
 import { posterSlot } from '../../../../electron/services/scheduleUtils'
 import { useScrapeStore } from '../useScrapeStore'
 import type { QueueEntry, PosterResult } from '../useScrapeStore'
@@ -93,7 +93,7 @@ async function uploadPoster(
       patchPoster(entryId, poster.url, { uploadStatus: 'uploading' })
       const res = await window.api.plex.uploadPoster(coll.key, poster.url, poster.source, poster.season, poster.episode, true)
       if (res.success) {
-        void recordApplied({
+        void recordAppliedQuietly({
           itemKey: coll.key,
           title: coll.title,
           type: 'collection',
@@ -125,7 +125,7 @@ async function uploadPoster(
     if (res.success) {
       // Track it so it appears in Reset Posters and the "in library" marker.
       // Recording the setId keeps it interchangeable with the Library Browser.
-      void recordApplied({
+      void recordAppliedQuietly({
         itemKey: item.key,
         title: item.title,
         year: item.year,
