@@ -515,16 +515,18 @@ export const SchedulerService = {
     Logger.info('Scheduler', `@${creator}: ${sets.length} set(s) to check for "${job.name}"`)
     for (let i = 0; i < sets.length; i++) {
       const set = sets[i]
-      this._setProgress(job.id, { phase: 'applying', done: i, total: sets.length, current: titleLabel(set.title, set.year) })
+      const current = titleLabel(set.title, set.year)
       const posters = set.posters.filter(p => ctx.filters.has(posterKind(p)))
-      for (const poster of posters) {
+      for (let j = 0; j < posters.length; j++) {
+        const poster = posters[j]
+        this._setProgress(job.id, { phase: 'applying', done: i, total: sets.length, current, poster: { done: j, total: posters.length } })
         await this._applyPoster(ctx, poster, { setId: set.id, uploader: set.uploader, mediaType: set.mediaType })
       }
     }
   },
 
   /** Scrapes one set, show, or boxset URL and applies what it finds. */
-  async _syncUrl(ctx: RunContext, url: string): Promise<void> {
+  async _syncUrl(ctx: RunContext, url: string, base: JobProgress): Promise<void> {
     const { job, tally } = ctx
     let scrapeError: string | undefined
     const posters = await ScraperFactory.scrapeUrl(url, p => {
@@ -537,7 +539,10 @@ export const SchedulerService = {
       return
     }
     const source: PosterSource = { setId: mediuxSetId(url) ?? undefined, uploader: job.creator }
-    for (const poster of posters) await this._applyPoster(ctx, poster, source)
+    for (let j = 0; j < posters.length; j++) {
+      this._setProgress(job.id, { ...base, poster: { done: j, total: posters.length } })
+      await this._applyPoster(ctx, posters[j], source)
+    }
   },
 
   async _execute(job: ScheduledJob, trigger: JobRun['trigger']): Promise<void> {
@@ -568,8 +573,9 @@ export const SchedulerService = {
         if (creator) {
           await this._syncCreator(ctx, creator, url)
         } else {
-          this._setProgress(job.id, { phase: 'applying', done: i, total: job.urls.length, current: url }, true)
-          await this._syncUrl(ctx, url)
+          const base: JobProgress = { phase: 'applying', done: i, total: job.urls.length, current: url }
+          this._setProgress(job.id, base, true)
+          await this._syncUrl(ctx, url, base)
         }
       }
 

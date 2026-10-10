@@ -10,7 +10,7 @@ import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
 import type { ScheduledJob, SchedulerEngineStatus, AppEnv, CronPreview, JobRun } from '../../../electron/ipc/types'
 import {
-  DEFAULT_QUICK_CRON, HOUR_INTERVALS, analyzeUrls, cronToForm, describeCron, describeRun, formToCron, relativeTime,
+  DEFAULT_QUICK_CRON, HOUR_INTERVALS, analyzeUrls, cronToForm, describeCron, describeProgress, describeRun, formToCron, relativeTime,
   type ScheduleForm, type SchedulePreset,
 } from '../../../electron/services/scheduleUtils'
 import { useNavStore } from '../../app/navStore'
@@ -87,20 +87,6 @@ function StatusIcon({ status, size = 12 }: { status?: CardStatus; size?: number 
 
 const STATUS_LABEL: Record<CardStatus, string> = {
   running: 'Running', queued: 'Queued', success: 'Succeeded', partial: 'Partly failed', error: 'Failed',
-}
-
-/**
- * Describes where a running job is.
- *
- * @param p - The job's progress.
- * @returns A label such as "Reading @creator's sets · 312 found".
- */
-function progressLabel(p: NonNullable<ScheduledJob['progress']>): string {
-  if (p.phase === 'reading') {
-    return `Reading ${p.current ?? 'the creator'}'s sets${p.done ? ` · ${p.done.toLocaleString()} found` : ''}`
-  }
-  const position = p.total ? ` · ${Math.min(p.done + 1, p.total).toLocaleString()} of ${p.total.toLocaleString()}` : ''
-  return `${p.current ?? 'Applying'}${position}`
 }
 
 
@@ -518,7 +504,7 @@ function JobCard({ job, now, starting, canMoveUp, canMoveDown, onEdit, onDelete,
               {job.fillGaps && <><span className={styles.dot} /><span>fills gaps only</span></>}
             </div>
             {isRunning && job.progress && (
-              <span className={styles.cardProgress} title={job.progress.current}>{progressLabel(job.progress)}</span>
+              <span className={styles.cardProgress} title={job.progress.current}>{describeProgress(job.progress)}</span>
             )}
             {!isRunning && lastRun && (
               <span className={`${styles.cardResult} ${lastRun.status === 'error' ? styles.metaError : lastRun.status === 'partial' ? styles.metaWarning : ''}`} title={job.lastError}>

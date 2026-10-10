@@ -386,6 +386,8 @@ export interface JobProgress {
   total: number
   /** What is being worked on, such as a creator name or a show title. */
   current?: string
+  /** Position within the current set, so a large set does not look stalled. */
+  poster?: { done: number; total: number }
 }
 
 export interface ScheduledJob {

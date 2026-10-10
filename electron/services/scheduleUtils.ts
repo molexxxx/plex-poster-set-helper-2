@@ -1,4 +1,4 @@
-import type { AppliedRecord, CronPreview, JobRun, JobRunDetails, LibraryArtFilter, PosterInfo, ScheduledJob } from '../ipc/types'
+import type { AppliedRecord, CronPreview, JobProgress, JobRun, JobRunDetails, LibraryArtFilter, PosterInfo, ScheduledJob } from '../ipc/types'
 import { classifyUrl } from '../scrapers/urlSource'
 
 /** Schedule the quick Schedule and Sync actions use until the user picks another. */
@@ -1358,6 +1358,26 @@ export function recoverInterrupted(jobs: ScheduledJob[]): { jobs: ScheduledJob[]
     return { ...job, lastStatus: 'error' as const, lastError: INTERRUPTED_MESSAGE }
   })
   return { jobs: next, changed }
+}
+
+/**
+ * Describes where a running job is.
+ *
+ * @param p - The job's progress.
+ * @returns A label such as "Reading @creator's sets · 312 found" or
+ *   "Show (2020) · 4 of 1,876 · art 12 of 80".
+ */
+export function describeProgress(p: JobProgress): string
+{
+  if (p.phase === 'reading')
+  {
+    return `Reading ${p.current ?? 'the creator'}'s sets${p.done ? ` · ${p.done.toLocaleString()} found` : ''}`
+  }
+  const position = p.total ? ` · ${Math.min(p.done + 1, p.total).toLocaleString()} of ${p.total.toLocaleString()}` : ''
+  const art = p.poster && p.poster.total > 1
+    ? ` · art ${Math.min(p.poster.done + 1, p.poster.total).toLocaleString()} of ${p.poster.total.toLocaleString()}`
+    : ''
+  return `${p.current ?? 'Applying'}${position}${art}`
 }
 
 /**

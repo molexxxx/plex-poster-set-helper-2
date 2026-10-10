@@ -342,6 +342,30 @@ describe('creator sync', () =>
     expect(run.details).toEqual({ applied: ['Show (2020) · 2 posters'], unmatched: ['Missing (2020)'], failed: [] })
   })
 
+  it('reports the position within a set while it applies', async () =>
+  {
+    const creatorJob = job({ urls: [CREATOR_URL] })
+    state.config.scheduledJobs = [creatorJob]
+    vi.mocked(CreatorSetsService.catalog).mockResolvedValue({
+      capped: false,
+      sets: [userSet('1', 'Show', [poster('e1', { season: 1, episode: 1 }), poster('e2', { season: 1, episode: 2 }), poster('e3', { season: 1, episode: 3 })])],
+    })
+    let release: () => void = () => {}
+    vi.mocked(PlexService.uploadPoster).mockImplementation(async (req) =>
+    {
+      if (req.imageUrl === 'e2') await new Promise<void>(resolve => { release = resolve })
+      return { success: true }
+    })
+
+    const running = SchedulerService._execute(creatorJob, 'manual')
+    await vi.waitFor(() => expect(SchedulerService.list()[0].progress).toMatchObject({
+      phase: 'applying', done: 0, total: 1, current: 'Show (2020)', poster: { done: 1, total: 3 },
+    }))
+    release()
+    await running
+    expect(SchedulerService.list()[0].progress).toBeUndefined()
+  })
+
   it('reports a creator whose catalog cannot be read as a failed URL', async () =>
   {
     const creatorJob = job({ urls: [CREATOR_URL] })

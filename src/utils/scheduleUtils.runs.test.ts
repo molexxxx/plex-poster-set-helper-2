@@ -3,6 +3,7 @@ import type { AppliedRecord, ScheduledJob } from '../../electron/ipc/types'
 import {
   MAX_RUN_DETAIL,
   addSlotCoverage,
+  describeProgress,
   describeRun,
   emptyTally,
   finishRun,
@@ -132,6 +133,29 @@ describe('run details', () =>
   {
     expect(titleLabel('X', 2020)).toBe('X (2020)')
     expect(titleLabel('X')).toBe('X')
+  })
+})
+
+describe('describeProgress', () =>
+{
+  it('describes reading a catalog', () =>
+  {
+    expect(describeProgress({ phase: 'reading', done: 0, total: 0, current: '@tallinex' })).toBe("Reading @tallinex's sets")
+    expect(describeProgress({ phase: 'reading', done: 1312, total: 0, current: '@tallinex' })).toBe(`Reading @tallinex's sets · ${(1312).toLocaleString()} found`)
+  })
+
+  it('shows the set and the art within it, so a large set does not look stalled', () =>
+  {
+    const base = { phase: 'applying' as const, done: 411, total: 1876, current: 'Star Trek: The Next Generation (1987)' }
+    expect(describeProgress(base)).toBe(`Star Trek: The Next Generation (1987) · 412 of ${(1876).toLocaleString()}`)
+    expect(describeProgress({ ...base, poster: { done: 56, total: 178 } }))
+      .toBe(`Star Trek: The Next Generation (1987) · 412 of ${(1876).toLocaleString()} · art 57 of 178`)
+  })
+
+  it('leaves out the art count for a single poster and clamps the last position', () =>
+  {
+    expect(describeProgress({ phase: 'applying', done: 0, total: 1, current: 'X', poster: { done: 0, total: 1 } })).toBe('X · 1 of 1')
+    expect(describeProgress({ phase: 'applying', done: 5, total: 5, current: 'X', poster: { done: 9, total: 9 } })).toBe('X · 5 of 5 · art 9 of 9')
   })
 })
 
