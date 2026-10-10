@@ -466,6 +466,13 @@ export type LibraryArtFilter =
   /** Titles with art applied from one MediUX creator. */
   | { kind: 'uploader'; uploader: string }
 
+/**
+ * Narrows a TV grid by whether a series is still going. Taken from TMDB when
+ * a key is set; otherwise a show counts as continuing when an episode aired in
+ * the last year.
+ */
+export type LibraryStatusFilter = 'continuing' | 'ended'
+
 export interface SectionItemsReq {
   sectionKey: string
   offset: number
@@ -473,8 +480,12 @@ export interface SectionItemsReq {
   search?: string
   sort?: LibrarySort
   sortDir?: SortDir
-  /** When set, the whole section is read and filtered before paging. */
+  /** When set, the section is filtered before paging. */
   artFilter?: LibraryArtFilter
+  /** TV libraries only; ignored for movies. */
+  status?: LibraryStatusFilter
+  /** Bypass cached section reads, for an explicit refresh. */
+  fresh?: boolean
 }
 
 export interface SectionItemsRes {

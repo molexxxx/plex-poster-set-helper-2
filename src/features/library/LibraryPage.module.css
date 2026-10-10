@@ -160,6 +160,9 @@
 .artFilter { flex-shrink: 0; }
 .artFilter > :first-child { min-width: 200px; }
 
+.statusFilter { flex-shrink: 0; }
+.statusFilter > :first-child { min-width: 140px; }
+
 .searchBox {
   position: relative;
   display: flex;

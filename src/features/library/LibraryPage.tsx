@@ -20,7 +20,7 @@ import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
 import type {
   LibrarySection, LibraryItem, MediuxSetSummary, BrowseSetsRes, PosterInfo, MediuxUserSet, AppliedRecord,
-  PlexArtSlot, LibrarySort, SortDir, LibraryArtFilter,
+  PlexArtSlot, LibrarySort, SortDir, LibraryArtFilter, LibraryStatusFilter,
 } from '../../../electron/ipc/types'
 import styles from './LibraryPage.module.css'
 
@@ -202,7 +202,9 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
   const [sort, setSort] = useState<LibrarySort>('recentlyAdded')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [artFilter, setArtFilter] = useState<ArtFilterValue>('all')
+  const [showStatus, setShowStatus] = useState<'any' | LibraryStatusFilter>('any')
   const [uploaders, setUploaders] = useState<Array<{ uploader: string; count: number }>>([])
+  const statusParam = showStatus === 'any' ? undefined : showStatus
 
   const offsetRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -303,19 +305,22 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.key])
 
-  const loadItems = useCallback(async (key: string, q: string, append: boolean) => {
+  const loadItems = useCallback(async (key: string, q: string, append: boolean, fresh = false) => {
     if (!key || key === COLLECTIONS_TAB_KEY) return
     setLoading(true)
     const offset = append ? offsetRef.current : 0
     try {
-      const res = await window.api.library.items({ sectionKey: key, offset, limit: PAGE_SIZE, search: q, sort, sortDir, artFilter: toArtFilter(artFilter) })
+      const res = await window.api.library.items({
+        sectionKey: key, offset, limit: PAGE_SIZE, search: q, sort, sortDir,
+        artFilter: toArtFilter(artFilter), status: statusParam, fresh: fresh || undefined,
+      })
       setTotal(res.total)
       offsetRef.current = offset + res.items.length
       setItems(prev => append ? [...prev, ...res.items] : res.items)
     } finally {
       setLoading(false)
     }
-  }, [sort, sortDir, artFilter])
+  }, [sort, sortDir, artFilter, statusParam])
 
   const loadCollections = useCallback(async (q: string, append: boolean) => {
     setLoading(true)
@@ -351,7 +356,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
       Promise.all([
         Promise.all(
           sections.map(s =>
-            window.api.library.items({ sectionKey: s.key, offset: 0, limit: 24, search: q, sort, sortDir, artFilter: toArtFilter(artFilter) })
+            window.api.library.items({ sectionKey: s.key, offset: 0, limit: 24, search: q, sort, sortDir, artFilter: toArtFilter(artFilter), status: statusParam })
               .then(res => ({ section: s, items: res.items }))
               .catch(() => ({ section: s, items: [] as LibraryItem[] }))
           ),
@@ -369,7 +374,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
       })
     }, 300)
     return () => { cancelled = true; clearTimeout(t) }
-  }, [search, isGlobalSearch, sections, showCollections, reloadNonce, sort, sortDir, artFilter])
+  }, [search, isGlobalSearch, sections, showCollections, reloadNonce, sort, sortDir, artFilter, statusParam])
 
   // Infinite scroll, single-tab mode only
   function onScroll() {
@@ -397,7 +402,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
         await loadCollections(search.trim(), false)
       } else if (!isGlobalSearch && activeKey) {
         offsetRef.current = 0
-        await loadItems(activeKey, '', false)
+        await loadItems(activeKey, '', false, true)
       } else {
         setReloadNonce(n => n + 1)
       }
@@ -463,6 +468,19 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
                 value={artFilter}
                 onChange={v => setArtFilter(v as ArtFilterValue)}
                 options={artFilterOptions}
+              />
+            </div>
+          )}
+          {!isCollectionsView && (isGlobalSearch || sections.find(s => s.key === activeKey)?.type === 'show') && (
+            <div className={styles.statusFilter} title="Show only series that are still going, or only ones that have finished. Uses TMDB when a key is set in Settings; without one, a show counts as continuing when an episode aired in the last year.">
+              <Select
+                value={showStatus}
+                onChange={v => setShowStatus(v as 'any' | LibraryStatusFilter)}
+                options={[
+                  { value: 'any', label: 'Any status' },
+                  { value: 'continuing', label: 'Continuing', description: 'Running, renewed, or in production' },
+                  { value: 'ended', label: 'Ended', description: 'Finished or canceled' },
+                ]}
               />
             </div>
           )}
@@ -572,7 +590,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
             {items.length === 0 && !loading ? (
               <div className={styles.emptyGrid}>
                 <ImageIcon size={32} />
-                <p>{isCollectionsView ? 'No movie collections found.' : artFilter !== 'all' ? 'No titles match this filter.' : 'This library is empty.'}</p>
+                <p>{isCollectionsView ? 'No movie collections found.' : artFilter !== 'all' || showStatus !== 'any' ? 'No titles match these filters.' : 'This library is empty.'}</p>
               </div>
             ) : (
               <div className={styles.itemGrid}>
