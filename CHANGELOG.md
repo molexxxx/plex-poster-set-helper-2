@@ -4,6 +4,11 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.9.2
+
+### Applied art is recorded again in the web UI
+In the Docker and web UI, applying a set from the Library Browser wrote the whole applied-poster history back through the web API. Once a couple of creators had been synced, that history grew past the API's size limit, the write was refused, and the failure was silent: the cards landed in Plex but the show still counted as having no art, so the Applied badge never appeared and the "No art applied" filter kept listing it. New records are now sent on their own and merged in the app itself, which is far smaller and also means a scheduled run and a manual apply can no longer overwrite each other's records. If a history write ever fails, the set's result now says so instead of staying quiet. Shows you applied by hand while this was broken need one more apply to get their record.
+
 ## What's new in v2.9.1
 
 ### Large sets no longer look stalled
