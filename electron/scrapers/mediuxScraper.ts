@@ -516,24 +516,52 @@ function setToSummary(set: MediuxSet, allowed: Set<string>, fb: Fallback): Mediu
 }
 
 /**
+ * Strips the per-file suffix MediUX appends to a file title, such as
+ * " - S1 E3", " - Season 2", " - Specials", or " - Backdrop".
+ *
+ * @param title - The file's title string.
+ * @returns The title without the suffix.
+ */
+export function stripFileSuffix(title: string): string {
+  return title.replace(/\s*-\s*(S\d{1,3}\s*E\d{1,4}|Season\s+\d{1,3}|Specials|Backdrop)\s*$/i, '').trim()
+}
+
+/**
+ * Parses "Name (Year)" from a title, allowing trailing words such as "Set",
+ * "Title Cards", or "Collection" after the year.
+ *
+ * @param raw - A file title or set name.
+ * @returns The name and year, or null when there is no year.
+ */
+export function parseNameYear(raw: string): Fallback | null {
+  const m = raw.match(/^(.*?)\s*\((\d{4})\)/)
+  return m && m[1].trim() ? { title: m[1].trim(), year: parseInt(m[2]) } : null
+}
+
+/**
  * Derives a {title, year} for a set that lacks denormalised show/movie objects
- * (creator pages) - by parsing a poster file's title ("Name (Year)") or set_name.
+ * (creator pages). A poster file is titled "Name (Year)" and any other file
+ * "Name (Year) - S1 E1", so a set with only title cards still names its show;
+ * the set name is the last resort.
  *
  * @param set - The raw set.
  * @returns The best title/year guess, possibly empty.
  */
-function deriveSetFallback(set: MediuxSet): Fallback {
+export function deriveSetFallback(set: MediuxSet): Fallback {
   const direct =
     set.show?.name ?? set.show?.title ?? set.movie?.title ?? set.collection?.collection_name
   if (direct) {
     return { title: direct, year: extractYear(set.movie?.release_date ?? set.show?.first_air_date) }
   }
-  const posterFile = (set.files ?? []).find(f => (f.fileType ?? '').toLowerCase().includes('poster'))
-  const raw = posterFile?.title ?? set.set_name ?? set.name
+  const files = set.files ?? []
+  const named = files.find(f => (f.fileType ?? '').toLowerCase().includes('poster') && f.title) ?? files.find(f => f.title)
+  if (named?.title) {
+    const parsed = parseNameYear(stripFileSuffix(named.title))
+    if (parsed) return parsed
+  }
+  const raw = set.set_name ?? set.name
   if (!raw) return {}
-  const ym = raw.match(/^(.*?)\s*\((\d{4})\)\s*$/)
-  if (ym) return { title: ym[1].trim(), year: parseInt(ym[2]) }
-  return { title: raw.replace(/\s+(Collection|Set)$/i, '').trim() }
+  return parseNameYear(raw) ?? { title: raw.replace(/\s+(Collection|Set|Title\s*Cards|Titlecards|Posters|Backdrops)$/i, '').trim() }
 }
 
 /** Scrapes MediUX set, boxset, and creator pages via the server-rendered RSC payload. */

@@ -34,6 +34,18 @@ describe('pickLibraryMatch', () =>
     expect(pickLibraryMatch(franchise, { title: 'Battlestar Galactica', year: 1978 })).toBe(franchise[0])
   })
 
+  it('treats a Plex title that carries a year as an exact title', () =>
+  {
+    const pool = [c('Battlestar Galactica', 1978), c('Battlestar Galactica (2003)', 2003), c('Battlestar Galactica: Blood & Chrome', 2012)]
+    expect(pickLibraryMatch(pool, { title: 'Battlestar Galactica', year: 2004 })).toBe(pool[1])
+    expect(pickLibraryMatch(pool, { title: 'Battlestar Galactica', year: 2003 })).toBe(pool[1])
+
+    const who = [c('Doctor Who', 1963), c('Doctor Who (2005)', 2005)]
+    expect(pickLibraryMatch(who, { title: 'Doctor Who', year: 2005 })).toBe(who[1])
+    expect(pickLibraryMatch(who, { title: 'Doctor Who', year: 1963 })).toBe(who[0])
+    expect(pickLibraryMatch([c('Doctor Who (2005)', 2005)], { title: 'Doctor Who' })).toEqual(c('Doctor Who (2005)', 2005))
+  })
+
   it('falls back to a title a year off when nothing shares the year', () =>
   {
     const pool = [c('Battlestar Galactica (2003)', 2003)]

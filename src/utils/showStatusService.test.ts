@@ -77,7 +77,12 @@ describe('ShowStatusService.resolve', () =>
     vi.setSystemTime(new Date('2026-10-01T00:00:00Z'))
     tmdbReplies({ '1': 'Ended', '2': 'Returning Series' })
     await ShowStatusService.resolve([show('a', '1'), show('b', '2')], { resolveTmdbId, fallback })
-    await vi.waitFor(() => expect(fs.existsSync(path.join(state.dir, 'show-status.json'))).toBe(true))
+    // writeFile creates the file before its contents land, so wait for the parsed entries.
+    await vi.waitFor(() =>
+    {
+      const data = JSON.parse(fs.readFileSync(path.join(state.dir, 'show-status.json'), 'utf-8')) as { shows: Record<string, unknown> }
+      expect(Object.keys(data.shows)).toHaveLength(2)
+    })
     ShowStatusService.reset()
 
     vi.setSystemTime(new Date('2026-10-10T00:00:00Z'))

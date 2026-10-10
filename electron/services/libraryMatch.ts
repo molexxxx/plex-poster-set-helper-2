@@ -39,6 +39,29 @@ export function normTitle(s: string): string
 }
 
 /**
+ * Reads a trailing "(YYYY)" from a title.
+ *
+ * @param title - Raw title.
+ * @returns The year, or undefined when the title has none.
+ */
+function titleYear(title: string): number | undefined
+{
+  const m = /\((\d{4})\)\s*$/.exec(title)
+  return m ? Number(m[1]) : undefined
+}
+
+/**
+ * Removes a trailing "(YYYY)" from a title.
+ *
+ * @param title - Raw title.
+ * @returns The title without the year.
+ */
+function stripTitleYear(title: string): string
+{
+  return title.replace(/\s*\(\d{4}\)\s*$/, '')
+}
+
+/**
  * Picks the library item a poster belongs to from Plex search results.
  *
  * Order: the TMDB id when both sides carry one, then an exact normalized title
@@ -69,6 +92,19 @@ export function pickLibraryMatch<T extends MatchCandidate>(candidates: T[], want
   {
     const exactTitle = candidates.find(c => normTitle(c.title) === wanted)
     if (exactTitle) return exactTitle
+  }
+
+  // Plex often carries a first-aired year inside the title to tell namesakes
+  // apart, as in "Battlestar Galactica (2003)" for the 2004 series. Such a
+  // title is an exact match once the year is set aside, and the year it names
+  // counts alongside the item's own.
+  const titled = candidates.filter(c => titleYear(c.title) != null && normTitle(stripTitleYear(c.title)) === wanted)
+  if (titled.length)
+  {
+    if (year == null) return titled[0]
+    const near = titled.find(c => c.year === year || titleYear(c.title) === year)
+      ?? titled.find(c => (c.year != null && Math.abs(c.year - year) <= 1) || Math.abs((titleYear(c.title) ?? 0) - year) <= 1)
+    if (near) return near
   }
 
   const scoped = year == null ? candidates : candidates.filter(c => c.year != null && Math.abs(c.year - year) <= 1)
