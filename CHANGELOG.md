@@ -4,6 +4,14 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.8.1
+
+### Title-card-only sets find their show
+A creator set that holds only title cards (no poster) was looked up in Plex by its set name, so "Battlestar Galactica (2004) Title Cards" was searched for word for word and came back "not in the library", in creator jobs and in the Creators tab alike. The show's name and year are now read from any file in the set ("Battlestar Galactica (2004) - S1 E1"), and set names with trailing words such as "Title Cards" or "Set" are parsed correctly too.
+
+### Plex titles that carry a year
+Plex often names a series with its first-aired year to tell namesakes apart, as in "Battlestar Galactica (2003)" or "Doctor Who (2005)". Those now count as exact title matches, with the year in the title considered alongside the item's own, instead of falling through to the fuzzy pass.
+
 ## What's new in v2.8.0
 
 ### Continuing or ended
