@@ -4,6 +4,11 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.9.1
+
+### Large sets no longer look stalled
+A running job showed only which set it was on and how far through the catalog it was, so a big set, such as a full run of title cards for a long series, sat on the same line for minutes and looked frozen. The job card now also counts through the artwork in the current set, for example "Star Trek: The Next Generation (1987) · 412 of 1,876 · art 57 of 178".
+
 ## What's new in v2.9.0
 
 ### Clear cached data from Settings
