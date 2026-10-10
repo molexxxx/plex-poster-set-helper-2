@@ -276,6 +276,19 @@ export default function SettingsPage() {
     setTimeout(() => setLogsCleared(false), 1800)
   }
 
+  const [cachesCleared, setCachesCleared] = useState<string[] | null>(null)
+  const [clearingCaches, setClearingCaches] = useState(false)
+  async function clearCaches() {
+    setClearingCaches(true)
+    try {
+      const res = await window.api.app.clearCaches()
+      setCachesCleared(res.cleared)
+      setTimeout(() => setCachesCleared(null), 4000)
+    } finally {
+      setClearingCaches(false)
+    }
+  }
+
   function autosave<K extends keyof AppConfig>(key: K, value: AppConfig[K]) {
     setCfg(prev => prev ? { ...prev, [key]: value } : prev)
     void window.api.config.set({ [key]: value })
@@ -1051,6 +1064,23 @@ export default function SettingsPage() {
               onClick={clearLogs}
             >
               {logsCleared ? 'Cleared' : 'Clear logs'}
+            </Button>
+          </FieldRow>
+          <FieldRow
+            compact
+            label="Cached Data"
+            hint={cachesCleared
+              ? `Cleared ${cachesCleared.join(', ').toLowerCase()}. They are read again on next use.`
+              : 'Creator catalogs, series statuses, and library listings are kept on disk and in memory so they load instantly. Clear them if something looks stale or wrong; the next use reads everything fresh (a large creator takes a few minutes to re-read).'}
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={cachesCleared ? <CheckCircle2 size={13} /> : clearingCaches ? <Spinner size="xs" color="current" /> : <Trash2 size={13} />}
+              onClick={clearCaches}
+              disabled={clearingCaches}
+            >
+              {cachesCleared ? 'Cleared' : 'Clear cached data'}
             </Button>
           </FieldRow>
         </Section>

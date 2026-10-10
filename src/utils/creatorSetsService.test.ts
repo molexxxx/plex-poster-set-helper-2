@@ -122,6 +122,19 @@ describe('CreatorSetsService.catalog', () =>
     expect(ScraperFactory.browseMediuxUserAll).toHaveBeenCalledOnce()
   })
 
+  it('clearDisk removes the cache file and crawls again on next use', async () =>
+  {
+    crawlReturns([userSet('1', 'd1')])
+    await CreatorSetsService.catalog('Alice')
+    await vi.waitFor(() => expect(fs.existsSync(path.join(dir, 'creator-sets.json'))).toBe(true))
+
+    CreatorSetsService.clearDisk()
+
+    expect(fs.existsSync(path.join(dir, 'creator-sets.json'))).toBe(false)
+    await CreatorSetsService.catalog('Alice')
+    expect(ScraperFactory.browseMediuxUserAll).toHaveBeenCalledTimes(2)
+  })
+
   it('rejects when the crawl fails', async () =>
   {
     vi.mocked(ScraperFactory.browseMediuxUserAll).mockRejectedValue(new Error("Could not load page 2 of @bob's sets: fetch failed"))

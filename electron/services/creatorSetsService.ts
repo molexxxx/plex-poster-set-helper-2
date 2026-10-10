@@ -311,4 +311,12 @@ export const CreatorSetsService = {
     store.clear()
     loaded = false
   },
+
+  /** Drops every cached catalog, in memory and on disk, so each creator is crawled again on next use. */
+  clearDisk(): void {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
+    this.clear()
+    try { fs.unlinkSync(cacheFile()) } catch { /* no cache file */ }
+    Logger.info('Library', 'Creator catalog cache cleared')
+  },
 }

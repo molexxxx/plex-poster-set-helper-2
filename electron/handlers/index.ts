@@ -9,6 +9,7 @@ import { Logger } from '../services/logger'
 import { SchedulerService } from '../services/schedulerService'
 import { PlaywrightService } from '../services/playwrightService'
 import { CreatorSetsService } from '../services/creatorSetsService'
+import { ShowStatusService } from '../services/showStatusService'
 import { appEvents } from '../runtime/events'
 import { getAppVersion, isContainerEnv, isWebMode } from '../runtime/runtime'
 import type {
@@ -17,7 +18,7 @@ import type {
   SectionItemsReq, BrowseSetsReq, BrowseSetsRes, UserSetsReq, UserSetsRes,
   UserSetsSnapshot, CollectionsReq, CollectionSetsReq,
   CreatorSearchReq, MediuxUserSet, AppEnv, UpdateInfo,
-  CurrentArtReq,
+  CurrentArtReq, ClearCachesRes,
 } from '../ipc/types'
 
 const REPO = 'molexxxx/plex-poster-set-helper-2'
@@ -326,6 +327,16 @@ export const handlers = {
       if (isWebMode()) return ConfigService.getLogPath()
       const { shell } = require('electron') as typeof import('electron')
       return shell.openPath(ConfigService.getLogPath())
+    },
+    // Derived caches only: creator catalogs, series statuses, and the light
+    // library listings behind the grid filters. Config, history, logs, and the
+    // bundled browser stay.
+    clearCaches: (): ClearCachesRes => {
+      CreatorSetsService.clearDisk()
+      ShowStatusService.clearDisk()
+      PlexService.clearGridCaches()
+      Logger.info('App', 'Cached data cleared')
+      return { cleared: ['Creator catalogs', 'Series statuses', 'Library listings'] }
     },
   },
 

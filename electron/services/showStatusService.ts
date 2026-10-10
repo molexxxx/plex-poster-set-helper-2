@@ -157,4 +157,12 @@ export const ShowStatusService = {
   {
     cache = null
   },
+
+  /** Drops every cached verdict, in memory and on disk, so each show is looked up again. */
+  clearDisk(): void
+  {
+    cache = null
+    try { fs.unlinkSync(cacheFile()) } catch { /* no cache file */ }
+    Logger.info('ShowStatus', 'Series status cache cleared')
+  },
 }

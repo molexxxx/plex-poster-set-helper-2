@@ -92,6 +92,19 @@ describe('ShowStatusService.resolve', () =>
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
+  it('clearDisk forgets every verdict so shows are looked up again', async () =>
+  {
+    tmdbReplies({ '1': 'Ended' })
+    await ShowStatusService.resolve([show('a', '1')], { resolveTmdbId, fallback })
+    await vi.waitFor(() => expect(fs.existsSync(path.join(state.dir, 'show-status.json'))).toBe(true))
+
+    ShowStatusService.clearDisk()
+
+    expect(fs.existsSync(path.join(state.dir, 'show-status.json'))).toBe(false)
+    await ShowStatusService.resolve([show('a', '1')], { resolveTmdbId, fallback })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('uses only the fallback when no TMDB key is set', async () =>
   {
     state.tmdbApiKey = ''

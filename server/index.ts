@@ -255,6 +255,7 @@ export async function startServer() {
   app.post('/api/app/install-update', async () => { handlers.app.installUpdate(); return { ok: true } })
   app.post('/api/app/quit-and-install', async () => { handlers.app.quitAndInstall(); return { ok: true } })
   app.get('/api/app/log-path', async () => ({ path: ConfigService.getLogPath() }))
+  app.post('/api/app/clear-caches', async () => handlers.app.clearCaches())
 
   // Scheduler
   app.get('/api/scheduler/jobs', async () => handlers.scheduler.list())

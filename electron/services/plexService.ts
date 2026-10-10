@@ -910,6 +910,12 @@ export const PlexService = {
       .map(l => ({ key: l.key, title: l.title, type: l.type as 'movie' | 'show' }))
   },
 
+  /** Drops the cached light section reads and recent-episode scans used by grid filters. */
+  clearGridCaches(): void {
+    _lightSections.clear()
+    _recentShows.clear()
+  },
+
   /**
    * Returns a page of section items with external IDs and thumb URLs.
    *

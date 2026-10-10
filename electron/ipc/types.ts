@@ -226,6 +226,12 @@ export interface UpdateInfo {
   releaseUrl?: string
 }
 
+/** What "Clear cached data" removed. */
+export interface ClearCachesRes {
+  /** Human-readable names of the caches that were cleared. */
+  cleared: string[]
+}
+
 /** Where/how the app is running, so the renderer can tailor the update UX. */
 export interface AppEnv {
   packaged: boolean
@@ -670,6 +676,7 @@ export type IpcChannels = {
   'app:installUpdate': { req: void; res: void }
   'app:quitAndInstall': { req: void; res: void }
   'app:openLogFolder': { req: void; res: void }
+  'app:clearCaches': { req: void; res: ClearCachesRes }
   'app:updateAvailable': { event: UpdateInfo }
   'app:downloadProgress': { event: UpdateProgress }
   'app:updateReady': { event: void }
