@@ -2,6 +2,7 @@ import Fuse from 'fuse.js'
 import { Logger } from './logger'
 import { ConfigService } from './config'
 import { AnimeMappingService } from './animeMappingService'
+import { appliedByItem, artFilterMatches, scheduleCoverage } from './scheduleUtils'
 import type {
   ConnectReq, ConnectRes, Library,
   FindItemReq, PlexItem, UploadReq, UploadRes,
@@ -34,6 +35,10 @@ interface PlexConnection {
 }
 
 let _conn: PlexConnection | null = null
+
+/** Full section reads kept for art-filtered grids, keyed by request path. */
+const _sectionCache = new Map<string, { at: number; items: LibraryItem[] }>()
+const SECTION_CACHE_MS = 30_000
 
 /**
  * Builds the standard X-Plex-* headers for Plex Media Server requests.
@@ -832,33 +837,54 @@ export const PlexService = {
     const params = new URLSearchParams({
       type: String(type),
       includeGuids: '1',
-      'X-Plex-Container-Start': String(req.offset),
-      'X-Plex-Container-Size': String(req.limit),
       sort: plexSortParam(req.sort, req.sortDir),
     })
+    // An art filter needs the whole section, since Plex knows nothing about
+    // applied history; paging happens after filtering.
+    if (!req.artFilter) {
+      params.set('X-Plex-Container-Start', String(req.offset))
+      params.set('X-Plex-Container-Size', String(req.limit))
+    }
     if (req.search?.trim()) params.set('title', req.search.trim())
 
-    const data = await plexFetch(
-      baseUrl, token,
-      `/library/sections/${lib.key}/all?${params.toString()}`,
-    ) as { MediaContainer?: { totalSize?: number; size?: number; Metadata?: unknown[] } }
+    const path = `/library/sections/${lib.key}/all?${params.toString()}`
+    const mapItems = (metadata: unknown[]): LibraryItem[] =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      metadata.map((m: any) => {
+        const guids = extractGuids(m)
+        const thumbPath = m.thumb as string | undefined
+        const thumb = thumbUrl(baseUrl, token, thumbPath)
+        return {
+          key: m.ratingKey as string,
+          title: m.title as string,
+          year: m.year as number | undefined,
+          type: lib.type as 'movie' | 'show',
+          thumb,
+          ...guids,
+        }
+      })
 
-    const mc = data?.MediaContainer
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const items: LibraryItem[] = (mc?.Metadata ?? []).map((m: any) => {
-      const guids = extractGuids(m)
-      const thumbPath = m.thumb as string | undefined
-      const thumb = thumbUrl(baseUrl, token, thumbPath)
-      return {
-        key: m.ratingKey as string,
-        title: m.title as string,
-        year: m.year as number | undefined,
-        type: lib.type as 'movie' | 'show',
-        thumb,
-        ...guids,
+    if (req.artFilter) {
+      // Scrolling a filtered grid asks for page after page of the same section,
+      // so keep the last full read briefly instead of re-reading it each time.
+      const cached = _sectionCache.get(path)
+      let all = cached && Date.now() - cached.at < SECTION_CACHE_MS ? cached.items : null
+      if (!all) {
+        const data = await plexFetch(baseUrl, token, path) as { MediaContainer?: { Metadata?: unknown[] } }
+        all = mapItems(data?.MediaContainer?.Metadata ?? [])
+        _sectionCache.set(path, { at: Date.now(), items: all })
       }
-    })
+      const cfg = ConfigService.get()
+      const byItem = appliedByItem(cfg.appliedPosters ?? [])
+      const coverage = scheduleCoverage(cfg.scheduledJobs ?? [])
+      const filter = req.artFilter
+      const matching = all.filter(it => artFilterMatches(filter, byItem.get(it.key) ?? [], coverage))
+      return { items: matching.slice(req.offset, req.offset + req.limit), total: matching.length }
+    }
 
+    const data = await plexFetch(baseUrl, token, path) as { MediaContainer?: { totalSize?: number; size?: number; Metadata?: unknown[] } }
+    const mc = data?.MediaContainer
+    const items = mapItems(mc?.Metadata ?? [])
     return { items, total: mc?.totalSize ?? mc?.size ?? items.length }
   },
 

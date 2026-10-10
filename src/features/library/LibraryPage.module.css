@@ -156,6 +156,10 @@
    the dropdown once its row padding and selected-check are accounted for. */
 .sortControl > :first-child { min-width: 184px; }
 
+/* Applied-art filter; wide enough for "Applied, not scheduled" on one line. */
+.artFilter { flex-shrink: 0; }
+.artFilter > :first-child { min-width: 200px; }
+
 .searchBox {
   position: relative;
   display: flex;

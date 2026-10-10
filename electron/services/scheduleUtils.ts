@@ -1,4 +1,4 @@
-import type { AppliedRecord, CronPreview, JobRun, JobRunDetails, PosterInfo, ScheduledJob } from '../ipc/types'
+import type { AppliedRecord, CronPreview, JobRun, JobRunDetails, LibraryArtFilter, PosterInfo, ScheduledJob } from '../ipc/types'
 import { classifyUrl } from '../scrapers/urlSource'
 
 /** Schedule the quick Schedule and Sync actions use until the user picks another. */
@@ -914,6 +914,76 @@ export function scheduleCoverage(jobs: ScheduledJob[]): ScheduleCoverage
 export function coveringJob(coverage: ScheduleCoverage, setId: string, creator?: string): ScheduledJob | undefined
 {
   return coverage.sets.get(setId) ?? (creator ? coverage.creators.get(creator.toLowerCase()) : undefined)
+}
+
+/**
+ * Groups applied-poster history by Plex item.
+ *
+ * @param records - Applied-poster history.
+ * @returns Item key to that item's records.
+ */
+export function appliedByItem(records: AppliedRecord[]): Map<string, AppliedRecord[]>
+{
+  const index = new Map<string, AppliedRecord[]>()
+  for (const r of records)
+  {
+    const list = index.get(r.itemKey)
+    if (list) list.push(r)
+    else index.set(r.itemKey, [r])
+  }
+  return index
+}
+
+/**
+ * Lists the creators whose art is on record, most-used first.
+ *
+ * @param records - Applied-poster history.
+ * @returns Each creator with the number of items carrying their art.
+ */
+export function appliedUploaders(records: AppliedRecord[]): Array<{ uploader: string; count: number }>
+{
+  const items = new Map<string, { uploader: string; keys: Set<string> }>()
+  for (const r of records)
+  {
+    if (!r.uploader) continue
+    const k = r.uploader.toLowerCase()
+    let entry = items.get(k)
+    if (!entry) items.set(k, (entry = { uploader: r.uploader, keys: new Set() }))
+    entry.keys.add(r.itemKey)
+  }
+  return [...items.values()]
+    .map(e => ({ uploader: e.uploader, count: e.keys.size }))
+    .sort((a, b) => b.count - a.count || a.uploader.localeCompare(b.uploader))
+}
+
+/**
+ * Tells whether an item passes a Library Browser art filter.
+ *
+ * @param filter - The filter.
+ * @param records - The item's applied-poster records.
+ * @param coverage - Scheduled-job coverage from {@link scheduleCoverage}.
+ * @returns true when the item should be shown.
+ */
+export function artFilterMatches(filter: LibraryArtFilter, records: AppliedRecord[], coverage: ScheduleCoverage): boolean
+{
+  switch (filter.kind)
+  {
+    case 'none':
+      return records.length === 0
+    case 'applied':
+      return records.length > 0
+    case 'uploader':
+    {
+      const wanted = filter.uploader.toLowerCase()
+      return records.some(r => r.uploader?.toLowerCase() === wanted)
+    }
+    case 'unscheduled':
+      return records.length > 0 && !records.some(r =>
+        (!!r.setId && coverage.sets.has(r.setId))
+        || (!!r.uploader && coverage.creators.has(r.uploader.toLowerCase())))
+    default:
+      return true
+  }
 }
 
 /**

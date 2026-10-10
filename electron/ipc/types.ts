@@ -449,6 +449,17 @@ export interface LibraryItem {
 export type LibrarySort = 'recentlyAdded' | 'title' | 'year' | 'lastPlayed'
 export type SortDir = 'asc' | 'desc'
 
+/** Narrows the Library Browser grid by applied-artwork history. */
+export type LibraryArtFilter =
+  /** Titles with no applied art on record. */
+  | { kind: 'none' }
+  /** Titles with any applied art on record. */
+  | { kind: 'applied' }
+  /** Titles whose applied art no scheduled job keeps updated. */
+  | { kind: 'unscheduled' }
+  /** Titles with art applied from one MediUX creator. */
+  | { kind: 'uploader'; uploader: string }
+
 export interface SectionItemsReq {
   sectionKey: string
   offset: number
@@ -456,6 +467,8 @@ export interface SectionItemsReq {
   search?: string
   sort?: LibrarySort
   sortDir?: SortDir
+  /** When set, the whole section is read and filtered before paging. */
+  artFilter?: LibraryArtFilter
 }
 
 export interface SectionItemsRes {

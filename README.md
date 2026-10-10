@@ -157,6 +157,7 @@ The **Scheduler** keeps sets and creators synced on a repeating schedule, which 
 - **One at a time, in order:** jobs never run at the same time. Jobs due together run in the order shown on the Scheduler page, which you set with the arrows on each card, and **Run now** goes ahead of anything waiting. When two creators cover the same show, the job that runs later applies last, so put your preferred creator first and give the other **Only fill gaps**.
 - **Flexible schedules:** hourly, daily, weekly on any mix of days, monthly, or a custom cron expression, with a live preview of the next runs.
 - **Run history and details:** every job shows what it is doing while it runs, its last result, and its 10 most recent runs. Click a run to see which titles got artwork, which failed, and which are not in your library.
+- **Find what still needs attention:** the Library Browser's art filter shows only titles with no art applied, titles whose applied art no job keeps updated, or titles with art from a particular creator.
 - **In the desktop app (Windows / Linux):** schedules run whenever the app is open **and** while it's **minimized to the system tray** - close the window and it keeps running quietly in the background. You can also enable **launch on startup** so it's always there after a reboot. No server required.
 - **For 24/7 on a server:** run it in Docker. The container keeps your schedules firing around the clock - just set them up in the app and leave it running. See the [Docker guide](docker/README.md).
 

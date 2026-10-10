@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users, Film, Tv, Layers, ArrowUp, ArrowDown } from 'lucide-react'
 import type { ScheduledJob } from '../../../electron/ipc/types'
 import Button from '../../components/ui/Button'
-import Select from '../../components/ui/Select'
+import Select, { type SelectOption } from '../../components/ui/Select'
 import Checkbox from '../../components/ui/Checkbox'
 import Spinner from '../../components/ui/Spinner'
 import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
@@ -14,13 +14,13 @@ import { recordApplied, recordAppliedBatch, appliedKey, loadAppliedIndex, type A
 import { uuid } from '../../utils/uuid'
 import { errorMessage } from '../../utils/errorMessage'
 import {
-  DEFAULT_QUICK_CRON, coveringJob, creatorSyncUrl, describeCron, describeQuickSync, planQuickSync, posterSlot, scheduleCoverage,
+  DEFAULT_QUICK_CRON, appliedUploaders, coveringJob, creatorSyncUrl, describeCron, describeQuickSync, planQuickSync, posterSlot, scheduleCoverage,
 } from '../../../electron/services/scheduleUtils'
 import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
 import type {
   LibrarySection, LibraryItem, MediuxSetSummary, BrowseSetsRes, PosterInfo, MediuxUserSet, AppliedRecord,
-  PlexArtSlot, LibrarySort, SortDir,
+  PlexArtSlot, LibrarySort, SortDir, LibraryArtFilter,
 } from '../../../electron/ipc/types'
 import styles from './LibraryPage.module.css'
 
@@ -38,6 +38,21 @@ const COLLECTION_SORTS: LibrarySort[] = ['recentlyAdded', 'title']
 const ALL_SORTS: LibrarySort[] = ['recentlyAdded', 'title', 'year', 'lastPlayed']
 /** Sentinel activeKey for the movie-collections browser tab. */
 const COLLECTIONS_TAB_KEY = '__collections__'
+
+/** Grid art filter as the dropdown holds it; creators are prefixed so they share one list. */
+type ArtFilterValue = 'all' | 'none' | 'applied' | 'unscheduled' | `uploader:${string}`
+
+/**
+ * Converts the dropdown value into the request filter.
+ *
+ * @param value - The selected option.
+ * @returns The filter, or undefined for "all".
+ */
+function toArtFilter(value: ArtFilterValue): LibraryArtFilter | undefined {
+  if (value === 'all') return undefined
+  if (value === 'none' || value === 'applied' || value === 'unscheduled') return { kind: value }
+  return { kind: 'uploader', uploader: value.slice('uploader:'.length) }
+}
 
 interface BrowseCacheEntry {
   sets: MediuxSetSummary[]
@@ -186,6 +201,8 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
   const [collectionsEnabled, setCollectionsEnabled] = useState(true)
   const [sort, setSort] = useState<LibrarySort>('recentlyAdded')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [artFilter, setArtFilter] = useState<ArtFilterValue>('all')
+  const [uploaders, setUploaders] = useState<Array<{ uploader: string; count: number }>>([])
 
   const offsetRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -195,8 +212,21 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
       setCollectionsEnabled(c.collectionsEnabled !== false)
       if (c.librarySort) setSort(c.librarySort)
       if (c.librarySortDir) setSortDir(c.librarySortDir)
+      setUploaders(appliedUploaders(c.appliedPosters ?? []))
     })
   }, [reloadNonce])
+
+  const artFilterOptions: SelectOption<string>[] = [
+    { value: 'all', label: 'All titles' },
+    { value: 'none', label: 'No art applied', description: 'Nothing applied from this app yet' },
+    { value: 'applied', label: 'Art applied' },
+    { value: 'unscheduled', label: 'Applied, not scheduled', description: 'No job keeps this art updated' },
+    ...uploaders.map(u => ({
+      value: `uploader:${u.uploader}`,
+      label: `Applied from @${u.uploader}`,
+      description: `${u.count} title${u.count !== 1 ? 's' : ''}`,
+    })),
+  ]
 
   const isCollectionsView = activeKey === COLLECTIONS_TAB_KEY && search.trim().length === 0
   const isGlobalSearch = search.trim().length > 0
@@ -278,14 +308,14 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
     setLoading(true)
     const offset = append ? offsetRef.current : 0
     try {
-      const res = await window.api.library.items({ sectionKey: key, offset, limit: PAGE_SIZE, search: q, sort, sortDir })
+      const res = await window.api.library.items({ sectionKey: key, offset, limit: PAGE_SIZE, search: q, sort, sortDir, artFilter: toArtFilter(artFilter) })
       setTotal(res.total)
       offsetRef.current = offset + res.items.length
       setItems(prev => append ? [...prev, ...res.items] : res.items)
     } finally {
       setLoading(false)
     }
-  }, [sort, sortDir])
+  }, [sort, sortDir, artFilter])
 
   const loadCollections = useCallback(async (q: string, append: boolean) => {
     setLoading(true)
@@ -321,7 +351,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
       Promise.all([
         Promise.all(
           sections.map(s =>
-            window.api.library.items({ sectionKey: s.key, offset: 0, limit: 24, search: q, sort, sortDir })
+            window.api.library.items({ sectionKey: s.key, offset: 0, limit: 24, search: q, sort, sortDir, artFilter: toArtFilter(artFilter) })
               .then(res => ({ section: s, items: res.items }))
               .catch(() => ({ section: s, items: [] as LibraryItem[] }))
           ),
@@ -339,7 +369,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
       })
     }, 300)
     return () => { cancelled = true; clearTimeout(t) }
-  }, [search, isGlobalSearch, sections, showCollections, reloadNonce, sort, sortDir])
+  }, [search, isGlobalSearch, sections, showCollections, reloadNonce, sort, sortDir, artFilter])
 
   // Infinite scroll, single-tab mode only
   function onScroll() {
@@ -427,6 +457,15 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
         </div>
 
         <div className={styles.controlsRight}>
+          {!isCollectionsView && (
+            <div className={styles.artFilter} title="Show only titles by their applied artwork">
+              <Select
+                value={artFilter}
+                onChange={v => setArtFilter(v as ArtFilterValue)}
+                options={artFilterOptions}
+              />
+            </div>
+          )}
           <div className={styles.sortControl}>
             <Select
               value={shownSort}
@@ -533,7 +572,7 @@ function MyLibraryView({ subs, targetSection, targetItem }: { subs: string[]; ta
             {items.length === 0 && !loading ? (
               <div className={styles.emptyGrid}>
                 <ImageIcon size={32} />
-                <p>{isCollectionsView ? 'No movie collections found.' : 'This library is empty.'}</p>
+                <p>{isCollectionsView ? 'No movie collections found.' : artFilter !== 'all' ? 'No titles match this filter.' : 'This library is empty.'}</p>
               </div>
             ) : (
               <div className={styles.itemGrid}>
