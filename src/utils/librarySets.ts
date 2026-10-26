@@ -49,6 +49,22 @@ export interface ArrangedSets {
 const RANK: Record<CreatorState, number> = { followed: 0, none: 1, hidden: 2 }
 
 /**
+ * Most downloaded first. The two sites' counts can't be compared (ThePosterDB
+ * shows none), so "All" alternates them: each site's #1, then each #2, and so
+ * on, MediUX first on a tie. Sets without a rank (MediUX collection browsing)
+ * keep the old alphabetical order after the ranked ones.
+ *
+ * @param a - A set from either site.
+ * @param b - Another set from either site.
+ * @returns A negative number when `a` sorts first, positive when `b` does.
+ */
+export function byPopularity(a: PosterSetSummary, b: PosterSetSummary): number {
+  const ra = a.popularityRank ?? Infinity, rb = b.popularityRank ?? Infinity
+  if (ra !== rb) return ra < rb ? -1 : 1
+  return a.source.localeCompare(b.source) || a.uploader.localeCompare(b.uploader)
+}
+
+/**
  * Applies the sets panel's filters and the creator preferences to a title's
  * sets, in one place so the dropdown, the list and the hidden count always
  * agree.
@@ -57,18 +73,6 @@ const RANK: Record<CreatorState, number> = { followed: 0, none: 1, hidden: 2 }
  * @param opts - The panel's filter state and the creator lookup.
  * @returns What to render; `sets` is not modified.
  */
-/**
- * Most downloaded first. The two sites' counts can't be compared (ThePosterDB
- * shows none), so "All" alternates them: each site's #1, then each #2, and so
- * on, MediUX first on a tie. Sets without a rank (older cache entries,
- * collection browsing) keep the old alphabetical order after the ranked ones.
- */
-export function byPopularity(a: PosterSetSummary, b: PosterSetSummary): number {
-  const ra = a.popularityRank ?? Infinity, rb = b.popularityRank ?? Infinity
-  if (ra !== rb) return ra < rb ? -1 : 1
-  return a.source.localeCompare(b.source) || a.uploader.localeCompare(b.uploader)
-}
-
 export function arrangeSets(sets: PosterSetSummary[], opts: ArrangeOptions): ArrangedSets {
   const sourceCounts: Record<SetSource, number> = { mediux: 0, posterdb: 0 }
   for (const s of sets) sourceCounts[s.source]++

@@ -98,22 +98,33 @@ describe('arrangeSets', () =>
   })
 })
 
-describe('byPopularity', () => {
+describe('byPopularity', () =>
+{
   const ranked = (s: PosterSetSummary, popularityRank?: number): PosterSetSummary => ({ ...s, popularityRank })
 
-  it('puts the most downloaded first within a source, not the alphabetical first', () => {
+  it('puts the most downloaded first within a source, not the alphabetical first', () =>
+  {
     const order = [ranked(alice, 1), ranked(bob, 0)].sort(byPopularity)
     expect(order.map(s => s.uploader)).toEqual(['bob', 'alice'])
   })
 
-  it('alternates the sources rank by rank, MediUX first on a tie', () => {
+  it('alternates the sources rank by rank, MediUX first on a tie', () =>
+  {
     const order = [ranked(dave, 0), ranked(carol, 1), ranked(alice, 1), ranked(bob, 0)].sort(byPopularity)
     expect(order.map(s => s.uploader)).toEqual(['bob', 'dave', 'alice', 'carol'])
   })
 
-  it('keeps unranked sets after ranked ones, alphabetical among themselves', () => {
+  it('keeps unranked sets after ranked ones, alphabetical among themselves', () =>
+  {
     const order = [ranked(bob), ranked(dave, 3), ranked(alice)].sort(byPopularity)
     expect(order.map(s => s.uploader)).toEqual(['dave', 'alice', 'bob'])
+  })
+
+  it('keeps followed creators first when the panel arranges ranked sets', () =>
+  {
+    const order = [ranked(bob, 0), ranked(alice, 1)].sort(byPopularity)
+    const out = arrangeSets(order, options())
+    expect(out.visibleSets.map(s => s.uploader)).toEqual(['alice', 'bob'])
   })
 })
 
