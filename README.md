@@ -1,106 +1,177 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/logo.svg" width="120" alt="Plex Poster Set Helper 2" />
+  <img src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/logo.svg" width="120" alt="Plex Poster Set Helper 2 logo" />
 </p>
 
 <h1 align="center">Plex Poster Set Helper 2</h1>
 
 <p align="center">
-  Browse, download, and apply custom poster sets from <b>MediUX</b> and <b>ThePosterDB</b> to your Plex library - in a clean desktop app.
+  Find community poster art on <b>MediUX</b> and <b>ThePosterDB</b> and apply it to your Plex library in one click.<br />
+  A desktop app for Windows and Linux, or a web app in Docker for always-on servers.
 </p>
 
 <p align="center">
-  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/actions/workflows/ci.yml"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-ci-plex.svg?v=efd3be62" alt="CI" /></a>&nbsp;
-  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/actions/workflows/build.yml"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-build-plex.svg?v=ea799fc1" alt="build" /></a>&nbsp;
-  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-release-plex.svg?v=6a0afce1" alt="latest release" /></a>&nbsp;
-  <a href="LICENSE"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-license-plex.svg?v=85b68ada" alt="license" /></a>
+  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-release-plex.svg?v=6a0afce1" alt="Latest release" /></a>&nbsp;
+  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-downloads-plex.svg?v=3e429134" alt="Downloads" /></a>&nbsp;
+  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/actions/workflows/ci.yml"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-ci-plex.svg?v=efd3be62" alt="CI status" /></a>&nbsp;
+  <a href="docker/README.md"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-docker-plex.svg?v=328f8c36" alt="Docker guide" /></a>&nbsp;
+  <a href="LICENSE"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-license-plex.svg?v=85b68ada" alt="MIT license" /></a>
 </p>
-
-<p align="center">
-  <a href="docker/README.md"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-docker-plex.svg?v=328f8c36" alt="docker guide" /></a>&nbsp;
-  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-downloads-plex.svg?v=3e429134" alt="downloads" /></a>&nbsp;
-  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-download-plex.svg?v=4f58b91b" alt="download latest" /></a>
-</p>
-
----
 
 ## What it does
 
-Plex Poster Set Helper 2 finds high‑quality poster artwork for the movies and shows already in your Plex library and applies it with a click - posters, season posters, episode title cards, and backdrops, all routed to the right place automatically.
+Pick a movie, show, or collection from your Plex library, browse every poster set the MediUX and ThePosterDB communities have made for it, and apply one with a click. Posters, season posters, episode title cards, backdrops, and collection art each land on the right item, and a schedule can keep them current as new episodes and uploads arrive.
 
 <p align="center">
-  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-library.svg" alt="Library Browser" />
-  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-creators.svg" alt="Creators" />
-  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-manual.svg" alt="Manual Import" />
-  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-scheduler.svg" alt="Scheduler" />
-  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-reset.svg" alt="Reset Posters" />
-  <img width="390" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-signin.svg" alt="One-click Plex sign-in" />
+  <img width="410" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-library.svg" alt="Library Browser: pick a title and see every MediUX and ThePosterDB set for it, most downloaded first, then apply in one click." />
+  <img width="410" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-creators.svg" alt="Creators: follow or hide uploaders on both sites, browse their sets, and keep a MediUX creator synced." />
+  <img width="410" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-scheduler.svg" alt="Scheduler: keep sets and creators synced on any schedule, from the tray, at login, or on a Docker server." />
+  <img width="410" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-manual.svg" alt="Manual Import: paste MediUX or ThePosterDB links, or a bulk list, preview by type, and upload all or only what's new." />
+  <img width="410" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-reset.svg" alt="Reset Posters: a searchable log of everything you've applied, with a one-click revert to Plex's original artwork." />
+  <img width="410" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/card-signin.svg" alt="One-click Plex sign-in: sign in through Plex in your browser, with no token hunting. Your libraries are found for you." />
 </p>
 
-> Runs as a desktop app on **Windows** and **Linux**, or in **Docker** (including unraid) for always‑on servers.
+## Install
 
+You need a Plex Media Server and a Plex account that can manage it.
+
+| You want to | Use |
+|---|---|
+| Use it on your Windows or Linux PC | [Desktop app](#desktop-app) |
+| Keep schedules running 24/7 on a server or NAS, from any browser | [Docker](#docker) |
+| Run it on Unraid | [Unraid](#unraid) |
+| Use it on a Mac | [Docker](#docker), since there is no macOS desktop build |
+
+### Desktop app
+
+1. Download the installer for your system from the **[latest release](https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest)**. Both are 64-bit (x64) builds.
+   - **Windows:** the `Setup` `.exe`
+   - **Linux:** the `.AppImage` or the `.deb`
+2. Install and launch it, then follow [First run](#first-run).
+
+The app checks GitHub for new versions and updates itself with one click.
+
+### Docker
+
+The Docker build runs the full app as a web page, and its schedules keep firing for as long as the container is up.
+
+```bash
+git clone https://github.com/molexxxx/plex-poster-set-helper-2.git
+cd plex-poster-set-helper-2
+./docker/run.sh
+```
+
+On Windows, run `./docker/run.ps1` in PowerShell for the last step. Then open `http://localhost:3939` and sign in with Plex.
+
+The script builds the image from your checkout and keeps your settings in a Docker volume. A prebuilt image, [`tonywied17/plex-poster-helper-2`](https://hub.docker.com/r/tonywied17/plex-poster-helper-2), is also published with every release. The **[Docker guide](docker/README.md)** walks through each step and covers Compose and everyday commands.
+
+### Unraid
+
+Install it from **Community Applications**: search for _Plex Poster Helper_ in the **Apps** tab ([listing](https://ca.unraid.net/apps/plex-poster-helper-2-1qbjs0q1mmwhy6)). It pulls the prebuilt image and adds a **WebUI** button, so no commands are needed.
+
+## First run
+
+1. **Browser check.** The app ships with the Chromium headless shell it uses to read the poster sites, so the first launch only checks that it starts. Nothing is downloaded. If the check fails, see [Troubleshooting](#troubleshooting-and-support).
+2. **Sign in to Plex.** Open **Settings → Plex Account → Sign in with Plex** and approve the request in your browser; the Docker web page asks you to sign in as soon as it opens. Your server is detected automatically and every library is included. To leave one out, uncheck it under **Settings → Libraries**.
+3. **Add a TMDB API key** (optional, recommended). A free [TMDB API key](https://www.themoviedb.org/settings/api) fixes most matching problems for titles Plex stores without a TMDB ID. The first launch offers a step to paste one, or add it later under **Settings → TMDB Matching**. See [How matching works](#how-matching-works).
+
+That's it: open the **Library Browser** and start applying posters.
+
+## Library Browser
+
+Pick a title and its MediUX and ThePosterDB sets appear in one list, each tagged with its site, with chips to show just one. Sets are listed most downloaded first: MediUX by its download counts, which each card shows, and ThePosterDB in the site's own downloads order, with the two sites alternating rank by rank when both are shown.
+
+- **Follow or hide creators** with the star and eye on any set card. Followed creators come first and hidden ones drop out of every list. The **Creators** tab manages both lists and browses a MediUX creator's whole catalog.
+- **Find what still needs attention.** The art filter narrows the grid to titles with or without applied art, art that no job keeps updated, or art from a particular creator. On TV tabs, a status filter separates **Continuing** series from **Ended** ones, using TMDB when a key is set and otherwise whether an episode aired in the last year.
+- **Collections** have their own tab, with collection art from both sites.
+- **Ctrl+F** opens the command palette to jump to any page, setting, schedule, or creator, or to paste a link.
+
+## Keeping posters up to date
+
+The **Scheduler** re-applies sets and creators on a repeating schedule, so new episode title cards and new uploads get art without a trip back to the app.
+
+- **Quick sync:** click **Schedule** on any set or **Sync all** on a MediUX creator. Repeat clicks never stack duplicate jobs, a creator's sets share one job, and **Scheduler → Quick sync** picks the schedule these buttons use.
+- **Whole MediUX catalogs:** a creator job reads every set the creator has published. The first run crawls the catalog once, which takes a few minutes for a prolific creator; later runs only read pages with new or updated sets.
+- **Only apply new artwork** (on by default) skips posters already applied to an item, so Plex doesn't pile up duplicates. **Only fill gaps** makes a job a backup creator that adds only what other art doesn't cover.
+- **One at a time, in order:** jobs never overlap. Jobs due together run in the order shown on the Scheduler page, which you set with the arrows on each card, and **Run now** goes ahead of anything waiting. When two creators cover the same show, put your preferred one first and give the other **Only fill gaps**.
+- **Any schedule:** hourly, daily, weekly on chosen days, monthly, or a custom cron expression, with a preview of the next runs. Each job keeps its 10 most recent runs; click one to see which titles got art, which failed, and which aren't in your library.
+- **Where it runs:** the desktop app runs schedules while it's open or minimized to the tray, and **Launch at login** on the Scheduler page starts it with your computer. For schedules that run around the clock without a PC left on, use [Docker](#docker).
+
+## Updating
+
+Your Plex sign-in, schedules, and applied-poster history survive every update. The desktop app keeps them in your user profile, and Docker keeps them in its config volume.
+
+- **Desktop app:** accept the in-app update, or download the latest installer from [Releases](https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest).
+- **Docker:** pull the new code and rebuild. On Windows, run `./docker/run.ps1 -Build` for the last step.
+
+  ```bash
+  git pull
+  ./docker/run.sh --build
+  ```
+
+  Compose steps are in the [Docker guide](docker/README.md#updating-to-a-new-version).
+- **Unraid:** in the **Docker** tab, open the container and choose **Force update**.
+
+## Troubleshooting and support
+
+- **The first-launch browser check fails.** The setup screen explains why and offers fixes. On Linux it shows the exact command for any missing system libraries, and on any platform you can pick an installed Google Chrome, Edge, Brave, or Chromium instead. **Settings → Browser Engine** also has a managed download that retries automatically, detects system proxies, and can be canceled.
+- **A title gets no match or the wrong art.** Add a TMDB API key (see [How matching works](#how-matching-works)), and use **Title Mappings** to point a site's title at the right Plex title.
+- **Anything else.** The log drawer shows what the app is doing, and **Open Log Folder** in the command palette opens the full logs. If you're stuck, [open an issue](https://github.com/molexxxx/plex-poster-set-helper-2/issues) with the relevant log lines.
+
+## Supported links
+
+**Manual Import** and scheduled jobs accept links from both sites.
+
+| Site | Links |
+|---|---|
+| **[MediUX](https://mediux.pro)** | Sets (`/sets/123`), boxsets (`/boxsets/123`, a whole collection at once), show pages (`/shows/123`), and creator pages (`/user/name`). Full-quality posters, season posters, title cards, and backdrops. |
+| **[ThePosterDB](https://theposterdb.com)** | Sets (`/set/123`), single posters (`/poster/123`), and user uploads (`/user/name`). |
+
+## How matching works
+
+Posters are matched to your library by **TMDB ID**, read from each Plex item, so the right art lands on the right title. For titles Plex stores without a TMDB ID, or under a TVDB or IMDb agent, a free TMDB API key restores ID-based matching; without one the app falls back to title and year, which can miss renamed or subtitled entries. Anime under the **HAMA** agent, which tags titles with an AniDB ID, is converted to TMDB automatically using the open-source [Fribb/anime-lists](https://github.com/Fribb/anime-lists) dataset (cached locally), so it matches without a key. ThePosterDB has no public ID search, so its sets are always found by title and year.
+
+Everything you apply is recorded locally, so the **Reset Posters** page knows what's current, what was applied before, and where it came from, and can restore Plex's original artwork.
+
+## Screenshots
+
+<details>
+<summary>Show screenshots</summary>
 <br />
-
-<div align="center">
-
-<img alt="Dashboard" src=".github/assets/gallery/library-browser.png" width="700" />
-
-<br />
-
 <table>
   <tr>
-    <td align="center"><a href=".github/assets/gallery/thumbs/1-creators-browser.png"><img src=".github/assets/gallery/thumbs/1-creators-browser.png" width="160" alt="Creators Browser"/><br/><sub>Creators Browser</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/1.05-collection-browser.png"><img src=".github/assets/gallery/thumbs/1.05-collection-browser.png" width="160" alt="Collection Browser"/><br/><sub>Collection Browser</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/1.1-search-1.png"><img src=".github/assets/gallery/thumbs/1.1-search-1.png" width="160" alt="Command Palette"/><br/><sub>Command Palette</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/1.2-search-2.png"><img src=".github/assets/gallery/thumbs/1.2-search-2.png" width="160" alt="Library Search"/><br/><sub>Library Search</sub></a></td>
+    <td width="50%"><a href=".github/assets/gallery/library-browser.png"><img src=".github/assets/gallery/library-browser.png" width="400" alt="Library Browser with a TV library grid and the sets panel open for one show" /></a><br /><sub>Library Browser</sub></td>
+    <td width="50%"><a href=".github/assets/gallery/thumbs/1-creators-browser.png"><img src=".github/assets/gallery/thumbs/1-creators-browser.png" width="400" alt="Creators tab listing a followed creator's sets" /></a><br /><sub>Creators tab</sub></td>
   </tr>
   <tr>
-    <td align="center"><a href=".github/assets/gallery/thumbs/2-scheduler-list.png"><img src=".github/assets/gallery/thumbs/2-scheduler-list.png" width="160" alt="Scheduler List"/><br/><sub>Scheduler List</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/3-scheduler-edit.png"><img src=".github/assets/gallery/thumbs/3-scheduler-edit.png" width="160" alt="Scheduler Edit"/><br/><sub>Scheduler Editor</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/4-title-mappings.png"><img src=".github/assets/gallery/thumbs/4-title-mappings.png" width="160" alt="Title Mappings"/><br/><sub>Title Mappings</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/5-manual-scrape-top.png"><img src=".github/assets/gallery/thumbs/5-manual-scrape-top.png" width="160" alt="Manual Scrape Top"/><br/><sub>Manual Scrape</sub></a></td>
+    <td><a href=".github/assets/gallery/thumbs/1.05-collection-browser.png"><img src=".github/assets/gallery/thumbs/1.05-collection-browser.png" width="400" alt="Collections tab of the Library Browser" /></a><br /><sub>Collections tab</sub></td>
+    <td><a href=".github/assets/gallery/thumbs/1.1-search-1.png"><img src=".github/assets/gallery/thumbs/1.1-search-1.png" width="400" alt="Command palette open over the app" /></a><br /><sub>Command palette</sub></td>
   </tr>
   <tr>
-    <td align="center"><a href=".github/assets/gallery/thumbs/6-manual-scrape-titles.png"><img src=".github/assets/gallery/thumbs/6-manual-scrape-titles.png" width="160" alt="Manual Scrape Titles"/><br/><sub>Manual Scrape Titles</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/7-reset-posters.png"><img src=".github/assets/gallery/thumbs/7-reset-posters.png" width="160" alt="Reset Posters"/><br/><sub>Reset Posters</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/8-settings-top.png"><img src=".github/assets/gallery/thumbs/8-settings-top.png" width="160" alt="Settings Top"/><br/><sub>Settings Top</sub></a></td>
-    <td align="center"><a href=".github/assets/gallery/thumbs/9-settings-bottom.png"><img src=".github/assets/gallery/thumbs/9-settings-bottom.png" width="160" alt="Settings Bottom"/><br/><sub>Settings Bottom</sub></a></td>
+    <td><a href=".github/assets/gallery/thumbs/1.2-search-2.png"><img src=".github/assets/gallery/thumbs/1.2-search-2.png" width="400" alt="Command palette searching the library" /></a><br /><sub>Library search</sub></td>
+    <td><a href=".github/assets/gallery/thumbs/2-scheduler-list.png"><img src=".github/assets/gallery/thumbs/2-scheduler-list.png" width="400" alt="Scheduler page listing jobs and their schedules" /></a><br /><sub>Scheduler</sub></td>
   </tr>
   <tr>
-    <td align="center"><a href=".github/assets/gallery/thumbs/10-log-drawer.png"><img src=".github/assets/gallery/thumbs/10-log-drawer.png" width="160" alt="Live Log Drawer"/><br/><sub>Live Log Drawer</sub></a></td>
+    <td><a href=".github/assets/gallery/thumbs/3-scheduler-edit.png"><img src=".github/assets/gallery/thumbs/3-scheduler-edit.png" width="400" alt="Scheduler job editor with schedule options" /></a><br /><sub>Job editor</sub></td>
+    <td><a href=".github/assets/gallery/thumbs/4-title-mappings.png"><img src=".github/assets/gallery/thumbs/4-title-mappings.png" width="400" alt="Title Mappings page" /></a><br /><sub>Title Mappings</sub></td>
+  </tr>
+  <tr>
+    <td><a href=".github/assets/gallery/thumbs/5-manual-scrape-top.png"><img src=".github/assets/gallery/thumbs/5-manual-scrape-top.png" width="400" alt="Manual Import showing the posters scraped from a set" /></a><br /><sub>Manual Import</sub></td>
+    <td><a href=".github/assets/gallery/thumbs/6-manual-scrape-titles.png"><img src=".github/assets/gallery/thumbs/6-manual-scrape-titles.png" width="400" alt="Manual Import with posters already applied to the library marked in green" /></a><br /><sub>Manual Import, applied art marked</sub></td>
+  </tr>
+  <tr>
+    <td><a href=".github/assets/gallery/thumbs/7-reset-posters.png"><img src=".github/assets/gallery/thumbs/7-reset-posters.png" width="400" alt="Reset Posters page listing applied art" /></a><br /><sub>Reset Posters</sub></td>
+    <td><a href=".github/assets/gallery/thumbs/10-log-drawer.png"><img src=".github/assets/gallery/thumbs/10-log-drawer.png" width="400" alt="Log drawer open at the bottom of the app" /></a><br /><sub>Log drawer</sub></td>
+  </tr>
+  <tr>
+    <td><a href=".github/assets/gallery/thumbs/8-settings-top.png"><img src=".github/assets/gallery/thumbs/8-settings-top.png" width="400" alt="Settings page with the Plex Account, Plex Server, Libraries, and TMDB Matching sections" /></a><br /><sub>Settings</sub></td>
+    <td><a href=".github/assets/gallery/thumbs/9-settings-bottom.png"><img src=".github/assets/gallery/thumbs/9-settings-bottom.png" width="400" alt="Settings page with the MediUX Asset Types, Scraper, Browser Engine, General, and Application sections" /></a><br /><sub>Settings, continued</sub></td>
   </tr>
 </table>
+</details>
 
-</div>
+## Development
 
----
-
-## Which version do I want?
-
-Not sure where to run it? Here's the plain‑English version:
-
-| You want to… | Use this |
-|---|---|
-| Use it on your own PC | **Desktop app** (Windows / Linux) - _start here_ |
-| Run it on a home server / unraid, accessible from any browser | **Docker** (the full app, in a web page) |
-
----
-
-## Getting started
-
-### Option 1 - Download the app (easiest)
-
-1. Go to the **[Releases page](https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest)**.
-2. Download the installer for your system:
-   - **Windows** → the `.exe` installer
-   - **Linux** → the `.AppImage` or `.deb`
-3. Install and launch it.
-4. On first run, open **Settings → Sign in with Plex**, click the link, approve in your browser - done. Your server connects automatically and all libraries are included by default.
-
-> The app checks GitHub for new versions and can update itself with one click.
-
-### Option 2 - Run from source
-
-You'll need **[Node.js 22+](https://nodejs.org/)** installed.
+Running from source needs an LTS release of **Node.js, 22.13 or newer**.
 
 ```bash
 git clone https://github.com/molexxxx/plex-poster-set-helper-2.git
@@ -109,133 +180,27 @@ npm install
 npm run dev
 ```
 
-### Option 3 - Docker (servers / unraid / always‑on)
-
-Run the full app in your browser - schedules keep firing 24/7 as long as the container is up. One script gets you going:
-
-```bash
-./docker/run.sh    # start the web UI in your browser   (Windows: ./docker/run.ps1)
-```
-
-Then open `http://localhost:3939` and sign in with Plex.
-
-> **On unraid?** Install it straight from **Community Applications** - search _Plex Poster
-> Helper_ in the **Apps** tab ([Community Apps page](https://ca.unraid.net/apps/plex-poster-helper-2-1qbjs0q1mmwhy6)).
-> It pulls the prebuilt Docker Hub image and gives you a **WebUI** button - no commands needed.
-
-👉 **[Read the Docker guide →](docker/README.md)**
-
----
-
-## First‑run setup
-
-The app ships with the Chromium headless shell it uses for scraping, so first launch only
-runs a quick check that the browser starts and then opens the app. Nothing is downloaded.
-
-> If that check fails, the setup screen explains why and offers fixes: on Linux it shows the
-> exact package command for any missing system libraries, and on every platform you can pick
-> Google Chrome, Edge, Brave, or Chromium if one is already installed. A managed download
-> remains available from **Settings → Browser Engine**; it retries automatically, detects
-> system proxies, and can be cancelled.
-
-1. **Sign in to Plex** - Settings → *Sign in with Plex* → click the link → approve. (No token copy‑paste needed.)
-2. **Connect your server** - auto‑detected after sign‑in. All libraries are included by default. To exclude a specific library from matching and the browser, uncheck it in **Settings → Libraries**.
-3. *(Optional, recommended)* **Add a TMDB API key** - a free [TMDB API key](https://www.themoviedb.org/settings/api) lets the app match your library by ID instead of guessing by title and year, which fixes most matching and title-mapping issues automatically (and resolves TVDB/IMDb-agent libraries). Anime under the **HAMA** agent is mapped to TMDB automatically via the open-source [Fribb/anime-lists](https://github.com/Fribb/anime-lists) AniDB→TMDB dataset (cached locally), so it matches even without a key. First‑run setup offers a paste/skip step, or add it anytime in **Settings → Library Browser**.
-
-That's it - head to the **Library Browser** and start applying posters.
-
----
-
-## Scheduling - keep posters up to date automatically
-
-The **Scheduler** keeps sets and creators synced on a repeating schedule, which is great for shows that keep getting new episodes (so new title cards get art too) and for creators who keep uploading.
-
-- **Quick sync from the Library Browser:** click **Schedule** on any set (MediUX or ThePosterDB), or **Sync all** on a creator, and new uploads that match your library are applied automatically. Repeat clicks never stack duplicate jobs, and a creator's sets are grouped into one job. Pick the schedule these buttons use under **Scheduler → Quick sync**.
-- **Whole creator catalogs:** a creator sync reads every set the creator has published. The first run crawls the full catalog once (a few minutes for a prolific creator); later runs only read pages with new or updated sets.
-- **Only new artwork:** each run skips posters already applied to an item, so Plex doesn't collect duplicate uploads. Turn it off for a job to re-apply the full set every run.
-- **Only fill gaps:** for a backup creator. The job leaves any poster, season, or episode that other art already covers, whether from another job or applied by hand, and adds only what is missing.
-- **One at a time, in order:** jobs never run at the same time. Jobs due together run in the order shown on the Scheduler page, which you set with the arrows on each card, and **Run now** goes ahead of anything waiting. When two creators cover the same show, the job that runs later applies last, so put your preferred creator first and give the other **Only fill gaps**.
-- **Flexible schedules:** hourly, daily, weekly on any mix of days, monthly, or a custom cron expression, with a live preview of the next runs.
-- **Run history and details:** every job shows what it is doing while it runs, its last result, and its 10 most recent runs. Click a run to see which titles got artwork, which failed, and which are not in your library.
-- **Find what still needs attention:** the Library Browser's art filter shows only titles with no art applied, titles whose applied art no job keeps updated, or titles with art from a particular creator. On TV tabs, a status filter separates **Continuing** series from **Ended** ones (from TMDB when a key is set, otherwise by whether an episode aired in the last year), so you can schedule the shows that will keep getting new art and leave finished ones alone.
-- **In the desktop app (Windows / Linux):** schedules run whenever the app is open **and** while it's **minimized to the system tray** - close the window and it keeps running quietly in the background. You can also enable **launch on startup** so it's always there after a reboot. No server required.
-- **For 24/7 on a server:** run it in Docker. The container keeps your schedules firing around the clock - just set them up in the app and leave it running. See the [Docker guide](docker/README.md).
-
----
-
-## Updating
-
-Your data (Plex sign‑in, schedules, applied‑poster history) survives every update - the desktop app keeps it in your user profile, Docker keeps it in the config volume.
-
-**Desktop app (Windows / Linux):** the app checks GitHub and updates itself with one click - or grab the latest installer from [Releases](https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest).
-
-**From source:**
-```bash
-git pull
-npm install
-npm run dev
-```
-
-**Docker - Windows (PowerShell):**
-```powershell
-git pull
-./docker/run.ps1 -Build
-```
-
-**Docker - Mac / Linux / unraid:**
-```bash
-git pull
-./docker/run.sh --build
-```
-
-**Docker Compose:**
-```bash
-git pull
-docker compose -f docker/docker-compose.yml up -d --build
-```
-
-More detail (unraid, ports, volumes) in the [Docker guide](docker/README.md#updating-to-a-new-version).
-
----
-
-## How it works
-
-| Source | What you can use |
+| Command | What it does |
 |---|---|
-| **[MediUX](https://mediux.pro)** | Set links (`/sets/123`), **boxsets** (`/boxsets/123` - a whole collection at once), and creator pages (`/user/name`). Full‑quality artwork, including season posters, title cards, and backdrops. |
-| **[ThePosterDB](https://theposterdb.com)** | Set links (`/set/123`), single posters (`/poster/123`), and user uploads (`/user/name`). |
+| `npm run dev` | Runs the app with hot reload |
+| `npm test` | Runs the unit tests (Vitest) |
+| `npm run lint` | Lints with ESLint |
+| `npm run typecheck` | Type-checks the renderer, main process, and web server |
+| `npm run build` | Builds the renderer and main process |
+| `npm run dist:win` | Packages the Windows installer |
+| `npm run dist:linux` | Packages the Linux AppImage and deb |
 
-Posters are matched to your library by **TMDB ID** (read from each Plex item), so the right art lands on the right title. For titles Plex stores without a TMDB ID (or under a TVDB/IMDb agent), a free **TMDB API key** in Settings restores ID‑based matching - otherwise the tool falls back to title and year, which can miss renamed or subtitled entries. Anime under the **HAMA** agent (which tags titles with an AniDB ID) is converted to TMDB automatically using the open-source [Fribb/anime-lists](https://github.com/Fribb/anime-lists) dataset (cached locally), no key required. Everything you apply is tracked locally, so the **Reset** page always knows what's current, what was applied before, and where it came from.
+To update a source checkout, run `git pull` and `npm install`, then `npm run dev`.
 
-The **Library Browser** searches both sites at once: pick a title and its MediUX and ThePosterDB sets appear side by side, each card tagged with where it came from, with chips to show just one site's sets. MediUX is looked up by TMDB ID; ThePosterDB has no public ID search, so it is matched on title and year, which still finds art for titles that Plex stores without a TMDB ID. Sets are listed most downloaded first: MediUX by its download counts, which each card shows, and ThePosterDB in the site's own downloads order, with the two sites alternating rank by rank when both are shown.
-
----
-
-## Building & development
-
-```bash
-npm run dev          # run the app in development (hot reload)
-npm run build        # build renderer + main process
-npm run dist         # package installers for the current OS (electron-builder)
-npm run dist:win     # Windows installer
-npm run dist:linux   # Linux AppImage + deb
-npm run typecheck    # type-check renderer + main process
-npm run lint         # eslint
-```
-
-**Stack:** Electron · React 19 · TypeScript · Vite · Tailwind · Playwright (scraping) · Fastify (web / Docker mode).
-
----
+**Stack:** Electron, React 19, TypeScript, Vite, Tailwind, Playwright for scraping, and Fastify for the web and Docker server.
 
 ## Contributing
 
-Issues and pull requests are welcome. Please run `npm run lint` and `npm run typecheck` before opening a PR - CI runs both.
+Issues and pull requests are welcome. Before opening a PR, run `npm run lint`, `npm run typecheck`, and `npm test`; CI runs all three and builds the app.
 
-## License
+## License and credits
 
 [MIT](LICENSE) © molexxxx
 
-## Credits
-
-- **[MediUX](https://mediux.pro)** and **[ThePosterDB](https://theposterdb.com)** - the communities behind the artwork.
-- Originally inspired by [**bbrown430/plex-poster-set-helper**](https://github.com/bbrown430/plex-poster-set-helper) (the Python original); rebuilt from the ground up as a cross‑platform desktop app.
+- **[MediUX](https://mediux.pro)** and **[ThePosterDB](https://theposterdb.com)**, the communities behind the artwork.
+- Inspired by [bbrown430/plex-poster-set-helper](https://github.com/bbrown430/plex-poster-set-helper), the original Python tool, and rebuilt from the ground up as a cross-platform app.
