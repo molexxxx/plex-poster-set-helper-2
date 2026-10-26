@@ -10,6 +10,7 @@
       .sweep{animation:sweep 6s ease-in-out .8s infinite}
       .tile{animation:glow 3s ease-in-out infinite}
       .star{transform-origin:84px 64px;animation:spin 9s linear infinite}
+      @media (prefers-reduced-motion: reduce){*{animation:none!important}}
     </style>
   </defs>
   <rect x="1" y="1" width="638" height="174" rx="16" fill="url(#bg)" stroke="#262b36"/>
@@ -24,7 +25,7 @@
     <path class="star" d="M84 56 l3 6 6 1 -4.5 4.5 1 6.5 -5.5 -3 -5.5 3 1 -6.5 -4.5 -4.5 6 -1 z" fill="#f0b429"/>
   </g>
 
-  <text x="128" y="76" font-family="Segoe UI, Inter, sans-serif" font-size="25" font-weight="700" fill="#f0f2f8">Creators</text>
-  <text x="128" y="106" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">Follow your favorite MediUX uploaders, browse their newest</text>
-  <text x="128" y="128" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">sets, and sync a creator or hand-picked sets every week.</text>
+  <text x="128" y="70" font-family="Segoe UI, Inter, sans-serif" font-size="25" font-weight="700" fill="#f0f2f8">Creators</text>
+  <text x="128" y="105" font-family="Segoe UI, Inter, sans-serif" font-size="21" fill="#8b93b0">Follow or hide uploaders on both sites, browse</text>
+  <text x="128" y="133" font-family="Segoe UI, Inter, sans-serif" font-size="21" fill="#8b93b0">their sets, and keep a MediUX creator synced.</text>
 </svg>

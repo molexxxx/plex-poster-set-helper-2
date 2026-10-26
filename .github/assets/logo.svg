@@ -31,7 +31,7 @@
       .play  { transform-origin: 100px 94px;  animation: pulse  2.4s ease-in-out infinite }
       .glint { animation: sweep 4.5s ease-in-out infinite }
       .r     { transform-origin: 100px 94px;  animation: ring 2.4s ease-out infinite }
-    </style>
+    @media (prefers-reduced-motion: reduce){*{animation:none!important}}</style>
   </defs>
 
   <!-- stacked poster cards behind -->

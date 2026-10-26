@@ -11,6 +11,7 @@
       .tile{animation:glow 3s ease-in-out infinite}
       .p2{transform-origin:center;animation:pop 3s ease-in-out infinite}
       .p3{transform-origin:center;animation:pop 3s ease-in-out .4s infinite}
+      @media (prefers-reduced-motion: reduce){*{animation:none!important}}
     </style>
   </defs>
   <rect x="1" y="1" width="638" height="174" rx="16" fill="url(#bg)" stroke="#262b36"/>
@@ -25,7 +26,7 @@
     <rect class="p3" x="72" y="70" width="14" height="36" rx="3" fill="none" stroke="#f0b429" stroke-width="3"/>
   </g>
 
-  <text x="128" y="76" font-family="Segoe UI, Inter, sans-serif" font-size="25" font-weight="700" fill="#f0f2f8">Library Browser</text>
-  <text x="128" y="106" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">Browse your Plex library, pick a title, and see every matching</text>
-  <text x="128" y="128" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">MediUX set. Preview every image and apply with one click.</text>
+  <text x="128" y="70" font-family="Segoe UI, Inter, sans-serif" font-size="25" font-weight="700" fill="#f0f2f8">Library Browser</text>
+  <text x="128" y="105" font-family="Segoe UI, Inter, sans-serif" font-size="21" fill="#8b93b0">Pick a title, see every MediUX and ThePosterDB</text>
+  <text x="128" y="133" font-family="Segoe UI, Inter, sans-serif" font-size="21" fill="#8b93b0">set, most downloaded first. Apply in one click.</text>
 </svg>

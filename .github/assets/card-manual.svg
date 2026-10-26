@@ -10,6 +10,7 @@
       .sweep{animation:sweep 6s ease-in-out 1.6s infinite}
       .tile{animation:glow 3s ease-in-out infinite}
       .arrow{animation:drop 2.6s ease-in-out infinite}
+      @media (prefers-reduced-motion: reduce){*{animation:none!important}}
     </style>
   </defs>
   <rect x="1" y="1" width="638" height="174" rx="16" fill="url(#bg)" stroke="#262b36"/>
@@ -23,7 +24,7 @@
     <path d="M50 100 v8 a4 4 0 0 0 4 4 h24 a4 4 0 0 0 4 -4 v-8" fill="none" stroke="#e5a00d" stroke-width="3" stroke-linecap="round"/>
   </g>
 
-  <text x="128" y="76" font-family="Segoe UI, Inter, sans-serif" font-size="25" font-weight="700" fill="#f0f2f8">Manual Import</text>
-  <text x="128" y="106" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">Paste ThePosterDB / MediUX links (or a saved bulk list),</text>
-  <text x="128" y="128" font-family="Segoe UI, Inter, sans-serif" font-size="15" fill="#8b93b0">preview by type, and upload everything - or just what's new.</text>
+  <text x="128" y="70" font-family="Segoe UI, Inter, sans-serif" font-size="25" font-weight="700" fill="#f0f2f8">Manual Import</text>
+  <text x="128" y="105" font-family="Segoe UI, Inter, sans-serif" font-size="21" fill="#8b93b0">Paste MediUX or ThePosterDB links or a bulk list,</text>
+  <text x="128" y="133" font-family="Segoe UI, Inter, sans-serif" font-size="21" fill="#8b93b0">preview by type, then upload all or only new art.</text>
 </svg>
