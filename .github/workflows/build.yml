@@ -1,6 +1,6 @@
 # This workflow builds and releases the app when a new tag is pushed.
 # It runs on both Windows and Linux to produce platform-specific builds, then cleans up unwanted .blockmap assets from the release.
-# It also builds the Docker GUI image and pushes it to Docker Hub (molexxxx/plex-poster-helper-2).
+# It also builds the Docker GUI image and pushes it to Docker Hub (tonywied17/plex-poster-helper-2).
 
 # To trigger a release, create a new tag (e.g. `git tag v1.2.3`) and push it to the repository
 # (`git push origin v1.2.3`). The workflow will automatically build the app for both platforms and publish
