@@ -484,9 +484,7 @@ function setToSummary(set: MediuxSet, allowed: Set<string>, fb: Fallback): Poste
   let posterCount = 0, backdropCount = 0, titleCardCount = 0
   let preview: string | undefined
   let hasEpisodic = false, hasMovieRef = false
-  let downloads = 0
   for (const f of set.files ?? []) {
-    downloads += Number(f.downloads_func?.count) || 0
     const ft = (f.fileType ?? '').toLowerCase().replace(/[-\s]/g, '_')
     if (ft === 'poster') { posterCount++; if (!preview) preview = `${ASSET_BASE}/${f.id}?width=400&quality=80&format=webp` }
     else if (ft === 'backdrop') backdropCount++
@@ -516,9 +514,26 @@ function setToSummary(set: MediuxSet, allowed: Set<string>, fb: Fallback): Poste
     titleCardCount,
     previewUrl: preview,
     posters,
-    downloads,
     ...(mediaType ? { mediaType } : {}),
   }
+}
+
+/**
+ * Sums the download counts on a set's files. Movie and show pages carry them;
+ * collection and set pages do not, so a set read from one of those gets no
+ * total rather than a misleading 0.
+ *
+ * @param set - The raw set.
+ * @returns The total, or undefined when no file carries a count.
+ */
+export function setDownloads(set: MediuxSet): number | undefined {
+  let total: number | undefined
+  for (const f of set.files ?? []) {
+    const count = f.downloads_func?.count
+    if (count == null || !Number.isFinite(Number(count))) continue
+    total = (total ?? 0) + Number(count)
+  }
+  return total
 }
 
 /**
@@ -723,7 +738,7 @@ export class MediuxScraper extends BaseScraper {
     // ordinary sets and for collection sets that already carry movie_id.
     sets = await this._enrichCollectionSets(sets)
 
-    const summaries = rankByDownloads(sets.map(s => setToSummary(s, allTypes, fallback)))
+    const summaries = rankByDownloads(sets.map(s => ({ ...setToSummary(s, allTypes, fallback), downloads: setDownloads(s) })))
     Logger.scrape('MediUX', `Browse: ${summaries.length} set(s) for ${type} ${tmdbId}`)
     return summaries
   }

@@ -546,7 +546,10 @@ export interface PosterSetSummary {
   posters: PosterInfo[]
   /** Detected from the set's files (title cards/seasons imply a show). */
   mediaType?: 'movie' | 'show'
-  /** MediUX only: downloads summed over the set's files. ThePosterDB shows no count. */
+  /**
+   * MediUX title browsing only: downloads summed over the set's files. Creator
+   * and collection listings carry no count, and neither does ThePosterDB.
+   */
   downloads?: number
   /**
    * 0-based place among this title's sets from the same source, most
