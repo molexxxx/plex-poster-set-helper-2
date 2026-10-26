@@ -4,6 +4,19 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.11.0
+
+### Most downloaded sets first
+The Library Browser's set list sorted every set alphabetically by uploader, which buried the most popular art. Sets are now listed most downloaded first. MediUX sets are ranked by their download counts, which now show on each card ("376 downloads"); ThePosterDB publishes no counts, so its sets keep the site's own downloads order. With **All** selected the two sites alternate rank by rank: MediUX's most downloaded set, then ThePosterDB's, then each site's second, and so on. The **MediUX** and **ThePosterDB** chips give a straight ranking for one site. Followed creators still come first and hidden creators still stay out of the list. MediUX collection pages carry no counts, so collection sets keep the alphabetical order.
+
+### Larger set previews
+Set previews in the panel are larger at every panel width (96 to 168 pixels wide, up from 56 to 104). The expanded "Preview N posters" thumbnails grow to match, and MediUX previews load at a higher resolution so they stay sharp on high-DPI screens.
+
+### Security and dependency updates
+Electron 44.9.3 brings the mitigation for the compromised eMudhra intermediate certificates. follow-redirects, used by Plex sign-in, no longer exposes credential headers on a cross-origin redirect, and the advisories in fastify, undici, fast-uri and ip-address, which the web UI server and the scrapers depend on, are patched. npm audit now reports no vulnerabilities. The app no longer ships electron-store, which it stopped using when settings moved to a plain JSON file. Playwright 1.64.1, fastify 5.12.7, electron-updater 6.8.12, React 19.3.1, Vite 8.3.5 and ESLint 10.13 are current.
+
+Thanks to @Healzangels for the download-ranked set list and the larger previews.
+
 ## What's new in v2.10.0
 
 ### ThePosterDB sets in the Library Browser
