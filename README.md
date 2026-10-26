@@ -44,7 +44,7 @@ You need a Plex Media Server and a Plex account that can manage it.
 ### Desktop app
 
 1. Download the installer for your system from the **[latest release](https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest)**. Both are 64-bit (x64) builds.
-   - **Windows:** the `Setup` `.exe`
+   - **Windows:** the `.exe` installer
    - **Linux:** the `.AppImage` or the `.deb`
 2. Install and launch it, then follow [First run](#first-run).
 
