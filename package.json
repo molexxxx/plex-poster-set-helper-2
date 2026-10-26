@@ -46,7 +46,6 @@
     "@fastify/rate-limit": "^11.2.1",
     "@fastify/static": "^10.1.5",
     "cheerio": "^1.2.0",
-    "electron-store": "^11.0.2",
     "electron-updater": "^6.8.9",
     "fastify": "^5.12.5",
     "fuse.js": "^7.5.0",
