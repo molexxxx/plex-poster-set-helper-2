@@ -47,10 +47,11 @@ function readmeAnchors(): Plugin
 }
 
 /**
- * A `?ladder` import turns a screenshot into a <picture> of WebP rungs at
- * 640, 960, 1280, and 1600px wide, never wider than the source.
+ * A `?ladder` import turns a screenshot into a <picture> of WebP rungs from
+ * 640 to 3200px wide, never wider than the source. The 2400 and 3200 rungs
+ * serve the enlarged view on high-density screens.
  */
-const LADDER = new URLSearchParams({ w: '640;960;1280;1600', format: 'webp', quality: '85', as: 'picture' })
+const LADDER = new URLSearchParams({ w: '640;960;1280;1600;2400;3200', format: 'webp', quality: '85', as: 'picture' })
 
 const ROUTES = [
   { path: 'docs/index.html', title: 'Docs - Plex Poster Set Helper 2', description: 'Install Plex Poster Set Helper 2 on Windows, Linux, Docker, or Unraid, sign in to Plex, and keep your posters current on a schedule.' },
