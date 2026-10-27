@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import { imagetools } from 'vite-imagetools'
 
 const root = import.meta.dirname
 
@@ -45,6 +46,12 @@ function readmeAnchors(): Plugin
   }
 }
 
+/**
+ * A `?ladder` import turns a screenshot into a <picture> of WebP rungs at
+ * 640, 960, 1280, and 1600px wide, never wider than the source.
+ */
+const LADDER = new URLSearchParams({ w: '640;960;1280;1600', format: 'webp', quality: '85', as: 'picture' })
+
 const ROUTES = [
   { path: 'docs/index.html', title: 'Docs - Plex Poster Set Helper 2', description: 'Install Plex Poster Set Helper 2 on Windows, Linux, Docker, or Unraid, sign in to Plex, and keep your posters current on a schedule.' },
   { path: 'changelog/index.html', title: 'Changelog - Plex Poster Set Helper 2', description: 'Release notes for every version of Plex Poster Set Helper 2.' },
@@ -81,7 +88,12 @@ function spaRoutes(): Plugin
 
 export default defineConfig({
   base: '/plex-poster-set-helper-2/',
-  plugins: [readmeAnchors(), react(), spaRoutes()],
+  plugins: [
+    readmeAnchors(),
+    imagetools({ defaultDirectives: url => url.searchParams.has('ladder') ? LADDER : new URLSearchParams() }),
+    react(),
+    spaRoutes(),
+  ],
   server: {
     // The screenshots, README.md, and CHANGELOG.md live in the repository root, above the site.
     fs: { allow: [resolve(root, '..')] },

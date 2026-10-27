@@ -5,33 +5,20 @@ import { Link } from '../lib/router'
 import { links } from '../lib/site'
 import { useMedia } from '../lib/useMedia'
 import { Frame, Perfs } from './Film'
+import { Icon } from './Icon'
+import { ShotViewer } from './ShotViewer'
 
 const ADVANCE_MS = 7000
 const DRAG_THRESHOLD = 0.14
 const COUNT = frames.length
 const mod = (i: number) => ((i % COUNT) + COUNT) % COUNT
 
-function Icon({ name }: { name: 'prev' | 'next' | 'play' | 'pause' })
-{
-  const paths = {
-    prev: 'M15 5 8 12l7 7',
-    next: 'M9 5l7 7-7 7',
-    play: 'M8 5v14l11-7z',
-    pause: 'M8 5v14M16 5v14',
-  }
-  return (
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill={name === 'play' ? 'currentColor' : 'none'}
-      stroke="currentColor" strokeWidth={name === 'pause' ? 3 : 2.25} strokeLinecap="round" strokeLinejoin="round">
-      <path d={paths[name]} />
-    </svg>
-  )
-}
-
 /**
  * The film strip as a looping carousel of the app's real screens. It moves by
  * the prev and next buttons, the cue-dot pagination, arrow keys, dragging or
  * swiping, or clicking a neighboring frame, and plays on its own until the
- * visitor takes over. Each changeover flashes the cue dot.
+ * visitor takes over. Each changeover flashes the cue dot. The lit frame
+ * enlarges from its button, a click, or Enter.
  *
  * The track holds three copies of the reel so film always runs past both
  * edges; after a move lands outside the middle copy it snaps back without
@@ -46,8 +33,11 @@ export function FilmCarousel()
   const [playing, setPlaying] = useState(true)
   const [held, setHeld] = useState(false)
   const [dx, setDx] = useState(0)
+  const [viewing, setViewing] = useState(false)
   const drag = useRef<{ x: number; moved: boolean } | null>(null)
   const track = useRef<HTMLDivElement>(null)
+  const strip = useRef<HTMLDivElement>(null)
+  const wasViewing = useRef(false)
   const active = mod(pos)
 
   const move = useCallback((to: number) =>
@@ -64,6 +54,18 @@ export function FilmCarousel()
   }
 
   const jump = (index: number) => take(pos + (index - active))
+
+  const enlarge = () =>
+  {
+    setPlaying(false)
+    setViewing(true)
+  }
+
+  useEffect(() =>
+  {
+    if (wasViewing.current && !viewing) strip.current?.focus({ preventScroll: true })
+    wasViewing.current = viewing
+  }, [viewing])
 
   useEffect(() =>
   {
@@ -93,6 +95,7 @@ export function FilmCarousel()
     else if (e.key === 'ArrowLeft') { e.preventDefault(); take(pos - 1) }
     else if (e.key === 'Home') { e.preventDefault(); jump(0) }
     else if (e.key === 'End') { e.preventDefault(); jump(COUNT - 1) }
+    else if (e.key === 'Enter') { e.preventDefault(); enlarge() }
   }
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) =>
@@ -127,6 +130,7 @@ export function FilmCarousel()
     const slot = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-index]')
     const to = slot ? Number(slot.dataset.index) : pos
     if (to !== pos) take(to)
+    else if (slot) enlarge()
   }
 
   const onPointerCancel = () =>
@@ -155,7 +159,7 @@ export function FilmCarousel()
       onFocus={() => setHeld(true)}
       onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setHeld(false) }}
     >
-      <div className="strip strip-carousel" tabIndex={0} onKeyDown={onKey} aria-label="Screens, use the arrow keys to move">
+      <div ref={strip} className="strip strip-carousel" tabIndex={0} onKeyDown={onKey} aria-label="Screens. Arrow keys move, Enter enlarges.">
         <Perfs edge="top" />
         <div
           ref={track}
@@ -182,7 +186,17 @@ export function FilmCarousel()
                 aria-label={`${index + 1} of ${COUNT}: ${f.label}`}
                 aria-hidden={!lit}
               >
-                <Frame index={at} src={f.src} alt={f.alt} lit={lit} cue={cue} top={top(index, lit)} bottom={f.edge.toUpperCase()} />
+                <Frame
+                  index={at}
+                  shot={f.shot}
+                  alt={f.alt}
+                  lit={lit}
+                  cue={cue}
+                  top={top(index, lit)}
+                  bottom={f.edge.toUpperCase()}
+                  loading={Math.abs(at - pos) <= 2 ? 'eager' : 'lazy'}
+                  onEnlarge={lit ? enlarge : undefined}
+                />
               </div>
             )
           })}
@@ -212,6 +226,14 @@ export function FilmCarousel()
           <button type="button" className="carousel-button" onClick={() => take(pos + 1)} aria-label="Next screen"><Icon name="next" /></button>
         </div>
       </div>
+
+      <ShotViewer
+        open={viewing}
+        index={active}
+        edge={top(active, true)}
+        onClose={() => setViewing(false)}
+        onMove={step => take(pos + step)}
+      />
     </section>
   )
 }

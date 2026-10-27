@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type AnchorHTMLAttributes, type MouseEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 
 const BASE = import.meta.env.BASE_URL
@@ -33,10 +33,35 @@ interface RouterState
 
 const RouterContext = createContext<RouterState>({ route: 'overview', visit: 0, restore: null, navigate: () => {} })
 
-/** Client-side routing over the History API, with a view transition between pages when supported. */
-export function Router({ children }: { children: ReactNode })
+/** How long a navigation waits for the next page's code before showing its skeleton instead. */
+const PREPARE_MS = 800
+
+/**
+ * Client-side routing over the History API, with a view transition between
+ * pages when supported. Pages swap once their code has loaded, so moving
+ * between them never flashes an empty page; if that code fails to load, for
+ * example after a deploy replaced it, the browser loads the page in full.
+ *
+ * @param props.prepare - Starts loading a route's code and resolves when it is ready.
+ */
+export function Router({ children, prepare }: { children: ReactNode; prepare?: (route: Route) => Promise<unknown> | undefined })
 {
   const [state, setState] = useState(() => ({ route: routeOf(location.pathname), visit: 0, restore: null as number | null }))
+  const latest = useRef(0)
+
+  const whenReady = useCallback((route: Route, href: string, swap: () => void) =>
+  {
+    const id = ++latest.current
+    const ready = prepare?.(route)
+    if (!ready)
+    {
+      swap()
+      return
+    }
+    ready.catch(() => location.assign(href))
+    const cap = new Promise(resolve => setTimeout(resolve, PREPARE_MS))
+    Promise.race([ready, cap]).then(() => { if (id === latest.current) swap() }, () => {})
+  }, [prepare])
 
   useEffect(() =>
   {
@@ -44,11 +69,12 @@ export function Router({ children }: { children: ReactNode })
     const onPop = (e: PopStateEvent) =>
     {
       const saved = typeof e.state?.scroll === 'number' ? e.state.scroll : 0
-      setState(s => ({ route: routeOf(location.pathname), visit: s.visit + 1, restore: saved }))
+      const route = routeOf(location.pathname)
+      whenReady(route, location.href, () => setState(s => ({ route, visit: s.visit + 1, restore: saved })))
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-  }, [])
+  }, [whenReady])
 
   const navigate = useCallback((href: string) =>
   {
@@ -60,15 +86,19 @@ export function Router({ children }: { children: ReactNode })
       return
     }
     history.replaceState({ ...history.state, scroll: window.scrollY }, '')
+    const route = routeOf(url.pathname)
     const go = () =>
     {
       history.pushState({ scroll: 0 }, '', url.pathname + url.search + url.hash)
-      setState(s => ({ route: routeOf(url.pathname), visit: s.visit + 1, restore: null }))
+      setState(s => ({ route, visit: s.visit + 1, restore: null }))
     }
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (document.startViewTransition && !reduced) document.startViewTransition(() => flushSync(go))
-    else go()
-  }, [])
+    whenReady(route, url.href, () =>
+    {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (document.startViewTransition && !reduced) document.startViewTransition(() => flushSync(go))
+      else go()
+    })
+  }, [whenReady])
 
   const value = useMemo(() => ({ ...state, navigate }), [state, navigate])
   return <RouterContext.Provider value={value}>{children}</RouterContext.Provider>
