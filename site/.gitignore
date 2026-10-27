@@ -1,0 +1,5 @@
+dist/
+
+# The root .gitignore drops every data/ folder (Docker runtime data); this one is source.
+!src/data/
+src/data/release.json

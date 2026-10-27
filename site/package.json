@@ -1,0 +1,33 @@
+{
+  "name": "plex-poster-set-helper-2-site",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Project website for Plex Poster Set Helper 2, published to GitHub Pages",
+  "type": "module",
+  "scripts": {
+    "release-data": "node scripts/release-data.mjs",
+    "predev": "npm run release-data",
+    "dev": "vite",
+    "prebuild": "npm run release-data",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource/permanent-marker": "^5.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.5"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}
