@@ -1,7 +1,7 @@
 /**
  * Writes src/data/release.json from the GitHub API: the latest release, its
- * installers, every release date, installer downloads across all releases, and
- * the star count.
+ * installers, every release date, installer downloads across all releases, all
+ * release-file downloads including the app's update checks, and the star count.
  * Every number the site prints comes from this file. When the API cannot be
  * reached it falls back to the version in the app's package.json, links built
  * from the release asset naming pattern, and no counts.
@@ -48,6 +48,7 @@ function fallback(reason)
     },
     releases: [],
     downloads: null,
+    allDownloads: null,
     stars: null,
     fetchedAt: new Date().toISOString(),
   }
@@ -73,6 +74,7 @@ async function main()
       },
       releases: published.map(r => ({ tag: r.tag_name, date: r.published_at })),
       downloads: published.flatMap(r => r.assets).filter(a => INSTALLER.test(a.name)).reduce((n, a) => n + a.download_count, 0),
+      allDownloads: published.flatMap(r => r.assets).reduce((n, a) => n + a.download_count, 0),
       stars: repo.stargazers_count,
       fetchedAt: new Date().toISOString(),
     }

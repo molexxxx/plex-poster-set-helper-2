@@ -14,7 +14,10 @@ export interface ReleaseData
   date: string | null
   assets: { windows: Asset | null; appimage: Asset | null; deb: Asset | null }
   releases: { tag: string; date: string }[]
+  /** Installer downloads (.exe, .AppImage, .deb) across every release. */
   downloads: number | null
+  /** Every release file downloaded, including the update manifests the app fetches when it checks for updates. */
+  allDownloads: number | null
   stars: number | null
   fetchedAt: string
 }

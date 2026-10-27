@@ -11,6 +11,7 @@ export function BoothLog()
 {
   const { windows, appimage, deb } = release.assets
   const downloads = count(release.downloads)
+  const allDownloads = count(release.allDownloads)
   const [copied, setCopied] = useState(false)
 
   const copy = async () =>
@@ -33,7 +34,7 @@ export function BoothLog()
         <h2 id="install-title">Get your copy</h2>
         <p>
           The desktop app for Windows and Linux, or the same app as a web page in Docker. You need a Plex Media Server and a Plex account that can manage it.
-          {downloads && <> Installers have been downloaded <span className="num">{downloads}</span> times across all releases.</>}
+          {downloads && <> Installers have been downloaded <span className="num">{downloads}</span> times across all releases{allDownloads ? <>, and <span className="num">{allDownloads}</span> times counting the app's update checks</> : null}.</>}
         </p>
       </div>
       <table>
