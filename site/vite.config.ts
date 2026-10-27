@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -45,9 +45,43 @@ function readmeAnchors(): Plugin
   }
 }
 
+const ROUTES = [
+  { path: 'docs/index.html', title: 'Docs - Plex Poster Set Helper 2', description: 'Install Plex Poster Set Helper 2 on Windows, Linux, Docker, or Unraid, sign in to Plex, and keep your posters current on a schedule.' },
+  { path: 'changelog/index.html', title: 'Changelog - Plex Poster Set Helper 2', description: 'Release notes for every version of Plex Poster Set Helper 2.' },
+  { path: '404.html', title: 'Not found - Plex Poster Set Helper 2', description: 'This page does not exist.' },
+]
+
+/**
+ * The site is one app with client-side routes. GitHub Pages serves static
+ * files, so each route gets a copy of the built shell (with its own title and
+ * description) for direct visits and refreshes, and 404.html renders the
+ * not-found route for anything else.
+ */
+function spaRoutes(): Plugin
+{
+  return {
+    name: 'spa-routes',
+    apply: 'build',
+    closeBundle()
+    {
+      const dist = resolve(root, 'dist')
+      const shell = readFileSync(resolve(dist, 'index.html'), 'utf8')
+      for (const r of ROUTES)
+      {
+        const html = shell
+          .replace(/<title>[^<]*<\/title>/, `<title>${r.title}</title>`)
+          .replace(/(<meta name="description" content=")[^"]*(")/, `$1${r.description}$2`)
+        const out = resolve(dist, r.path)
+        mkdirSync(resolve(out, '..'), { recursive: true })
+        writeFileSync(out, html)
+      }
+    },
+  }
+}
+
 export default defineConfig({
   base: '/plex-poster-set-helper-2/',
-  plugins: [readmeAnchors(), react()],
+  plugins: [readmeAnchors(), react(), spaRoutes()],
   server: {
     // The screenshots, README.md, and CHANGELOG.md live in the repository root, above the site.
     fs: { allow: [resolve(root, '..')] },
@@ -55,12 +89,5 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: resolve(root, 'index.html'),
-        docs: resolve(root, 'docs/index.html'),
-        changelog: resolve(root, 'changelog/index.html'),
-      },
-    },
   },
 })

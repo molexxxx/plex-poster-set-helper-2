@@ -1,6 +1,4 @@
 import changelog from '../../../CHANGELOG.md?raw'
-import { Footer } from '../components/Footer'
-import { Header } from '../components/Header'
 import { REPO_URL, releaseDay } from '../data/release'
 import { Markdown, parseBlocks, sections } from '../lib/markdown'
 
@@ -15,7 +13,6 @@ export function Changelog()
 {
   return (
     <>
-      <Header current="changelog" />
       <main id="main" className="changelog">
         <div className="changelog-head">
           <h1>Changelog</h1>
@@ -39,7 +36,6 @@ export function Changelog()
           })}
         </ol>
       </main>
-      <Footer />
     </>
   )
 }

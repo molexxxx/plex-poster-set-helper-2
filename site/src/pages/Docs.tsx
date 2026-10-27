@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import readme from '../../../README.md?raw'
-import { Footer } from '../components/Footer'
-import { Header } from '../components/Header'
 import docList from '../data/docs.json'
 import { release } from '../data/release'
 import { Markdown, parseBlocks, sections } from '../lib/markdown'
@@ -33,7 +31,6 @@ export function Docs()
 
   return (
     <>
-      <Header current="docs" />
       <main id="main" className="docs">
         <nav className="docs-rail" aria-label="Docs sections">
           <p className="docs-rail-title">Docs · v{release.version}</p>
@@ -54,7 +51,6 @@ export function Docs()
           ))}
         </article>
       </main>
-      <Footer />
     </>
   )
 }

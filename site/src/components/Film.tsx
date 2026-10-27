@@ -8,34 +8,34 @@ export function Perfs({ edge }: { edge: 'top' | 'bottom' })
 
 /**
  * One frame on the strip with the latent print on its edges, so key numbers
- * and the screen's own facts travel with the frame through a changeover.
+ * and the screen's own facts travel with the frame. The screen is painted as a
+ * background, so it can't be dragged out or saved by accident.
  *
  * @param props.src - The screen shown in the frame.
- * @param props.alt - What the screen shows; empty for a frame that only sets context.
+ * @param props.alt - What the screen shows.
  * @param props.lit - Whether the lamp is on this frame.
  * @param props.top - Edge print above the frame: its key number and name.
  * @param props.bottom - Edge print below the frame: what the screen shows.
  * @param props.cue - Changes whenever the cue dot should flash again.
- * @param props.focus - Crop for a screen whose content sits in one part of the capture.
  */
-export function Frame({ src, alt, lit, top, bottom, cue, focus }: {
+export function Frame({ src, alt, lit, top, bottom, cue, index }: {
   src: string
   alt: string
   lit?: boolean
   top?: string
   bottom?: string
   cue?: number
-  focus?: { origin: string; scale: number }
+  index?: number
 })
 {
-  const crop: CSSProperties | undefined = focus ? { transformOrigin: focus.origin, transform: `scale(${focus.scale})` } : undefined
+  const shot: CSSProperties = { backgroundImage: `url("${src}")` }
   return (
-    <div className={`slot${lit ? ' slot-lit' : ''}`}>
+    <div className={`slot${lit ? ' slot-lit' : ''}`} data-index={index}>
       {top && <span className="slot-edge slot-edge-top" aria-hidden="true">{top}</span>}
-      <figure className={`frame${lit ? ' frame-lit' : ''}`}>
-        <img src={src} alt={alt} loading={lit ? 'eager' : 'lazy'} decoding="async" style={crop} />
+      <div className={`frame${lit ? ' frame-lit' : ''}`}>
+        <div className="frame-shot" style={shot} role="img" aria-label={alt} />
         {lit && <span key={cue} className="cue-dot" aria-hidden="true" />}
-      </figure>
+      </div>
       {bottom && <span className="slot-edge slot-edge-bottom" aria-hidden="true">{bottom}</span>}
     </div>
   )

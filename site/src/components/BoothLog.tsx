@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { release, megabytes, count, RELEASES_URL, UNRAID_URL } from '../data/release'
+import { Link } from '../lib/router'
 import { links } from '../lib/site'
 
 const DOCKER = `git clone https://github.com/molexxxx/plex-poster-set-helper-2.git
@@ -61,7 +62,7 @@ export function BoothLog()
             <th scope="row">Docker</th>
             <td>The full app as a web page on port 3939. Schedules keep running as long as the container is up.</td>
             <td className="num" />
-            <td><a className="log-go" href={links.doc('docker')}>Setup steps</a></td>
+            <td><Link className="log-go" href={links.doc('docker')}>Setup steps</Link></td>
           </tr>
           <tr>
             <th scope="row">Unraid</th>
@@ -73,7 +74,7 @@ export function BoothLog()
             <th scope="row">macOS</th>
             <td>No desktop build. Run the Docker version instead.</td>
             <td className="num" />
-            <td><a className="log-go" href={links.doc('docker')}>Docker steps</a></td>
+            <td><Link className="log-go" href={links.doc('docker')}>Docker steps</Link></td>
           </tr>
         </tbody>
       </table>

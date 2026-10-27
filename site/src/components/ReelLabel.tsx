@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { release, megabytes, isoDay, RELEASES_URL, UNRAID_URL } from '../data/release'
+import { Link } from '../lib/router'
 import { links } from '../lib/site'
 
 export type Platform = 'windows' | 'linux' | 'docker' | 'unraid'
@@ -69,8 +70,8 @@ export function ReelLabel({ compact = false, docked = false, id }: { compact?: b
     return (
       <div className={`reel-stub${docked ? ' reel-stub-docked' : ''}`}>
         {docked && <p className="reel-stub-hand" aria-hidden="true">v{release.version}</p>}
-        <a className="reel-go" href={a.href}>{a.label}</a>
-        <a className="reel-stub-more" href={docked ? '#install' : links.doc('install')}>Other platforms</a>
+        <Link className="reel-go" href={a.href}>{a.label}</Link>
+        <Link className="reel-stub-more" href={docked ? `${links.overview}#install` : links.doc('install')}>Other platforms</Link>
       </div>
     )
   }
@@ -83,7 +84,7 @@ export function ReelLabel({ compact = false, docked = false, id }: { compact?: b
           <button key={p.id} type="button" aria-pressed={platform === p.id} onClick={() => setPlatform(p.id)}>{p.label}</button>
         ))}
       </div>
-      <a className="reel-go" href={a.href}>{a.label}</a>
+      <Link className="reel-go" href={a.href}>{a.label}</Link>
       {platform === 'linux' && release.assets.deb && (
         <a className="reel-alt" href={release.assets.deb.url}>Prefer a .deb? Download it ({megabytes(release.assets.deb.size)})</a>
       )}
