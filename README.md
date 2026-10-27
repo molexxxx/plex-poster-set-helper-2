@@ -139,32 +139,32 @@ Everything you apply is recorded locally, so the **Reset Posters** page knows wh
 <br />
 <table>
   <tr>
-    <td width="50%"><a href=".github/assets/gallery/library-browser.png"><img src=".github/assets/gallery/library-browser.png" width="400" alt="Library Browser with a TV library grid and the sets panel open for one show" /></a><br /><sub>Library Browser</sub></td>
-    <td width="50%"><a href=".github/assets/gallery/thumbs/1-creators-browser.png"><img src=".github/assets/gallery/thumbs/1-creators-browser.png" width="400" alt="Creators tab listing a followed creator's sets" /></a><br /><sub>Creators tab</sub></td>
+    <td width="50%"><a href=".github/assets/gallery/library-browser.png"><img src=".github/assets/gallery/thumbs/library-browser.jpg" width="400" alt="Library Browser on the TV Shows tab with the sets panel open for Lucifer, listing MediUX and ThePosterDB sets with download counts" /></a><br /><sub>Library Browser</sub></td>
+    <td width="50%"><a href=".github/assets/gallery/1-creators-browser.jpg"><img src=".github/assets/gallery/thumbs/1-creators-browser.jpg" width="400" alt="Creators tab showing a followed MediUX creator's sets, with which ones are in the library" /></a><br /><sub>Creators tab</sub></td>
   </tr>
   <tr>
-    <td><a href=".github/assets/gallery/thumbs/1.05-collection-browser.png"><img src=".github/assets/gallery/thumbs/1.05-collection-browser.png" width="400" alt="Collections tab of the Library Browser" /></a><br /><sub>Collections tab</sub></td>
-    <td><a href=".github/assets/gallery/thumbs/1.1-search-1.png"><img src=".github/assets/gallery/thumbs/1.1-search-1.png" width="400" alt="Command palette open over the app" /></a><br /><sub>Command palette</sub></td>
+    <td><a href=".github/assets/gallery/1.05-collection-browser.jpg"><img src=".github/assets/gallery/thumbs/1.05-collection-browser.jpg" width="400" alt="Collections tab with the sets panel open for a movie collection" /></a><br /><sub>Collections tab</sub></td>
+    <td><a href=".github/assets/gallery/1.1-search-1.jpg"><img src=".github/assets/gallery/thumbs/1.1-search-1.jpg" width="400" alt="Command palette listing pages and quick actions" /></a><br /><sub>Command palette</sub></td>
   </tr>
   <tr>
-    <td><a href=".github/assets/gallery/thumbs/1.2-search-2.png"><img src=".github/assets/gallery/thumbs/1.2-search-2.png" width="400" alt="Command palette searching the library" /></a><br /><sub>Library search</sub></td>
-    <td><a href=".github/assets/gallery/thumbs/2-scheduler-list.png"><img src=".github/assets/gallery/thumbs/2-scheduler-list.png" width="400" alt="Scheduler page listing jobs and their schedules" /></a><br /><sub>Scheduler</sub></td>
+    <td><a href=".github/assets/gallery/1.2-search-2.jpg"><img src=".github/assets/gallery/thumbs/1.2-search-2.jpg" width="400" alt="Command palette searching the library for a title" /></a><br /><sub>Library search</sub></td>
+    <td><a href=".github/assets/gallery/2-scheduler-list.jpg"><img src=".github/assets/gallery/thumbs/2-scheduler-list.jpg" width="400" alt="Scheduler page listing jobs with their schedules and last results" /></a><br /><sub>Scheduler</sub></td>
   </tr>
   <tr>
-    <td><a href=".github/assets/gallery/thumbs/3-scheduler-edit.png"><img src=".github/assets/gallery/thumbs/3-scheduler-edit.png" width="400" alt="Scheduler job editor with schedule options" /></a><br /><sub>Job editor</sub></td>
-    <td><a href=".github/assets/gallery/thumbs/4-title-mappings.png"><img src=".github/assets/gallery/thumbs/4-title-mappings.png" width="400" alt="Title Mappings page" /></a><br /><sub>Title Mappings</sub></td>
+    <td><a href=".github/assets/gallery/3-scheduler-edit.jpg"><img src=".github/assets/gallery/thumbs/3-scheduler-edit.jpg" width="400" alt="Job editor with the link, a weekly schedule, its next runs, and the job options" /></a><br /><sub>Job editor</sub></td>
+    <td><a href=".github/assets/gallery/4-title-mappings.jpg"><img src=".github/assets/gallery/thumbs/4-title-mappings.jpg" width="400" alt="Title Mappings page" /></a><br /><sub>Title Mappings</sub></td>
   </tr>
   <tr>
-    <td><a href=".github/assets/gallery/thumbs/5-manual-scrape-top.png"><img src=".github/assets/gallery/thumbs/5-manual-scrape-top.png" width="400" alt="Manual Import showing the posters scraped from a set" /></a><br /><sub>Manual Import</sub></td>
-    <td><a href=".github/assets/gallery/thumbs/6-manual-scrape-titles.png"><img src=".github/assets/gallery/thumbs/6-manual-scrape-titles.png" width="400" alt="Manual Import with posters already applied to the library marked in green" /></a><br /><sub>Manual Import, applied art marked</sub></td>
+    <td><a href=".github/assets/gallery/5-manual-scrape-top.jpg"><img src=".github/assets/gallery/thumbs/5-manual-scrape-top.jpg" width="400" alt="Manual Import showing the posters scraped from a MediUX show page" /></a><br /><sub>Manual Import</sub></td>
+    <td><a href=".github/assets/gallery/6-manual-scrape-titles.jpg"><img src=".github/assets/gallery/thumbs/6-manual-scrape-titles.jpg" width="400" alt="Manual Import with episode title cards already applied to the library marked Applied" /></a><br /><sub>Manual Import, applied art marked</sub></td>
   </tr>
   <tr>
-    <td><a href=".github/assets/gallery/thumbs/7-reset-posters.png"><img src=".github/assets/gallery/thumbs/7-reset-posters.png" width="400" alt="Reset Posters page listing applied art" /></a><br /><sub>Reset Posters</sub></td>
-    <td><a href=".github/assets/gallery/thumbs/10-log-drawer.png"><img src=".github/assets/gallery/thumbs/10-log-drawer.png" width="400" alt="Log drawer open at the bottom of the app" /></a><br /><sub>Log drawer</sub></td>
+    <td><a href=".github/assets/gallery/7-reset-posters.jpg"><img src=".github/assets/gallery/thumbs/7-reset-posters.jpg" width="400" alt="Reset Posters page listing applied art" /></a><br /><sub>Reset Posters</sub></td>
+    <td><a href=".github/assets/gallery/10-log-drawer.jpg"><img src=".github/assets/gallery/thumbs/10-log-drawer.jpg" width="400" alt="Log drawer open at the bottom of the Library Browser" /></a><br /><sub>Log drawer</sub></td>
   </tr>
   <tr>
-    <td><a href=".github/assets/gallery/thumbs/8-settings-top.png"><img src=".github/assets/gallery/thumbs/8-settings-top.png" width="400" alt="Settings page with the Plex Account, Plex Server, Libraries, and TMDB Matching sections" /></a><br /><sub>Settings</sub></td>
-    <td><a href=".github/assets/gallery/thumbs/9-settings-bottom.png"><img src=".github/assets/gallery/thumbs/9-settings-bottom.png" width="400" alt="Settings page with the MediUX Asset Types, Scraper, Browser Engine, General, and Application sections" /></a><br /><sub>Settings, continued</sub></td>
+    <td><a href=".github/assets/gallery/8-settings-top.jpg"><img src=".github/assets/gallery/thumbs/8-settings-top.jpg" width="400" alt="Settings page with the Plex Account, Plex Server, and Libraries sections" /></a><br /><sub>Settings</sub></td>
+    <td><a href=".github/assets/gallery/9-settings-bottom.jpg"><img src=".github/assets/gallery/thumbs/9-settings-bottom.jpg" width="400" alt="Settings page with the Browser Engine, General, and Application sections" /></a><br /><sub>Settings, continued</sub></td>
   </tr>
 </table>
 </details>
