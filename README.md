@@ -17,6 +17,10 @@
   <a href="LICENSE"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-license-plex.svg?v=85b68ada" alt="MIT license" /></a>
 </p>
 
+<p align="center">
+  <a href="https://molexxxx.github.io/plex-poster-set-helper-2/"><b>Website</b></a> &nbsp;·&nbsp; <a href="https://molexxxx.github.io/plex-poster-set-helper-2/docs/">Docs</a> &nbsp;·&nbsp; <a href="https://molexxxx.github.io/plex-poster-set-helper-2/changelog/">Changelog</a>
+</p>
+
 ## What it does
 
 Pick a movie, show, or collection from your Plex library, browse every poster set the MediUX and ThePosterDB communities have made for it, and apply one with a click. Posters, season posters, episode title cards, backdrops, and collection art each land on the right item, and a schedule can keep them current as new episodes and uploads arrive.
