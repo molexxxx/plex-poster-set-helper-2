@@ -16,7 +16,7 @@ export interface Frame
   alt: string
   caption: string
   doc: string
-  /** What the screen does, printed on the film edge under the frame. Avoid counts that change as data loads. */
+  /** What the screen does, printed on the film edge under the frame. Describe the feature, not the data in the screenshot. */
   edge: string
 }
 
@@ -65,7 +65,7 @@ export const frames: Frame[] = [
     alt: 'Job editor set to a weekly schedule on Monday at 09:00, with a preview of the next three runs',
     caption: 'Jobs re-apply sets and creators on any schedule, so new title cards and uploads arrive on their own.',
     doc: 'keeping-posters-up-to-date',
-    edge: 'Weekly ▸ Mon 09:00 ▸ Next 3 runs shown',
+    edge: 'Hourly to custom ▸ Runs on its own',
   },
   {
     id: 'import',
@@ -74,7 +74,7 @@ export const frames: Frame[] = [
     alt: 'Manual Import with episode title cards already in the library marked Applied',
     caption: "Paste MediUX or ThePosterDB links. Art already in your library is marked, so you upload only what's new.",
     doc: 'supported-links',
-    edge: 'Season 4 title cards ▸ Applied marked',
+    edge: 'Paste links ▸ Only new art uploads',
   },
   {
     id: 'reset',
@@ -92,6 +92,6 @@ export const frames: Frame[] = [
     alt: 'Settings page with the Plex account connected and libraries detected',
     caption: 'Sign in with Plex in your browser. Your server and libraries are found for you, with no tokens or config files.',
     doc: 'first-run',
-    edge: 'Plex account ▸ Connected',
+    edge: 'Sign in with Plex ▸ No tokens',
   },
 ]
