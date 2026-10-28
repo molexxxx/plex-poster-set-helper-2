@@ -28,6 +28,7 @@ html
   color-scheme: dark;
   scrollbar-color: #2b3142 var(--booth);
   scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body
