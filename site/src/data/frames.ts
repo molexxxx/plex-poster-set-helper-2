@@ -16,7 +16,7 @@ export interface Frame
   alt: string
   caption: string
   doc: string
-  /** What the screen itself shows, printed on the film edge under the frame. */
+  /** What the screen does, printed on the film edge under the frame. Avoid counts that change as data loads. */
   edge: string
 }
 
@@ -29,7 +29,7 @@ export const frames: Frame[] = [
     alt: 'Library Browser with the sets panel open for Lucifer, listing MediUX and ThePosterDB sets with download counts',
     caption: 'Pick any title and its MediUX and ThePosterDB sets line up side by side, most downloaded first. Apply a whole set or a single image.',
     doc: 'library-browser',
-    edge: 'Lucifer ▸ 59 sets ▸ MediUX 11 ▸ TPDB 48',
+    edge: 'MediUX + TPDB ▸ Most downloaded first',
   },
   {
     id: 'creators',
@@ -38,7 +38,7 @@ export const frames: Frame[] = [
     alt: "Creators tab showing a followed MediUX creator's sets and which titles are in the library",
     caption: "Follow or hide creators on either site, and sync a MediUX creator's whole catalog with one click.",
     doc: 'library-browser',
-    edge: 'Following ▸ 24 sets ▸ 6 in library',
+    edge: 'Follow ▸ Hide ▸ Sync a whole catalog',
   },
   {
     id: 'collections',
@@ -83,7 +83,7 @@ export const frames: Frame[] = [
     alt: 'Reset Posters page listing applied art by title and source',
     caption: "Every poster you apply is logged with its source, and any title can go back to Plex's original art.",
     doc: 'how-matching-works',
-    edge: '46 tracked ▸ 29 movies ▸ 12 shows',
+    edge: 'Logged by source ▸ Revert to Plex art',
   },
   {
     id: 'sign-in',
