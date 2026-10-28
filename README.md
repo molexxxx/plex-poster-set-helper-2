@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="https://molexxxx.github.io/plex-poster-set-helper-2/"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-website-plex.svg?v=c60218be" alt="Website" /></a>&nbsp;
   <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-release-plex.svg?v=6a0afce1" alt="Latest release" /></a>&nbsp;
   <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-downloads-plex.svg?v=3e429134" alt="Downloads" /></a>&nbsp;
   <a href="https://github.com/molexxxx/plex-poster-set-helper-2/actions/workflows/ci.yml"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-ci-plex.svg?v=efd3be62" alt="CI status" /></a>&nbsp;
@@ -18,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://molexxxx.github.io/plex-poster-set-helper-2/"><b>Website</b></a> &nbsp;·&nbsp; <a href="https://molexxxx.github.io/plex-poster-set-helper-2/docs/">Docs</a> &nbsp;·&nbsp; <a href="https://molexxxx.github.io/plex-poster-set-helper-2/changelog/">Changelog</a>
+  <a href="https://molexxxx.github.io/plex-poster-set-helper-2/docs/">Docs</a> &nbsp;·&nbsp; <a href="https://molexxxx.github.io/plex-poster-set-helper-2/changelog/">Changelog</a>
 </p>
 
 ## What it does
