@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  <a href="https://molexxxx.github.io/plex-poster-set-helper-2/"><img width="340" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/button-website.svg" alt="Visit the website" /></a>
+  <a href="https://molexxxx.github.io/plex-poster-set-helper-2/"><img width="172" src="https://raw.githubusercontent.com/molexxxx/plex-poster-set-helper-2/main/.github/assets/button-website.svg?v=2" alt="Visit the website" /></a>
 </p>
 
 <p align="center">
