@@ -1,5 +1,6 @@
 import { BaseScraper, USER_AGENTS, pick, sleep, sleepConfig, mapPool } from './baseScraper'
 import { Logger } from '../services/logger'
+import { splitTrailingYear, stripSuffix } from '../services/titleParse'
 import { ConfigService } from '../services/config'
 import type { PosterInfo, PosterSetSummary, MediuxUserSet } from '../ipc/types'
 import type { Page } from 'playwright'
@@ -230,9 +231,7 @@ function parseTitleYear(raw?: string | null): { title: string; year?: number } |
   if (!raw) return null
   const clean = raw.trim()
   if (!clean) return null
-  const m = clean.match(/^(.*?)\s*\((\d{4})\)\s*$/)
-  if (m) return { title: m[1].trim(), year: parseInt(m[2]) }
-  return { title: clean }
+  return splitTrailingYear(clean) ?? { title: clean }
 }
 
 /**
@@ -245,7 +244,7 @@ function parseTitleYear(raw?: string | null): { title: string; year?: number } |
  * @returns The title without the suffix.
  */
 function stripArtTypeSuffix(title?: string | null): string {
-  return (title ?? '').replace(/\s*-\s*Backdrop\s*$/i, '').trim()
+  return stripSuffix(title ?? '', /-\s*Backdrop\s*$/i).trim()
 }
 
 /**
@@ -346,9 +345,7 @@ function parseOgTitle(html: string): Fallback {
   const m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)["']/i)
   if (!m?.[1]) return {}
   const raw = m[1].trim()
-  const ym = raw.match(/^(.*?)\s*\((\d{4})\)\s*$/)
-  if (ym) return { title: ym[1].trim(), year: parseInt(ym[2]) }
-  return { title: raw }
+  return splitTrailingYear(raw) ?? { title: raw }
 }
 
 /**
@@ -576,7 +573,7 @@ export function rankByDownloads(sets: PosterSetSummary[]): PosterSetSummary[] {
  * @returns The title without the suffix.
  */
 export function stripFileSuffix(title: string): string {
-  return title.replace(/\s*-\s*(S\d{1,3}\s*E\d{1,4}|Season\s+\d{1,3}|Specials|Backdrop)\s*$/i, '').trim()
+  return stripSuffix(title, /-\s*(?:S\d{1,3}\s*E\d{1,4}|Season\s+\d{1,3}|Specials|Backdrop)\s*$/i).trim()
 }
 
 /**
@@ -587,8 +584,9 @@ export function stripFileSuffix(title: string): string {
  * @returns The name and year, or null when there is no year.
  */
 export function parseNameYear(raw: string): Fallback | null {
-  const m = raw.match(/^(.*?)\s*\((\d{4})\)/)
-  return m && m[1].trim() ? { title: m[1].trim(), year: parseInt(m[2]) } : null
+  const m = /\((\d{4})\)/.exec(raw)
+  const title = m ? raw.slice(0, m.index).trim() : ''
+  return m && title ? { title, year: parseInt(m[1]) } : null
 }
 
 /**
@@ -614,7 +612,7 @@ export function deriveSetFallback(set: MediuxSet): Fallback {
   }
   const raw = set.set_name ?? set.name
   if (!raw) return {}
-  return parseNameYear(raw) ?? { title: raw.replace(/\s+(Collection|Set|Title\s*Cards|Titlecards|Posters|Backdrops)$/i, '').trim() }
+  return parseNameYear(raw) ?? { title: stripSuffix(raw, /(?:Collection|Set|Title\s*Cards|Titlecards|Posters|Backdrops)$/i, true).trim() }
 }
 
 /** Scrapes MediUX set, boxset, and creator pages via the server-rendered RSC payload. */
@@ -1079,8 +1077,7 @@ export class MediuxScraper extends BaseScraper {
         return { title: c ?? undefined }
       }).then(r => {
         if (!r.title) return {}
-        const ym = r.title.match(/^(.*?)\s*\((\d{4})\)\s*$/)
-        return ym ? { title: ym[1].trim(), year: parseInt(ym[2]) } : { title: r.title }
+        return splitTrailingYear(r.title) ?? { title: r.title }
       }).catch(() => ({} as Fallback))
 
       const scripts = await this._readScripts(page)

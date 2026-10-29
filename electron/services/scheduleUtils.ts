@@ -598,7 +598,10 @@ export function cronToForm(expr: string): ScheduleForm
  */
 export function urlKey(url: string): string
 {
-  return url.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '')
+  const key = url.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '')
+  let end = key.length
+  while (end > 0 && key[end - 1] === '/') end--
+  return key.slice(0, end)
 }
 
 /** Result of checking the editor's URL list. */

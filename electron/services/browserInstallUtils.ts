@@ -140,8 +140,9 @@ export function execName(headless: boolean, platform: NodeJS.Platform = process.
 
 function revisionOf(name: string): number
 {
-  const match = /(\d+)$/.exec(name)
-  return match ? Number(match[1]) : 0
+  let start = name.length
+  while (start > 0 && name[start - 1] >= '0' && name[start - 1] <= '9') start--
+  return start < name.length ? Number(name.slice(start)) : 0
 }
 
 function findFile(dir: string, name: string, depth = 4): string | null

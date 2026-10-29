@@ -2,6 +2,7 @@ import * as cheerio from 'cheerio'
 import { BaseScraper, sleepConfig, mapPool, USER_AGENTS } from './baseScraper'
 import { Logger } from '../services/logger'
 import { ConfigService } from '../services/config'
+import { stripSuffix } from '../services/titleParse'
 import type { PosterInfo, PosterSetSummary } from '../ipc/types'
 
 const BASE = 'https://theposterdb.com'
@@ -100,9 +101,12 @@ export function parseYear(text: string): number | undefined {
  * @returns The bare media title.
  */
 export function parseCardTitle(rawTitle: string): string {
-  const m = rawTitle.match(/^(.*?)\s*\(\d{4}\)(?:\s*-\s*.*)?$/)
-  if (m) return m[1].trim()
-  return rawTitle.replace(/\s+-\s+(?:season\s+\d+|specials)\s*$/i, '').trim()
+  const years = /\(\d{4}\)/g
+  for (let m = years.exec(rawTitle); m; m = years.exec(rawTitle)) {
+    const rest = rawTitle.slice(years.lastIndex)
+    if (!rest || rest.trimStart().startsWith('-')) return rawTitle.slice(0, m.index).trim()
+  }
+  return stripSuffix(rawTitle, /-\s+(?:season\s+\d+|specials)\s*$/i, true).trim()
 }
 
 /**
@@ -301,7 +305,7 @@ export function parseSearchHits($: cheerio.CheerioAPI): SearchHit[] {
  */
 export function titleAliases(title: string, type: PosterdbMediaType): string[] {
   const forms = [title]
-  const bare = title.replace(/\s*\([^()]*\)\s*$/, '').trim()
+  const bare = stripSuffix(title, /\([^()]*\)\s*$/).trim()
   if (bare && bare !== title) forms.push(bare)
   const normalized = [...new Set(forms.map(normalizeTitle).filter(Boolean))]
   if (type !== 'collection') return normalized
@@ -583,7 +587,19 @@ export function isMediaCard(card: RawCard): boolean {
  * @returns The name without a trailing year.
  */
 export function cleanSetName(name: string): string {
-  return name.replace(/\s*\(\d{4}\)\s*$/, '').trim()
+  return stripSuffix(name, /\(\d{4}\)\s*$/).trim()
+}
+
+/**
+ * Reads the set name from a set page's title,
+ * "<Set name> Set By <uploader> | The Poster Database (TPDb)".
+ *
+ * @param pageTitle - Text of the page's title element.
+ * @returns The set name without its year.
+ */
+export function parseSetPageTitle(pageTitle: string): string {
+  const by = /\sSet By\s/i.exec(pageTitle)
+  return cleanSetName(by ? pageTitle.slice(0, by.index) : pageTitle)
 }
 
 /** What the library browser gets back for a title. */
@@ -895,8 +911,7 @@ export class PosterdbScraper extends BaseScraper {
       const setUrl = `${BASE}/set/${stub.setId}`
       const parsed = await this._loadPage(setUrl, 'div.overlay[data-poster-id]', $ => ({
         cards: parseCards($).filter(isMediaCard),
-        // "<Set name> Set By <uploader> | The Poster Database (TPDb)"
-        name: cleanSetName($('title').first().text().split(/\s+Set By\s+/i)[0]),
+        name: parseSetPageTitle($('title').first().text()),
       }))
       if (!parsed?.cards.length) return null
       const posters = classifySetPosters(cardsToPosters(parsed.cards), title, year, type)

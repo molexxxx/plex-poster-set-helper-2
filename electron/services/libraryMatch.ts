@@ -1,4 +1,5 @@
 import Fuse from 'fuse.js'
+import { stripSuffix } from './titleParse'
 
 /** The fields a Plex search result needs for matching. */
 export interface MatchCandidate
@@ -58,7 +59,7 @@ function titleYear(title: string): number | undefined
  */
 function stripTitleYear(title: string): string
 {
-  return title.replace(/\s*\(\d{4}\)\s*$/, '')
+  return stripSuffix(title, /\(\d{4}\)\s*$/)
 }
 
 /**
