@@ -4,6 +4,14 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.11.1
+
+### Title and link parsing fix
+Some of the checks that read titles and job links slowed down sharply on input with very long runs of spaces or slashes. A single oversized job link sent to the Docker web page could keep the server busy for minutes. Titles from Plex, MediUX, and ThePosterDB and every job link are now read in one pass, so no input can stall the app this way. Matching results are unchanged.
+
+### Issue forms
+Issues are open on GitHub with short forms for bug reports, poster and matching problems, and feature ideas. Each asks for what's needed to help, such as the app version, how the app is installed, and the set link.
+
 ## What's new in v2.11.0
 
 ### Most downloaded sets first
