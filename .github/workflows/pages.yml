@@ -1,7 +1,10 @@
 # Builds the project website in site/ and publishes it to GitHub Pages.
 # The docs page renders README.md and the changelog renders CHANGELOG.md, so the
-# site rebuilds when either changes, and on every published release so its
-# version, file sizes, and download counts stay current.
+# site rebuilds when either changes, and after every Build & Release run so its
+# version, file sizes, and download counts stay current. That run is used rather
+# than the release event because electron-builder publishes the release before
+# every asset is uploaded, and because workflow_run builds main, which the
+# github-pages environment allows and which holds the newest site.
 
 name: Pages
 
@@ -15,8 +18,9 @@ on:
       - 'package.json'
       - '.github/assets/**'
       - '.github/workflows/pages.yml'
-  release:
-    types: [published]
+  workflow_run:
+    workflows: [Build & Release]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
