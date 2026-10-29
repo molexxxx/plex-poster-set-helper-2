@@ -15,20 +15,24 @@ export function Landing()
   {
     const label = document.getElementById('get')
     const install = document.getElementById('install')
+    const footer = document.querySelector('.footer-body')
     if (!label || !install) return
     let labelOut = false
     let installIn = false
+    let footerIn = false
     const watch = new IntersectionObserver(entries =>
     {
       for (const e of entries)
       {
         if (e.target === label) labelOut = !e.isIntersecting
         if (e.target === install) installIn = e.isIntersecting
+        if (e.target === footer) footerIn = e.isIntersecting
       }
-      setLabelGone(labelOut && !installIn)
+      setLabelGone(labelOut && !installIn && !footerIn)
     })
     watch.observe(label)
     watch.observe(install)
+    if (footer) watch.observe(footer)
     return () => watch.disconnect()
   }, [])
 

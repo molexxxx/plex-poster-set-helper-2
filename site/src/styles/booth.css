@@ -418,13 +418,37 @@ html:has(.viewer[open]) { overflow: hidden; }
 
 .site-footer
 {
-  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 40px;
-  padding: 28px var(--gutter) 40px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 15px;
+  --h: clamp(170px, 18vw, 240px);
+  --band: calc(var(--h) * 0.229);
+  position: relative;
+  padding: calc(var(--band) + clamp(36px, 5vw, 64px)) var(--gutter) calc(var(--band) + 14px);
+  background: var(--base); border-top: 1px solid var(--rule);
 }
-.site-footer nav { display: flex; flex-wrap: wrap; gap: 10px 24px; }
-.site-footer a { color: var(--muted); }
-.site-footer a:hover { color: var(--text); }
-.site-footer p { margin: 0; }
+.footer-body
+{
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start;
+  gap: 44px clamp(40px, 8vw, 128px);
+}
+.site-footer nav { display: flex; flex-wrap: wrap; gap: 36px clamp(40px, 6vw, 96px); }
+.footer-group h2
+{
+  margin: 0 0 14px; font-family: var(--mono); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--edge);
+}
+.footer-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.footer-group a
+{
+  display: inline-block; padding-block: 2px;
+  font-weight: 800; font-stretch: 78%; font-size: 25px; line-height: 1.15;
+  color: var(--text); text-decoration: none; transition: color 0.15s;
+}
+.footer-group a:hover { color: var(--amber); }
+.footer-print
+{
+  margin: clamp(56px, 8vw, 104px) 0 0;
+  font-family: var(--mono); font-weight: 700; font-size: 12px; line-height: 1.6;
+  letter-spacing: 0.2em; text-transform: uppercase; font-variant-numeric: tabular-nums; color: var(--edge);
+}
 
 /* Docs */
 
@@ -523,7 +547,7 @@ html:has(.viewer[open]) { overflow: hidden; }
   .docker-snippet-head { flex-direction: column; align-items: flex-start; }
   .release { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .release-label { position: static; }
-  .site-footer { padding-bottom: 104px; }
+  .site-footer nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; gap: 32px 24px; }
 }
 
 @media (prefers-reduced-motion: reduce)
