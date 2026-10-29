@@ -91,6 +91,8 @@ Pick a title and its MediUX and ThePosterDB sets appear in one list, each tagged
 - **Follow or hide creators** with the star and eye on any set card. Followed creators come first and hidden ones drop out of every list. The **Creators** tab manages both lists and browses a MediUX creator's whole catalog.
 - **Find what still needs attention.** The art filter narrows the grid to titles with or without applied art, art that no job keeps updated, or art from a particular creator. On TV tabs, a status filter separates **Continuing** series from **Ended** ones, using TMDB when a key is set and otherwise whether an episode aired in the last year.
 - **Collections** have their own tab, with collection art from both sites.
+- **Link a set.** When neither site finds a title, or finds the wrong thing, the link button in the sets panel takes a MediUX or ThePosterDB link and attaches its sets to the title: a set, a poster (its set is used), or the title's own page on either site to take every set listed there. Linked sets list first and are remembered until unlinked.
+- **One poster per slot.** A set that carries several posters for the same place in Plex, such as collection art for a franchise and its spin-off, applies one of them: from a collection, the one named after it; otherwise the first. The expanded preview marks the one that will be applied, and a click on another poster's check mark picks it instead.
 - **Ctrl+F** opens the command palette to jump to any page, setting, schedule, or creator, or to paste a link.
 
 ## Keeping posters up to date
@@ -122,7 +124,7 @@ Your Plex sign-in, schedules, and applied-poster history survive every update. T
 ## Troubleshooting and support
 
 - **The first-launch browser check fails.** The setup screen explains why and offers fixes. On Linux it shows the exact command for any missing system libraries, and on any platform you can pick an installed Google Chrome, Edge, Brave, or Chromium instead. **Settings → Browser Engine** also has a managed download that retries automatically, detects system proxies, and can be canceled.
-- **A title gets no match or the wrong art.** Add a TMDB API key (see [How matching works](#how-matching-works)), and use **Title Mappings** to point a site's title at the right Plex title.
+- **A title gets no match or the wrong art.** Use the link button in the sets panel to attach the right set, or the title's page on either site, to that title. For matching in general, add a TMDB API key (see [How matching works](#how-matching-works)), and use **Title Mappings** to point a site's title at the right Plex title.
 - **Anything else.** The log drawer shows what the app is doing, and **Open Log Folder** in the command palette opens the full logs. If you're stuck, [open an issue](https://github.com/molexxxx/plex-poster-set-helper-2/issues) with the relevant log lines.
 
 ## Supported links
@@ -134,9 +136,11 @@ Your Plex sign-in, schedules, and applied-poster history survive every update. T
 | **[MediUX](https://mediux.pro)** | Sets (`/sets/123`), boxsets (`/boxsets/123`, a whole collection at once), show pages (`/shows/123`), and creator pages (`/user/name`). Full-quality posters, season posters, title cards, and backdrops. |
 | **[ThePosterDB](https://theposterdb.com)** | Sets (`/set/123`), single posters (`/poster/123`), and user uploads (`/user/name`). |
 
+The link button in the Library Browser's sets panel accepts the same set and poster links, plus a title's own page on either site (`mediux.pro/movies/123`, `mediux.pro/shows/123`, `theposterdb.com/posters/123`), to attach every set listed there to a title.
+
 ## How matching works
 
-Posters are matched to your library by **TMDB ID**, read from each Plex item, so the right art lands on the right title. For titles Plex stores without a TMDB ID, or under a TVDB or IMDb agent, a free TMDB API key restores ID-based matching; without one the app falls back to title and year, which can miss renamed or subtitled entries. Anime under the **HAMA** agent, which tags titles with an AniDB ID, is converted to TMDB automatically using the open-source [Fribb/anime-lists](https://github.com/Fribb/anime-lists) dataset (cached locally), so it matches without a key. ThePosterDB has no public ID search, so its sets are always found by title and year.
+Posters are matched to your library by **TMDB ID**, read from each Plex item, so the right art lands on the right title. For titles Plex stores without a TMDB ID, or under a TVDB or IMDb agent, a free TMDB API key restores ID-based matching; without one the app falls back to title and year, which can miss renamed or subtitled entries. Anime under the **HAMA** agent, which tags titles with an AniDB ID, is converted to TMDB automatically using the open-source [Fribb/anime-lists](https://github.com/Fribb/anime-lists) dataset (cached locally), so it matches without a key. ThePosterDB has no public ID search, so its sets are always found by title and year, and every entry the site holds under that title is read, since it often has duplicates.
 
 Everything you apply is recorded locally, so the **Reset Posters** page knows what's current, what was applied before, and where it came from, and can restore Plex's original artwork.
 

@@ -4,6 +4,22 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.12.0
+
+### Plex artwork shows again
+The Library Browser showed a letter placeholder for every title, and an empty Current Plex Art strip, when the Plex server is reached over plain HTTP, which is how sign-in connects to a server on the same network. The page's image rule only allowed secure addresses, so every Plex thumbnail was refused before it loaded. Plex artwork now loads over either kind of address. (#65)
+
+### One poster per slot, and a pick when a set offers several
+A set can carry several posters for the same place in Plex: a franchise set with collection art for the main series and its spin-off, or two variants of a movie poster. Applying such a set uploaded all of them in turn, and whichever came last stayed. One poster is now applied per slot: from a collection, the one named after that collection; otherwise the first. When a set offers a choice, the expanded preview marks the one that will be applied, and a click on another poster's check mark picks it instead. Applying from a movie or show sends each collection poster to the collection it names, so a franchise set fills both collections rather than piling onto one. (#66)
+
+### Link a set to a title
+When neither site finds a title, or finds the wrong thing, the new link button in the sets panel takes a MediUX or ThePosterDB link and attaches its sets to the title: a set, a poster (its set is used), or the title's own page on either site to take every set listed there. Linked sets list first, stay visible when their creator is hidden, carry a Linked badge, and are remembered until unlinked. The posters are classified against the title the same way the sites' own results are, so collection art and member movies land where they belong. (#67)
+
+### ThePosterDB duplicates no longer hide a title's sets
+ThePosterDB holds several entries for many titles, collections above all, and lists the newest first. The browse took the first one, which for "Marvel Cinematic Universe" was an empty duplicate, and reported no sets while the original entry held two pages of them. Every same-titled entry is now read and their sets merged, with the fullest entry as the title's page. An entry with no posters is also no longer sent to the headless browser as though it had failed to load. (#67)
+
+Thanks to @diabWH3 for reporting all three.
+
 ## What's new in v2.11.1
 
 ### Title and link parsing fix
