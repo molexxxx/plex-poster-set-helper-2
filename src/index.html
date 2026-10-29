@@ -3,7 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' http://localhost:*" />
+    <!-- img-src allows http: because a Plex server on a home network is
+         usually reached over plain HTTP (sign-in prefers a local
+         http://192.168.x.x:32400 address) and every Plex thumbnail is a
+         transcode URL on that server. Without it the Library Browser shows
+         no Plex artwork at all. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: http: https:; connect-src 'self' http://localhost:*" />
     <!-- ThePosterDB's image CDN hotlink-protects by Referer: any foreign origin
          (http://localhost:5173 in dev, the host in Docker) gets a 403, while a
          request with no Referer is served. Sending none keeps TPDb artwork
