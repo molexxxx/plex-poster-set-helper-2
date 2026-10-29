@@ -1,0 +1,99 @@
+name: Poster or matching problem
+description: A set finds no match, art lands on the wrong title, or seasons and episodes come out wrong.
+labels: [matching]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most matching problems are fixed by adding a free TMDB API key under **Settings → TMDB Matching**, or by pointing a site's title at the right Plex title in **Title Mappings**. See [How matching works](https://molexxxx.github.io/plex-poster-set-helper-2/docs/#how-matching-works) if you haven't tried those yet.
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Shown in the status bar and under **Settings → Application**.
+      placeholder: "2.11.0"
+    validations:
+      required: true
+
+  - type: input
+    id: link
+    attributes:
+      label: Set or poster link
+      description: The MediUX or ThePosterDB page you applied from.
+      placeholder: https://theposterdb.com/set/12345
+    validations:
+      required: true
+
+  - type: input
+    id: plex-title
+    attributes:
+      label: Title and year in Plex
+      placeholder: The Office (2005)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of item?
+      options:
+        - Movie
+        - TV show
+        - Season or episode title cards
+        - Collection
+    validations:
+      required: true
+
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What went wrong?
+      options:
+        - No match found
+        - Matched the wrong title
+        - Wrong season or episode
+        - Art applied but looks wrong in Plex
+        - Something else
+    validations:
+      required: true
+
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Plex metadata agent for that library
+      description: Found under **Edit Library → Advanced** in Plex.
+      options:
+        - Plex Movie or Plex TV Series
+        - TheTVDB
+        - IMDb
+        - HAMA (anime)
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tmdb
+    attributes:
+      label: Is a TMDB API key set?
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What you expected to happen and anything else that helps, such as log lines or screenshots.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this hasn't been reported.
+          required: true
+        - label: I removed any Plex tokens (`X-Plex-Token=...`) and API keys from what I pasted.
+          required: true

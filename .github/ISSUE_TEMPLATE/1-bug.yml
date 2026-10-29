@@ -1,0 +1,107 @@
+name: Bug report
+description: Something crashes, errors, or doesn't work the way it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. If a poster landed on the wrong title or a set finds no match, the **Poster or matching problem** form asks for the details that help most.
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Shown in the status bar and under **Settings → Application**.
+      placeholder: "2.11.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run it?
+      options:
+        - Windows installer
+        - Linux AppImage
+        - Linux .deb
+        - Docker
+        - Unraid
+        - Built from source
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where in the app?
+      options:
+        - Library Browser
+        - Creators
+        - Collections
+        - Manual Import
+        - Scheduler
+        - Title Mappings
+        - Reset Posters
+        - Settings or Plex sign-in
+        - First-run browser check or Browser Engine
+        - Updates
+        - Docker web page
+        - Somewhere else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Include any error message shown in the app.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Library Browser
+        2. Pick a movie and open its sets
+        3. Click Apply on a MediUX set
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+
+  - type: input
+    id: link
+    attributes:
+      label: Set or poster link
+      description: The MediUX or ThePosterDB link involved, if any.
+      placeholder: https://mediux.pro/sets/12345
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log lines
+      description: |
+        Paste the relevant lines from the log drawer or `app.log`. **Open Log Folder** in the command palette (Ctrl+F) opens the folder on desktop. In Docker, use `docker logs plex-poster-helper-2` or `/config/app/logs/app.log`.
+      render: text
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag images or a screen recording into this box.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this hasn't been reported.
+          required: true
+        - label: I removed any Plex tokens (`X-Plex-Token=...`) and API keys from what I pasted.
+          required: true

@@ -1,0 +1,50 @@
+name: Feature idea
+description: Suggest something new or a better way to do something.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the situation or annoyance behind the idea.
+      placeholder: Every time a creator posts a new set I have to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: How you picture it working. Mockups and screenshots are welcome.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app?
+      options:
+        - Library Browser
+        - Creators
+        - Collections
+        - Manual Import
+        - Scheduler
+        - Title Mappings
+        - Reset Posters
+        - Settings
+        - Docker or Unraid
+        - A new poster site
+        - Something else
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you've tried instead?
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this hasn't been suggested.
+          required: true
