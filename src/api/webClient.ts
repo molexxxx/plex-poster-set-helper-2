@@ -3,7 +3,7 @@ import type {
   AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress,
   AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState,
   SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq,
-  CurrentArtReq, CurrentArtRes, UserSetsChunk,
+  CurrentArtReq, CurrentArtRes, UserSetsChunk, LinkedSetsReq, LinkedSetsRes, LinkSetReq, UnlinkSetReq,
 } from '../../electron/ipc/types'
 
 type SseHandler = (event: string, data: unknown) => void
@@ -120,6 +120,9 @@ export function createWebClient(): Api {
         if (req.year != null) params.set('year', String(req.year))
         return apiFetch<CurrentArtRes>(`/api/library/current-art?${params}`)
       },
+      linkedSets: (req: LinkedSetsReq) => apiFetch<LinkedSetsRes>('/api/library/linked-sets', { method: 'POST', body: JSON.stringify(req) }),
+      linkSet: (req: LinkSetReq) => apiFetch<LinkedSetsRes>('/api/library/link-set', { method: 'POST', body: JSON.stringify(req) }),
+      unlinkSet: (req: UnlinkSetReq) => apiFetch<void>('/api/library/unlink-set', { method: 'POST', body: JSON.stringify(req) }),
     },
 
     scrape: {

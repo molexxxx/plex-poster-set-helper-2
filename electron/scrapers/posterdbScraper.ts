@@ -29,6 +29,12 @@ const MAX_BROWSE_SETS = MEDIA_PAGE_SIZE * MAX_BROWSE_PAGES
 const SEARCH_PAGE_SIZE = 36
 /** Search pages walked for a title before it counts as absent. */
 const MAX_SEARCH_PAGES = 4
+/**
+ * Same-titled media pages read for one title. The site holds duplicate
+ * entries for many titles, collections above all, and the newest is often an
+ * empty shell, so the browse reads them all and merges their sets.
+ */
+const MAX_MEDIA_CANDIDATES = 6
 /** Parallel set-page fetches; the Max Workers setting caps it further. */
 const SET_FETCH_CONCURRENCY = 4
 /** How long a resolved title -> media-page id mapping stays good. */
@@ -46,9 +52,10 @@ const HEAVY_RESOURCES = new Set(['image', 'media', 'font', 'stylesheet'])
  * @param url - URL to inspect.
  * @returns set, poster, user, or unknown.
  */
-export function posterdbUrlType(url: string): 'set' | 'poster' | 'user' | 'unknown' {
+export function posterdbUrlType(url: string): 'set' | 'poster' | 'media' | 'user' | 'unknown' {
   if (/theposterdb\.com\/set\/\d+/.test(url)) return 'set'
   if (/theposterdb\.com\/poster\/\d+/.test(url)) return 'poster'
+  if (/theposterdb\.com\/posters\/\d+/.test(url)) return 'media'
   if (/theposterdb\.com\/user\//.test(url)) return 'user'
   return 'unknown'
 }
@@ -270,6 +277,35 @@ export function isSearchPage($: cheerio.CheerioAPI): boolean {
   return /\bsearch\b/i.test($('title').first().text())
 }
 
+/** Markup that proves a media page rendered: its poster grid, or the notice an empty one shows instead. */
+const MEDIA_PAGE_MARKER = 'div.overlay[data-poster-id], p.h2'
+
+/**
+ * Tells a media page, full or empty, from a challenge or maintenance page
+ * that answered in its place. An empty page is a real answer (the title has
+ * no posters), so it must not send the browse to the headless browser.
+ *
+ * @param $ - Cheerio handle over the page HTML.
+ * @returns true for a media page.
+ */
+export function isMediaPage($: cheerio.CheerioAPI): boolean {
+  return $('div.overlay[data-poster-id]').length > 0 || /no posters have been made/i.test($('p.h2').text())
+}
+
+/**
+ * Reads the set a poster page belongs to.
+ *
+ * @param $ - Cheerio handle over the poster page HTML.
+ * @returns The set id, or an empty string for a poster uploaded on its own.
+ */
+export function parentSetId($: cheerio.CheerioAPI): string {
+  const href =
+    $('a[data-toggle="tooltip"][title="View Set Page"]').first().attr('href') ||
+    $('a.rounded.view_all').first().attr('href') ||
+    ''
+  return /\/set\/(\d+)/.exec(href)?.[1] ?? ''
+}
+
 /**
  * Parses the search page's result rows.
  *
@@ -348,6 +384,26 @@ export function pickSearchHit(hits: SearchHit[], wants: string[], year?: number)
     ?? exact.find(h => yearMatches(h, year))
     ?? exact.find(h => h.year == null)
     ?? null
+}
+
+/**
+ * Every search hit that is the title we asked for, best first. ThePosterDB
+ * holds duplicate entries for many titles, collections above all, and the
+ * newest is often an empty shell with the real posters on an older entry, so
+ * a browse reads them all. The rest carry the best hit's year, or like it
+ * carry none.
+ *
+ * @param hits - Rows from parseSearchHits().
+ * @param wants - Acceptable normalized titles, from titleAliases().
+ * @param year - Plex release year, when known.
+ * @returns The matching hits, at most MAX_MEDIA_CANDIDATES; empty when nothing matches.
+ */
+export function pickSearchHits(hits: SearchHit[], wants: string[], year?: number): SearchHit[] {
+  const best = pickSearchHit(hits, wants, year)
+  if (!best) return []
+  const sameYear = (h: SearchHit) => best.year == null ? h.year == null : h.year === best.year
+  const rest = hits.filter(h => h !== best && wants.includes(normalizeTitle(h.title)) && sameYear(h))
+  return [best, ...rest].slice(0, MAX_MEDIA_CANDIDATES)
 }
 
 /** A set discovered on a media page, before its full contents are known. */
@@ -554,8 +610,8 @@ export function stubToSummary(
   }
 }
 
-/** Resolved media-page ids, so reopening a title doesn't re-run the search. */
-const mediaIdCache = new Map<string, { hit: SearchHit | null; at: number }>()
+/** Resolved media pages, so reopening a title doesn't re-run the search. Empty means the title was not found. */
+const mediaIdCache = new Map<string, { hits: SearchHit[]; at: number }>()
 
 export function mediaCacheKey(title: string, year: number | undefined, type: PosterdbMediaType): string {
   return `${type}|${normalizeTitle(title)}|${year ?? ''}`
@@ -629,6 +685,9 @@ export class PosterdbScraper extends BaseScraper {
       case 'set':    return this.scrapeSet(url)
       case 'poster': return this.scrapeSinglePoster(url)
       case 'user':   return this.scrapeUserUploads(url)
+      case 'media':
+        Logger.warn('PosterDB', `A title page lists many sets; scrape a set or poster link instead: ${url}`)
+        return []
       default:
         Logger.warn('PosterDB', `Unrecognised URL pattern: ${url}`)
         return []
@@ -806,11 +865,7 @@ export class PosterdbScraper extends BaseScraper {
   }
 
   /**
-   * Resolves a Plex title to its ThePosterDB media page. ThePosterDB gates
-   * external-id search behind TPDb Pro, so this matches on title and year.
-   * Search results are paginated newest-first, so a title whose name recurs
-   * in newer releases sits a few pages in; the walk stops at the first row
-   * whose year agrees.
+   * Resolves a Plex title to its best ThePosterDB media page.
    *
    * @param title - Plex title.
    * @param year - Release year, when known.
@@ -819,15 +874,32 @@ export class PosterdbScraper extends BaseScraper {
    * @returns The matching media page, or null when the title isn't on the site.
    */
   async findMedia(title: string, year: number | undefined, type: PosterdbMediaType, fresh = false): Promise<SearchHit | null> {
+    return (await this.findMediaCandidates(title, year, type, fresh))[0] ?? null
+  }
+
+  /**
+   * Resolves a Plex title to its ThePosterDB media pages. ThePosterDB gates
+   * external-id search behind TPDb Pro, so this matches on title and year.
+   * Search results are paginated newest-first, so a title whose name recurs
+   * in newer releases sits a few pages in; the walk stops at the first row
+   * whose year agrees, and takes that page's duplicate entries along.
+   *
+   * @param title - Plex title.
+   * @param year - Release year, when known.
+   * @param type - Movie, show, or collection.
+   * @param fresh - Skip the remembered match (the panel's Refresh button).
+   * @returns The matching media pages, best first; empty when the title isn't on the site.
+   */
+  async findMediaCandidates(title: string, year: number | undefined, type: PosterdbMediaType, fresh = false): Promise<SearchHit[]> {
     const wants = titleAliases(title, type)
-    if (!wants.length) return null
+    if (!wants.length) return []
 
     const cacheKey = mediaCacheKey(title, year, type)
     const cached = mediaIdCache.get(cacheKey)
-    if (cached && !fresh && Date.now() - cached.at < (cached.hit ? MEDIA_ID_TTL : MEDIA_MISS_TTL)) return cached.hit
+    if (cached && !fresh && Date.now() - cached.at < (cached.hits.length ? MEDIA_ID_TTL : MEDIA_MISS_TTL)) return cached.hits
 
     const label = `${type} "${title}"${year ? ` (${year})` : ''}`
-    let fallback: SearchHit | null = null
+    let fallback: SearchHit[] = []
     let rows = 0
     for (let page = 1; page <= MAX_SEARCH_PAGES && !this._aborted; page++) {
       const url = `${BASE}/search?term=${encodeURIComponent(title)}&section=${SEARCH_SECTION[type]}${page > 1 ? `&page=${page}` : ''}`
@@ -838,27 +910,25 @@ export class PosterdbScraper extends BaseScraper {
       if (hits === null) return fallback
 
       rows += hits.length
-      const hit = pickSearchHit(hits, wants, year)
-      if (hit && yearMatches(hit, year)) {
-        mediaIdCache.set(cacheKey, { hit, at: Date.now() })
-        return hit
+      const found = pickSearchHits(hits, wants, year)
+      if (found.length && yearMatches(found[0], year)) {
+        mediaIdCache.set(cacheKey, { hits: found, at: Date.now() })
+        return found
       }
-      fallback ??= hit
+      if (!fallback.length) fallback = found
       if (hits.length < SEARCH_PAGE_SIZE) break
       await sleepConfig('min')
     }
     if (this._aborted) return fallback
 
-    mediaIdCache.set(cacheKey, { hit: fallback, at: Date.now() })
-    if (!fallback) Logger.scrape('PosterDB', `No match for ${label} among ${rows} result(s)`)
+    mediaIdCache.set(cacheKey, { hits: fallback, at: Date.now() })
+    if (!fallback.length) Logger.scrape('PosterDB', `No match for ${label} among ${rows} result(s)`)
     return fallback
   }
 
   /**
-   * Lists ThePosterDB sets for a title (library browser). Walks the title's
-   * media page for the sets it appears in, then expands each multi-poster set
-   * from its own page so seasons, backdrops and collection siblings come
-   * through - a media page only ever shows one poster per set.
+   * Lists ThePosterDB sets for a title (library browser). Resolves the title
+   * to its media pages, then reads them.
    *
    * @param title - Plex title.
    * @param year - Release year, when known.
@@ -867,32 +937,80 @@ export class PosterdbScraper extends BaseScraper {
    * @returns Set summaries, most-downloaded first, with a flag when the site has more.
    */
   async browseSets(title: string, year: number | undefined, type: PosterdbMediaType, fresh = false): Promise<PosterdbBrowseResult> {
-    const media = await this.findMedia(title, year, type, fresh)
-    if (!media || this._aborted) return NO_RESULT
-    const mediaUrl = `${BASE}/posters/${media.mediaId}`
+    const media = await this.findMediaCandidates(title, year, type, fresh)
+    if (!media.length || this._aborted) return NO_RESULT
+    return this.browseMediaPages(media.map(m => m.mediaId), title, year, type)
+  }
 
+  /**
+   * Walks one media page's listing for the sets on it.
+   *
+   * @param mediaUrl - The media page.
+   * @returns Its sets in page order, how many posters it listed, and whether the last page read was full.
+   */
+  private async _collectStubs(mediaUrl: string): Promise<{ stubs: SetStub[]; cards: number; full: boolean }> {
     const stubs: SetStub[] = []
     const seen = new Set<string>()
-    let lastPageFull = false
+    let cards = 0
+    let full = false
     for (let page = 1; page <= MAX_BROWSE_PAGES && !this._aborted; page++) {
       const url = page > 1 ? `${mediaUrl}?page=${page}` : mediaUrl
-      const cards = await this._loadPage(url, 'div.overlay[data-poster-id]', parseCards)
-      if (!cards?.length) {
-        lastPageFull = false
+      const found = await this._loadPage(url, MEDIA_PAGE_MARKER, $ => isMediaPage($) ? parseCards($) : null)
+      if (!found?.length) {
+        full = false
         break
       }
-      for (const stub of stubsFromCards(cards)) {
+      cards += found.length
+      for (const stub of stubsFromCards(found)) {
         if (seen.has(stub.setId)) continue
         seen.add(stub.setId)
         stubs.push(stub)
       }
-      lastPageFull = cards.length >= MEDIA_PAGE_SIZE
-      if (!lastPageFull) break
+      full = found.length >= MEDIA_PAGE_SIZE
+      if (!full) break
       if (page < MAX_BROWSE_PAGES) await sleepConfig('min')
     }
-    if (this._aborted) return NO_RESULT
+    return { stubs, cards, full }
+  }
 
-    const capped = lastPageFull || stubs.length > MAX_BROWSE_SETS
+  /**
+   * Lists the sets on a title's media pages. Each page is walked for the sets
+   * it lists, then every multi-poster set is expanded from its own page so
+   * seasons, backdrops and collection siblings come through - a media page
+   * only ever shows one poster per set. Duplicate pages are merged, the
+   * fullest first, so a title whose newest entry is an empty shell still
+   * shows everything the site has.
+   *
+   * @param mediaIds - The media pages, best first.
+   * @param title - Plex title the posters are classified against.
+   * @param year - Its release year, when known.
+   * @param type - Movie, show, or collection.
+   * @returns Set summaries, most-downloaded first, with a flag when the site has more.
+   */
+  async browseMediaPages(mediaIds: string[], title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterdbBrowseResult> {
+    const pages: Array<{ url: string; stubs: SetStub[]; cards: number; full: boolean }> = []
+    for (const [i, id] of mediaIds.entries()) {
+      if (this._aborted) return NO_RESULT
+      if (i > 0) await sleepConfig('min')
+      const url = `${BASE}/posters/${id}`
+      pages.push({ url, ...(await this._collectStubs(url)) })
+    }
+    if (this._aborted || !pages.length) return NO_RESULT
+
+    // The fullest page is the title's real entry; the rest add what it lacks.
+    pages.sort((a, b) => b.cards - a.cards)
+    const mediaUrl = pages[0].url
+    const stubs: SetStub[] = []
+    const seen = new Set<string>()
+    for (const page of pages) {
+      for (const stub of page.stubs) {
+        if (seen.has(stub.setId)) continue
+        seen.add(stub.setId)
+        stubs.push(stub)
+      }
+    }
+
+    const capped = pages.some(p => p.full) || stubs.length > MAX_BROWSE_SETS
     const wanted = stubs.slice(0, MAX_BROWSE_SETS)
 
     // Avatars resolve alongside the set expansion, so they add no wait of
@@ -930,8 +1048,67 @@ export class PosterdbScraper extends BaseScraper {
       })
     Logger.scrape(
       'PosterDB',
-      `Browse ${type} "${title}"${year ? ` (${year})` : ''} - ${sets.length} set(s) from ${mediaUrl}${capped ? ' (more on the site)' : ''}`,
+      `Browse ${type} "${title}"${year ? ` (${year})` : ''} - ${sets.length} set(s) from ${mediaUrl}`
+        + `${pages.length > 1 ? ` and ${pages.length - 1} duplicate page(s)` : ''}${capped ? ' (more on the site)' : ''}`,
     )
     return { sets, capped, mediaUrl }
+  }
+
+  /**
+   * Reads the sets behind a link the user attached to a title: a set page,
+   * a poster page (its set), or a media page (every set listed there).
+   *
+   * @param url - ThePosterDB link.
+   * @param title - Plex title the posters are classified against.
+   * @param year - Its release year, when known.
+   * @param type - Movie, show, or collection.
+   * @returns The sets, ready for the Library Browser.
+   * @throws When the link is a profile or not a page the app reads, or the page cannot be read.
+   */
+  async linkSets(url: string, title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterSetSummary[]> {
+    switch (posterdbUrlType(url)) {
+      case 'set': {
+        const set = await this._linkSet(/\/set\/(\d+)/.exec(url)![1], title, year, type)
+        return set ? [set] : []
+      }
+      case 'poster': {
+        const setId = await this._loadPage(url, 'a[title="View Set Page"], #main_poster_container, div.overlay[data-poster-id]', parentSetId)
+        if (setId === null) throw new Error('The poster page could not be read')
+        if (!setId) throw new Error('This poster is not part of a set; link a set or a title page instead')
+        const set = await this._linkSet(setId, title, year, type)
+        return set ? [set] : []
+      }
+      case 'media':
+        return (await this.browseMediaPages([/\/posters\/(\d+)/.exec(url)![1]], title, year, type)).sets
+      case 'user':
+        throw new Error('A profile lists every upload; link a set, a poster, or a title page instead')
+      default:
+        throw new Error('Not a ThePosterDB set, poster, or title page link')
+    }
+  }
+
+  /**
+   * Builds the summary for one set from its own page.
+   *
+   * @param setId - The set's id on the site.
+   * @param title - Plex title the posters are classified against.
+   * @param year - Its release year, when known.
+   * @param type - Movie, show, or collection.
+   * @returns The summary, or null when the set has no movie, show, or collection posters.
+   * @throws When the page cannot be read.
+   */
+  private async _linkSet(setId: string, title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterSetSummary | null> {
+    const parsed = await this._loadPage(`${BASE}/set/${setId}`, 'div.overlay[data-poster-id]', $ => ({
+      cards: parseCards($).filter(isMediaCard),
+      name: parseSetPageTitle($('title').first().text()),
+    }))
+    if (!parsed) throw new Error('The set page could not be read')
+    if (!parsed.cards.length) return null
+    const stub: SetStub = stubsFromCards(parsed.cards).find(s => s.setId === setId)
+      ?? { setId, uploader: parsed.cards[0].uploader ?? 'Unknown', size: parsed.cards.length, card: parsed.cards[0] }
+    const posters = classifySetPosters(cardsToPosters(parsed.cards), title, year, type)
+    const summary = stubToSummary(stub, posters, parsed.name || stub.card.title, type)
+    const avatar = (await resolveAvatars([summary.uploader])).get(summary.uploader.toLowerCase())
+    return avatar ? { ...summary, uploaderAvatar: avatar } : summary
   }
 }

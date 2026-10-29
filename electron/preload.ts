@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk, LinkedSetsReq, LinkedSetsRes, LinkSetReq, UnlinkSetReq } from './ipc/types'
 
 /** Typed IPC bridge exposed to the renderer as window.api. */
 const api = {
@@ -53,6 +53,9 @@ const api = {
     },
     creatorSearch: (req: CreatorSearchReq) => ipcRenderer.invoke('library:creatorSearch', req),
     currentArt: (req: CurrentArtReq) => ipcRenderer.invoke('library:currentArt', req),
+    linkedSets: (req: LinkedSetsReq): Promise<LinkedSetsRes> => ipcRenderer.invoke('library:linkedSets', req),
+    linkSet: (req: LinkSetReq): Promise<LinkedSetsRes> => ipcRenderer.invoke('library:linkSet', req),
+    unlinkSet: (req: UnlinkSetReq): Promise<void> => ipcRenderer.invoke('library:unlinkSet', req),
   },
 
   scrape: {

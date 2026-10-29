@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useMemo, createContext, useContext } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users, Film, Tv, Layers, ArrowUp, ArrowDown, Eye, EyeOff, ExternalLink } from 'lucide-react'
+import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users, Film, Tv, Layers, ArrowUp, ArrowDown, Eye, EyeOff, ExternalLink, Link2, Link2Off, Circle } from 'lucide-react'
 import type { ScheduledJob } from '../../../electron/ipc/types'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -10,9 +10,9 @@ import Spinner from '../../components/ui/Spinner'
 import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
 import Pager from '../../components/ui/Pager'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
-import { groupPosters, posterFileType, setKey, ALL_TYPES, SOURCE_LABEL, SOURCE_SHORT, defaultSetApplyScope, type FileType, type SetApplyScope, type SetSource } from '../../utils/posterGroups'
+import { groupPosters, posterFileType, setKey, ALL_TYPES, SOURCE_LABEL, SOURCE_SHORT, defaultSetApplyScope, collectionName, variantKey, variantClusters, defaultVariant, resolveVariants, type ApplyContext, type FileType, type SetApplyScope, type SetSource } from '../../utils/posterGroups'
 import { useCreatorPrefs, parseCreatorInput, type CreatorState } from '../../utils/creatorPrefs'
-import { arrangeSets, byPopularity, uploaderValue } from '../../utils/librarySets'
+import { arrangeSets, byPopularity, mergeLinkedSets, uploaderValue } from '../../utils/librarySets'
 import { recordApplied, recordAppliedBatch, recordAppliedQuietly, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
 import { uuid } from '../../utils/uuid'
 import { errorMessage } from '../../utils/errorMessage'
@@ -24,7 +24,7 @@ import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
 import type {
   LibrarySection, LibraryItem, PosterSetSummary, BrowseSetsRes, PosterInfo, MediuxUserSet, AppliedRecord,
-  PlexArtSlot, LibrarySort, SortDir, LibraryArtFilter, LibraryStatusFilter,
+  PlexArtSlot, LibrarySort, SortDir, LibraryArtFilter, LibraryStatusFilter, LinkedItemRef,
 } from '../../../electron/ipc/types'
 import styles from './LibraryPage.module.css'
 
@@ -111,6 +111,14 @@ function hiResArt(thumb: string): string {
   return thumb.replace(/width=\d+&height=\d+/, 'width=800&height=1200')
 }
 const ART_CACHE_TTL = 5 * 60 * 1000
+
+/** Sets read from the links attached to one item, with the links that could not be read. */
+interface LinkedState { key: string; sets: PosterSetSummary[]; errors: Array<{ url: string; error: string }> }
+/** The link row for one item: whether it is open, the typed link, and why the last one was refused. */
+interface LinkUiState { key: string; open: boolean; url: string; error: string | null }
+const NO_PICKS: Record<string, Record<string, string>> = {}
+const NO_SETS: PosterSetSummary[] = []
+const NO_LINK_ERRORS: Array<{ url: string; error: string }> = []
 
 const PANEL_WIDTH_DEFAULT = 560
 const PANEL_WIDTH_MIN = 360
@@ -908,6 +916,23 @@ function SetsPanel({ item, onClose, onItemPoster }: {
   const [applyMap, setApplyMap] = useState<Record<string, ApplyState>>({})
   // Per-set apply scope: movies and collection poster are chosen independently.
   const [collectionScope, setCollectionScope] = useState<Record<string, SetApplyScope>>({})
+  // Per-set choice of which poster fills a Plex slot that several posters in
+  // the set compete for, keyed by set then slot (see variantKey). Scoped to
+  // the viewed item by key, so a switch starts clean without a reset effect.
+  const [pickState, setPickState] = useState<{ key: string; bySet: Record<string, Record<string, string>> }>({ key: '', bySet: {} })
+  const picks = pickState.key === item.key ? pickState.bySet : NO_PICKS
+  // Sets read from the links the user attached to this title, scoped the same way.
+  const [linkedState, setLinkedState] = useState<LinkedState>({ key: '', sets: [], errors: [] })
+  const linked = linkedState.key === item.key ? linkedState.sets : NO_SETS
+  const linkErrors = linkedState.key === item.key ? linkedState.errors : NO_LINK_ERRORS
+  const [linkUi, setLinkUi] = useState<LinkUiState>({ key: '', open: false, url: '', error: null })
+  const linkOpen = linkUi.key === item.key && linkUi.open
+  const linkUrl = linkUi.key === item.key ? linkUi.url : ''
+  const linkError = linkUi.key === item.key ? linkUi.error : null
+  const [linking, setLinking] = useState(false)
+  const linkInputRef = useRef<HTMLInputElement>(null)
+  const updateLinkUi = (patch: Partial<Omit<LinkUiState, 'key'>>) =>
+    setLinkUi(prev => ({ ...(prev.key === item.key ? prev : { open: false, url: '', error: null }), ...patch, key: item.key }))
   // TMDB id MediUX resolved for this item (set even when the Plex item uses a
   // tvdb/imdb agent), used to match the viewed item's collection-member poster.
   const [resolvedTmdbId, setResolvedTmdbId] = useState<string | undefined>(undefined)
@@ -948,6 +973,10 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     setSchedulingId(null)
     panelBodyRef.current?.scrollTo({ top: 0 })
   }, [item.key])
+
+  useEffect(() => {
+    if (linkOpen) linkInputRef.current?.focus()
+  }, [linkOpen])
 
   const isCollectionItem = item.type === 'collection'
   const itemApplied = isCollectionItem
@@ -1144,6 +1173,64 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     setSetsReloadKey(k => k + 1)
   }
 
+  // The item as the links are attached to it.
+  const linkedItem = useMemo<LinkedItemRef>(
+    () => ({ key: item.key, type: item.type, title: item.title, year: item.year }),
+    [item.key, item.type, item.title, item.year],
+  )
+
+  // Linked sets load beside the browse; Refresh re-reads their pages too. The
+  // previous item's sets never show here, since the state is keyed by item.
+  useEffect(() => {
+    let cancelled = false
+    const key = item.key
+    window.api.library.linkedSets({ item: linkedItem, fresh: setsReloadKey > 0 }).then(res => {
+      if (!cancelled) setLinkedState({ key, sets: res.sets, errors: res.errors ?? [] })
+    }).catch((err: unknown) => {
+      if (!cancelled) setLinkedState({ key, sets: [], errors: [{ url: '', error: errorMessage(err) }] })
+    })
+    return () => { cancelled = true }
+  }, [item.key, linkedItem, setsReloadKey])
+
+  async function submitLink() {
+    const url = linkUrl.trim()
+    if (!url || linking) return
+    setLinking(true)
+    updateLinkUi({ error: null })
+    try {
+      const res = await window.api.library.linkSet({ item: linkedItem, url })
+      const refused = res.errors?.[0]
+      if (refused) {
+        updateLinkUi({ error: refused.error })
+        return
+      }
+      const key = item.key
+      setLinkedState(prev => prev.key === key
+        ? { ...prev, sets: mergeLinkedSets(prev.sets, res.sets) }
+        : { key, sets: res.sets, errors: [] })
+      updateLinkUi({ open: false, url: '' })
+    } catch (err) {
+      updateLinkUi({ error: errorMessage(err) })
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  async function unlink(url: string) {
+    const key = item.key
+    setLinkedState(prev => prev.key === key
+      ? { ...prev, sets: prev.sets.filter(s => s.linkedFrom !== url), errors: prev.errors.filter(e => e.url !== url) }
+      : prev)
+    try {
+      await window.api.library.unlinkSet({ itemKey: key, url })
+    } catch (err) {
+      updateLinkUi({ open: true, error: errorMessage(err) })
+    }
+  }
+
+  // Everything the panel lists: linked sets first, then what the sites found.
+  const allSets = useMemo(() => mergeLinkedSets(linked, sets), [linked, sets])
+
   function bumpArtReload() {
     invalidateCurrentArt(item.key)
     setArtReloadKey(k => k + 1)
@@ -1191,7 +1278,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
   // Resolve which collection-member movies are in scope for apply toggles.
   useEffect(() => {
     const unique = new Map<string, { title: string; year?: number; tmdbId?: string }>()
-    for (const s of sets) for (const p of s.posters) {
+    for (const s of allSets) for (const p of s.posters) {
       if (!p.isCollectionMember) continue
       const k = p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`
       if (!unique.has(k)) unique.set(k, { title: p.title, year: p.year, tmdbId: p.tmdbId })
@@ -1223,7 +1310,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
       if (!cancelled) setMemberInLib(out)
     })()
     return () => { cancelled = true }
-  }, [sets, item.tmdbId, resolvedTmdbId, isCollectionItem, collectionMembers])
+  }, [allSets, item.tmdbId, resolvedTmdbId, isCollectionItem, collectionMembers])
 
   const creatorOf = useCallback((s: PosterSetSummary) => stateOf(s.source, s.uploader), [stateOf])
 
@@ -1232,8 +1319,8 @@ function SetsPanel({ item, onClose, onItemPoster }: {
   // uploader hidden since, a site that returned nothing) falls back to "all"
   // in the same render instead of flashing an empty list first.
   const { sourceCounts, activeSource, sourceSets, uploaders, activeUploader, visibleSets, hiddenCount } = useMemo(
-    () => arrangeSets(sets, { source, uploader, types, showHidden, stateOf }),
-    [sets, source, uploader, types, showHidden, stateOf],
+    () => arrangeSets(allSets, { source, uploader, types, showHidden, stateOf }),
+    [allSets, source, uploader, types, showHidden, stateOf],
   )
 
   function toggleType(t: FileType) {
@@ -1280,16 +1367,19 @@ function SetsPanel({ item, onClose, onItemPoster }: {
       : collectionArt
     const hasCollectionArt = effectiveCollArt.length > 0
     const scope = collectionScope[sKey] ?? defaultSetApplyScope(hasCollectionArt, collectionInLib)
+    const chosen = picks[sKey] ?? {}
 
     if (isCollectionItem) {
-      const memberPosters = scope.movies === 'none'
-        ? []
-        : scope.movies === 'all'
-          ? members.filter(p => memberInLib.get(memberKey(p)))
-          : members.filter(p => memberInLib.get(memberKey(p)))
-      const applyCollArt = scope.collectionPoster && effectiveCollArt.length > 0
+      // One poster per Plex slot (see resolveVariants): a set carrying art for
+      // several collections would otherwise upload them all to this one and
+      // keep whichever came last.
+      const memberPosters = resolveVariants(
+        scope.movies === 'none' ? [] : members.filter(p => memberInLib.get(memberKey(p))),
+        'collection', chosen,
+      )
+      const collArt = scope.collectionPoster ? resolveVariants(effectiveCollArt, 'collection', chosen, item.title) : []
 
-      const willApply = [...memberPosters, ...(applyCollArt ? effectiveCollArt : [])]
+      const willApply = [...memberPosters, ...collArt]
       const enabledTotal = willApply.filter(p => types.has(posterFileType(p))).length
       if (enabledTotal === 0) return
       setApplyMap(m => ({ ...m, [sKey]: { status: 'applying', done: 0, total: enabledTotal } }))
@@ -1323,11 +1413,11 @@ function SetsPanel({ item, onClose, onItemPoster }: {
         }
       }
 
-      if (applyCollArt) {
-        const collRes = await applyPosters(item.key, effectiveCollArt, types, bump)
+      if (collArt.length) {
+        const collRes = await applyPosters(item.key, collArt, types, bump)
         totalDone += collRes.done; totalFailed += collRes.failed
         if (collRes.done > 0) {
-          const thumb = mainThumb(effectiveCollArt) ?? item.thumb
+          const thumb = mainThumb(collArt) ?? item.thumb
           records.push({
             itemKey: item.key, title: item.title, type: 'collection',
             source: s.source, thumb, setId: s.id, uploader: s.uploader,
@@ -1362,19 +1452,19 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     // suppress the viewed item's own art when the scope control is actually
     // present and the user set it to "none".
     const scopeControllable = hasCollectionArt || collectionInLib > 1
-    const viewedPosters = scopeControllable && scope.movies === 'none'
-      ? []
-      : [...plain, ...members.filter(isThisItem)]
-    const siblingMembers = scope.movies === 'all'
-      ? members.filter(p => !isThisItem(p) && memberInLib.get(memberKey(p)))
-      : []
-    const applyCollArt = scope.collectionPoster && collectionArt.length > 0
+    // One poster per Plex slot (see resolveVariants): two posters for the same
+    // slot would otherwise both upload, and the last would win.
+    const viewedPosters = resolveVariants(
+      scopeControllable && scope.movies === 'none' ? [] : [...plain, ...members.filter(isThisItem)],
+      'title', chosen,
+    )
+    const siblingMembers = resolveVariants(
+      scope.movies === 'all' ? members.filter(p => !isThisItem(p) && memberInLib.get(memberKey(p))) : [],
+      'title', chosen,
+    )
+    const collArt = scope.collectionPoster ? resolveVariants(collectionArt, 'title', chosen) : []
 
-    const willApply = [
-      ...viewedPosters,
-      ...siblingMembers,
-      ...(applyCollArt ? collectionArt : []),
-    ]
+    const willApply = [...viewedPosters, ...siblingMembers, ...collArt]
     const enabledTotal = willApply.filter(p => types.has(posterFileType(p))).length
     if (enabledTotal === 0) return
     setApplyMap(m => ({ ...m, [sKey]: { status: 'applying', done: 0, total: enabledTotal } }))
@@ -1425,17 +1515,27 @@ function SetsPanel({ item, onClose, onItemPoster }: {
       }
     }
 
-    // 3. Collection-level art onto the matching Plex Collection object.
-    if (applyCollArt) {
-      const coll = await window.api.plex.findCollection(collectionArt[0].title) as { key: string; title: string; thumb?: string; libraryTitle?: string } | null
-      // No matching Plex Collection object - skip quietly (the movies still applied).
-      if (coll) {
-        const collRes = await applyPosters(coll.key, collectionArt, types, bump)
+    // 3. Collection-level art onto the matching Plex Collection objects. A set
+    //    can carry art for several collections (a franchise and its spin-off);
+    //    each is matched by its own name.
+    if (collArt.length) {
+      const byCollection = new Map<string, PosterInfo[]>()
+      for (const p of collArt) {
+        const name = collectionName(p.title)
+        const list = byCollection.get(name)
+        if (list) list.push(p)
+        else byCollection.set(name, [p])
+      }
+      for (const posters of byCollection.values()) {
+        const coll = await window.api.plex.findCollection(posters[0].title) as { key: string; title: string; thumb?: string; libraryTitle?: string } | null
+        // No matching Plex Collection object - skip quietly (the movies still applied).
+        if (!coll) continue
+        const collRes = await applyPosters(coll.key, posters, types, bump)
         totalDone += collRes.done; totalFailed += collRes.failed
         if (collRes.done > 0) {
           records.push({
             itemKey: coll.key, title: coll.title, type: 'collection',
-            source: s.source, thumb: mainThumb(collectionArt) ?? coll.thumb, setId: s.id, uploader: s.uploader,
+            source: s.source, thumb: mainThumb(posters) ?? coll.thumb, setId: s.id, uploader: s.uploader,
             posterUrls: collRes.appliedUrls, slots: collRes.appliedSlots, appliedAt: new Date().toISOString(),
           })
         }
@@ -1500,6 +1600,14 @@ function SetsPanel({ item, onClose, onItemPoster }: {
         </AnimatePresence>
         <div className={styles.panelHeaderActions}>
           <button
+            className={`${styles.panelRefresh} ${linkOpen ? styles.panelActionOn : ''}`}
+            onClick={() => updateLinkUi({ open: !linkOpen, error: null })}
+            title="Link a set from MediUX or ThePosterDB to this title"
+            aria-pressed={linkOpen}
+          >
+            <Link2 size={14} />
+          </button>
+          <button
             className={styles.panelRefresh}
             onClick={refreshSets}
             disabled={loading && !refreshing}
@@ -1513,8 +1621,32 @@ function SetsPanel({ item, onClose, onItemPoster }: {
 
       <CurrentArtStrip slots={artSlots} loading={artLoading} />
 
+      {linkOpen && (
+        <form className={styles.linkRow} onSubmit={e => { e.preventDefault(); void submitLink() }}>
+          <span className={styles.addLabel}>Link a set to this title</span>
+          <div className={styles.addField}>
+            <Link2 size={14} className={styles.addIcon} />
+            <input
+              ref={linkInputRef}
+              className={styles.addInput}
+              placeholder="MediUX or ThePosterDB link: a set, a poster, or the title's own page"
+              value={linkUrl}
+              onChange={e => updateLinkUi({ url: e.target.value })}
+              spellCheck={false}
+            />
+            <button type="submit" className={styles.addBtn} disabled={!linkUrl.trim() || linking} title="Add">
+              {linking ? <Loader2 size={14} className={styles.spin} /> : <Plus size={14} />}
+            </button>
+          </div>
+          {linkError && <p className={styles.addError}>{linkError}</p>}
+          <p className={styles.linkHint}>
+            The sets behind the link join this title&apos;s list and are remembered. Paste the title&apos;s own page on either site to use every set listed there.
+          </p>
+        </form>
+      )}
+
       {/* Filters */}
-      {!loading && !error && sets.length > 0 && (
+      {!loading && !error && allSets.length > 0 && (
         <div className={styles.filters}>
           {/* Only worth a row when both sites answered; the card badges and
               the notices cover a single-site list. */}
@@ -1526,7 +1658,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
                 aria-pressed={activeSource === 'all'}
                 title="Show sets from both sites"
               >
-                All <span className={styles.sourceCount}>{sets.length}</span>
+                All <span className={styles.sourceCount}>{allSets.length}</span>
               </button>
               {SOURCES.map(src => (
                 <button
@@ -1600,6 +1732,18 @@ function SetsPanel({ item, onClose, onItemPoster }: {
           </div>
         ))}
 
+        {/* A link whose page could not be read this time stays attached; the
+            user can retry with Refresh or let it go. */}
+        {linkErrors.map((e, i) => (
+          <div key={e.url || i} className={styles.panelInlineNotice}>
+            <AlertCircle size={13} />
+            <span>
+              A linked page could not be read: {e.error}
+              {e.url && <>{' '}<span className={styles.linkUrl}>{e.url}</span>{' '}<button className={styles.noteSearchLink} onClick={() => unlink(e.url)}>Unlink</button></>}
+            </span>
+          </div>
+        ))}
+
         {error === 'no_movies' && (
           <div className={styles.panelNotice}>
             <AlertCircle size={20} />
@@ -1667,7 +1811,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
           </div>
         )}
 
-        {!loading && !error && pending.size === 0 && sets.length === 0 && (() => {
+        {!loading && !error && pending.size === 0 && allSets.length === 0 && (() => {
           const searched = SOURCES.filter(s => !sourceErrors[s])
           return (
             <div className={styles.panelNotice}>
@@ -1677,11 +1821,16 @@ function SetsPanel({ item, onClose, onItemPoster }: {
                   ? 'Neither site could be searched for this title.'
                   : `No sets found for this title on ${searched.map(s => SOURCE_LABEL[s]).join(' or ')}.`}
               </p>
+              <p className={styles.noticeSub}>
+                Know where the art is?{' '}
+                <button className={styles.noteSearchLink} onClick={() => updateLinkUi({ open: true })}>Link a set or the title&apos;s page</button>
+                {' '}from either site and it will be used here.
+              </p>
             </div>
           )
         })()}
 
-        {!loading && !error && sets.length > 0 && visibleSets.length === 0 && hiddenCount === 0 && (
+        {!loading && !error && allSets.length > 0 && visibleSets.length === 0 && hiddenCount === 0 && (
           <div className={styles.panelNotice}><ImageIcon size={20} /><p>No sets match the current filters.</p></div>
         )}
 
@@ -1749,6 +1898,18 @@ function SetsPanel({ item, onClose, onItemPoster }: {
                 }))
                 setApplyMap(m => { const next = { ...m }; delete next[sKey]; return next })
               } : undefined}
+              linked={!!s.linkedFrom}
+              onUnlink={s.linkedFrom ? () => unlink(s.linkedFrom!) : undefined}
+              variantContext={isCollectionItem ? 'collection' : 'title'}
+              itemTitle={item.title}
+              picks={picks[sKey]}
+              onPick={(slot, url) => {
+                setPickState(prev => {
+                  const bySet = prev.key === item.key ? prev.bySet : {}
+                  return { key: item.key, bySet: { ...bySet, [sKey]: { ...(bySet[sKey] ?? {}), [slot]: url } } }
+                })
+                setApplyMap(m => { const next = { ...m }; delete next[sKey]; return next })
+              }}
             />
           )
         })}
@@ -1770,9 +1931,19 @@ function SetsPanel({ item, onClose, onItemPoster }: {
 }
 
 /** Small skeleton-aware thumbnail button used in the SetCard expanded view. */
-function ThumbButton({ url, label, episode, onClick }: { url: string; label: string; episode?: number; onClick: () => void }) {
+function ThumbButton({ url, label, episode, onClick, selectable, selected, onSelect }: {
+  url: string
+  label: string
+  episode?: number
+  onClick: () => void
+  /** The poster competes with others in the set for one Plex slot, so it carries a pick control. */
+  selectable?: boolean
+  /** This is the poster that will be applied. */
+  selected?: boolean
+  onSelect?: () => void
+}) {
   const [loaded, setLoaded] = useState(false)
-  return (
+  const thumb = (
     <button
       className={`${styles.groupThumb} ${!loaded ? styles.skeleton : ''}`}
       title={`${episode != null ? `Episode ${episode}` : label} - click to enlarge`}
@@ -1789,10 +1960,26 @@ function ThumbButton({ url, label, episode, onClick }: { url: string; label: str
       {episode != null && <span className={styles.epBadge}>E{episode}</span>}
     </button>
   )
+  if (!selectable) return thumb
+  const pickLabel = selected ? 'This poster will be applied' : 'Apply this poster instead'
+  return (
+    <div className={`${styles.groupThumbWrap} ${selected ? styles.groupThumbSelected : styles.groupThumbPassed}`}>
+      {thumb}
+      <button
+        className={`${styles.pickBtn} ${selected ? styles.pickBtnOn : ''}`}
+        onClick={onSelect}
+        aria-pressed={selected}
+        title={pickLabel}
+        aria-label={pickLabel}
+      >
+        {selected ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+      </button>
+    </div>
+  )
 }
 
 /** Expandable card for one poster set: preview, uploader, source, counts, apply state, and grouped posters. */
-function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, creator = 'none', onCreatorChange, showSource, selectable, checked, onToggleSelect, onSchedule, scheduledBy, onOpenSchedule, scheduleHint, scheduleError, scheduling, collectionMovies, collectionTotal, hasCollectionArt, applyScope, scopeContext, onApplyScopeChange }: {
+function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, creator = 'none', onCreatorChange, showSource, selectable, checked, onToggleSelect, onSchedule, scheduledBy, onOpenSchedule, scheduleHint, scheduleError, scheduling, collectionMovies, collectionTotal, hasCollectionArt, applyScope, scopeContext, onApplyScopeChange, linked, onUnlink, variantContext, itemTitle, picks, onPick }: {
   set: PosterSetSummary
   apply?: ApplyState
   onApply: () => void
@@ -1836,6 +2023,17 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
   /** Whether scope labels refer to a Plex Collection or a single movie. */
   scopeContext?: 'movie' | 'collection'
   onApplyScopeChange?: (patch: Partial<SetApplyScope>) => void
+  /** The set came from a link the user attached to this title. */
+  linked?: boolean
+  /** Detaches that link. */
+  onUnlink?: () => void
+  /** Offers a pick when several posters in the set compete for one Plex slot; omit to show none. */
+  variantContext?: ApplyContext
+  /** The viewed item's title, so the collection poster named after it is the default pick. */
+  itemTitle?: string
+  /** Chosen poster URL by slot key (see variantKey). */
+  picks?: Record<string, string>
+  onPick?: (slot: string, url: string) => void
 }) {
   const [err, setErr]               = useState(false)
   const [previewLoaded, setPreviewLoaded] = useState(false)
@@ -1918,6 +2116,11 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
               {creator === 'followed' && !onCreatorChange && <Star size={10} className={styles.followStar} />}
             </button>
             {showSource && <Badge variant={set.source}>{SOURCE_SHORT[set.source]}</Badge>}
+            {linked && (
+              <span className={styles.linkedBadge} title={set.linkedFrom ? `Linked from ${set.linkedFrom}` : 'Linked to this title'}>
+                <Link2 size={10} /> Linked
+              </span>
+            )}
             {onCreatorChange && (
               // Both toggles depict state, like the star: lit when on. The
               // accessible name stays constant and aria-pressed carries the state.
@@ -1941,6 +2144,16 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
                   {creator === 'hidden' ? <EyeOff size={12} /> : <Eye size={12} />}
                 </button>
               </div>
+            )}
+            {onUnlink && (
+              <button
+                className={styles.unlinkAction}
+                onClick={onUnlink}
+                title="Unlink this set from the title"
+                aria-label="Unlink this set from the title"
+              >
+                <Link2Off size={12} />
+              </button>
             )}
             {!title && badge && <span className={styles.setTrailing}>{badge}</span>}
           </div>
@@ -2073,16 +2286,25 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
             {(() => {
               let flat = -1
               return visibleGroups.map(g => {
+                // Posters competing for one Plex slot: only one of them is
+                // applied, so the group offers a pick.
+                const clusters = variantContext ? variantClusters(g.posters, variantContext) : null
+                const hasChoice = !!clusters && [...clusters.values()].some(c => c.length > 1)
                 return (
                   <div key={g.label} className={styles.group}>
                     <div className={styles.groupLabel}>
                       {g.label}
                       <span className={styles.groupCount}>{g.posters.length}</span>
+                      {hasChoice && <span className={styles.groupHint}>One is applied: pick it</span>}
                     </div>
                     <div className={`${styles.groupThumbs} ${g.kind === 'title_card' || g.kind === 'backdrop' ? styles.groupThumbsWide : ''}`}>
                       {g.posters.map(p => {
                         flat++
                         const idx = flat
+                        const slot = variantContext ? variantKey(p, variantContext) : ''
+                        const cluster = clusters?.get(slot)
+                        const choosable = !!cluster && cluster.length > 1
+                        const chosen = choosable ? (picks?.[slot] ?? defaultVariant(cluster, itemTitle).url) : undefined
                         return (
                           <ThumbButton
                             key={p.url}
@@ -2090,6 +2312,9 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
                             label={g.label}
                             episode={p.episode}
                             onClick={() => setLightbox(idx)}
+                            selectable={choosable}
+                            selected={chosen === p.url}
+                            onSelect={() => onPick?.(slot, p.url)}
                           />
                         )
                       })}
@@ -2610,10 +2835,11 @@ function CreatorSets({ username, creator, appliedIdx, onCreatorChange, onApplied
 
   async function applySet(s: MediuxUserSet) {
     if (!s.matchedKey && !s.posters.some(p => p.isCollection)) return
-    const collectionArt = s.posters.filter(p => p.isCollection)
-    const mainPosters   = s.posters.filter(p => !p.isCollectionMember && !p.isCollection)
-    const memberPosters = s.posters.filter(p => p.isCollectionMember)
-    const enabledTotal  = s.posters.filter(p => allTypes.has(posterFileType(p))).length
+    // One poster per Plex slot, as in the Library view (see resolveVariants).
+    const collectionArt = resolveVariants(s.posters.filter(p => p.isCollection), 'title')
+    const mainPosters   = resolveVariants(s.posters.filter(p => !p.isCollectionMember && !p.isCollection), 'title')
+    const memberPosters = resolveVariants(s.posters.filter(p => p.isCollectionMember), 'title')
+    const enabledTotal  = [...collectionArt, ...mainPosters, ...memberPosters].filter(p => allTypes.has(posterFileType(p))).length
     setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: 0, total: enabledTotal } }))
 
     let totalDone = 0, totalFailed = 0
@@ -2631,25 +2857,33 @@ function CreatorSets({ username, creator, appliedIdx, onCreatorChange, onApplied
       totalFailed += mainPosters.filter(p => allTypes.has(posterFileType(p))).length
     }
 
-    if (collectionArt.length > 0) {
-      const coll = await window.api.plex.findCollection(collectionArt[0].title) as { key: string; title: string; thumb?: string } | null
-      if (coll) {
-        const collRes = await applyPosters(coll.key, collectionArt, allTypes,
-          (d, _t) => setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: totalDone + d, total: enabledTotal } })))
-        totalDone   += collRes.done
-        totalFailed += collRes.failed
-        allAppliedUrls.push(...collRes.appliedUrls)
-        allAppliedSlots.push(...collRes.appliedSlots)
-        if (collRes.done > 0) {
-          void recordAppliedQuietly({
-            itemKey: coll.key, title: coll.title, type: 'collection',
-            source: 'mediux', thumb: collectionArt[0].thumbUrl ?? collectionArt[0].url,
-            setId: s.id, uploader: s.uploader,
-            posterUrls: collRes.appliedUrls, slots: collRes.appliedSlots, appliedAt: new Date().toISOString(),
-          })
-        }
-      } else {
-        totalFailed += collectionArt.filter(p => allTypes.has(posterFileType(p))).length
+    // Each collection the set names gets its own art.
+    const byCollection = new Map<string, PosterInfo[]>()
+    for (const p of collectionArt) {
+      const name = collectionName(p.title)
+      const list = byCollection.get(name)
+      if (list) list.push(p)
+      else byCollection.set(name, [p])
+    }
+    for (const posters of byCollection.values()) {
+      const coll = await window.api.plex.findCollection(posters[0].title) as { key: string; title: string; thumb?: string } | null
+      if (!coll) {
+        totalFailed += posters.filter(p => allTypes.has(posterFileType(p))).length
+        continue
+      }
+      const collRes = await applyPosters(coll.key, posters, allTypes,
+        (d, _t) => setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: totalDone + d, total: enabledTotal } })))
+      totalDone   += collRes.done
+      totalFailed += collRes.failed
+      allAppliedUrls.push(...collRes.appliedUrls)
+      allAppliedSlots.push(...collRes.appliedSlots)
+      if (collRes.done > 0) {
+        void recordAppliedQuietly({
+          itemKey: coll.key, title: coll.title, type: 'collection',
+          source: 'mediux', thumb: posters[0].thumbUrl ?? posters[0].url,
+          setId: s.id, uploader: s.uploader,
+          posterUrls: collRes.appliedUrls, slots: collRes.appliedSlots, appliedAt: new Date().toISOString(),
+        })
       }
     }
 

@@ -4,7 +4,7 @@ import { MediuxScraper } from './mediuxScraper'
 import { BaseScraper } from './baseScraper'
 import { Logger } from '../services/logger'
 import { ConfigService } from '../services/config'
-import type { PosterInfo, ScrapeProgress } from '../ipc/types'
+import type { PosterInfo, PosterSetSummary, ScrapeProgress } from '../ipc/types'
 import { classifyUrl, type ScraperSource } from './urlSource'
 
 export { classifyUrl, type ScraperSource }
@@ -167,6 +167,35 @@ export const ScraperFactory = {
       // a long-lived container keeps an idle Chromium around.
       if (--_browsesInFlight === 0) await scraper.close().catch(() => {})
     }
+  },
+
+  /**
+   * Reads the sets behind a ThePosterDB link the user attached to a title.
+   *
+   * @param url - Set, poster, or title page link.
+   * @param title - Plex title the posters are classified against.
+   * @param year - Its release year, when known.
+   * @param type - Movie, show, or collection.
+   * @returns The sets; throws with the reason when the link cannot be used.
+   */
+  async linkPosterdb(url: string, title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterSetSummary[]> {
+    const scraper = (_browsePosterdb ??= new PosterdbScraper())
+    _browsesInFlight++
+    try {
+      return await scraper.linkSets(url, title, year, type)
+    } finally {
+      if (--_browsesInFlight === 0) await scraper.close().catch(() => {})
+    }
+  },
+
+  /**
+   * Reads the sets behind a MediUX link the user attached to a title.
+   *
+   * @param url - Set, boxset, movie, or show page link.
+   * @returns The sets; throws with the reason when the link cannot be used.
+   */
+  async linkMediux(url: string): Promise<PosterSetSummary[]> {
+    return getMediux().linkSets(url)
   },
 
   async browseMediuxCollection(

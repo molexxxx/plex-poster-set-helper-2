@@ -10,6 +10,7 @@ import { SchedulerService } from '../services/schedulerService'
 import { PlaywrightService } from '../services/playwrightService'
 import { CreatorSetsService } from '../services/creatorSetsService'
 import { ShowStatusService } from '../services/showStatusService'
+import { LinkedSetsService } from '../services/linkedSets'
 import { appEvents } from '../runtime/events'
 import { getAppVersion, isContainerEnv, isWebMode } from '../runtime/runtime'
 import type {
@@ -19,6 +20,7 @@ import type {
   UserSetsSnapshot, CollectionsReq, CollectionSetsReq,
   CreatorSearchReq, MediuxUserSet, AppEnv, UpdateInfo,
   CurrentArtReq, ClearCachesRes, AppliedRecord, PosterSetSummary,
+  LinkedSetsReq, LinkSetReq, UnlinkSetReq,
 } from '../ipc/types'
 import { mergeAppliedRecords } from '../services/scheduleUtils'
 import { browseOutcome, type SourceResult } from '../services/browseSets'
@@ -235,6 +237,9 @@ export const handlers = {
       }
     },
     currentArt: (req: CurrentArtReq) => PlexService.getCurrentArt(req),
+    linkedSets: (req: LinkedSetsReq) => LinkedSetsService.resolve(req.item, req.fresh),
+    linkSet: (req: LinkSetReq) => LinkedSetsService.link(req.item, req.url),
+    unlinkSet: (req: UnlinkSetReq) => LinkedSetsService.unlink(req.itemKey, req.url),
   },
 
   scrape: {
@@ -384,8 +389,9 @@ export const handlers = {
       ShowStatusService.clearDisk()
       PlexService.clearGridCaches()
       resetPosterdbCaches()
+      LinkedSetsService.clearCache()
       Logger.info('App', 'Cached data cleared')
-      return { cleared: ['Creator catalogs', 'Series statuses', 'Library listings', 'ThePosterDB title matches'] }
+      return { cleared: ['Creator catalogs', 'Series statuses', 'Library listings', 'ThePosterDB title matches', 'Linked set pages'] }
     },
   },
 

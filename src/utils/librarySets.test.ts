@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { PosterInfo, PosterSetSummary, SetSource } from '../../electron/ipc/types'
 import { ALL_TYPES, type FileType } from './posterGroups'
-import { arrangeSets, byPopularity, uploaderValue } from './librarySets'
+import { arrangeSets, byPopularity, mergeLinkedSets, uploaderValue } from './librarySets'
 import type { CreatorState } from './creatorPrefs'
 
 function poster(extra: Partial<PosterInfo> = {}): PosterInfo
@@ -124,5 +124,25 @@ describe('byPopularity', () =>
     const order = [ranked(bob, 0), ranked(alice, 1)].sort(byPopularity)
     const out = arrangeSets(order, options())
     expect(out.visibleSets.map(s => s.uploader)).toEqual(['alice', 'bob'])
+  })
+})
+
+describe('linked sets', () =>
+{
+  const linkedCarol = { ...set('5', 'posterdb', 'carol', [poster({ source: 'posterdb' })]), linkedFrom: 'https://theposterdb.com/set/5' }
+
+  it('lists linked sets first and keeps them when their creator is hidden', () =>
+  {
+    const out = arrangeSets([...sets, linkedCarol], options())
+    expect(out.visibleSets.map(s => s.id)).toEqual(['5', '1', '2', '4'])
+    expect(out.hiddenCount).toBe(1)
+    expect(out.uploaders.map(u => u.value)).toContain('posterdb:carol')
+  })
+
+  it('merges linked sets ahead of found ones without repeating a set', () =>
+  {
+    const again = set('5', 'posterdb', 'carol', [poster({ source: 'posterdb' })])
+    expect(mergeLinkedSets([linkedCarol], [alice, again, bob]).map(s => s.id)).toEqual(['5', '1', '2'])
+    expect(mergeLinkedSets([], [alice])).toEqual([alice])
   })
 })

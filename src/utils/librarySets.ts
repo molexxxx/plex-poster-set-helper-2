@@ -1,5 +1,5 @@
 import type { PosterSetSummary, SetSource } from '../../electron/ipc/types'
-import { posterFileType, SOURCE_SHORT, type FileType } from './posterGroups'
+import { posterFileType, setKey, SOURCE_SHORT, type FileType } from './posterGroups'
 import type { CreatorState } from './creatorPrefs'
 
 /**
@@ -40,7 +40,7 @@ export interface ArrangedSets {
   uploaders: UploaderOption[]
   /** The chosen uploader, or "all" when the choice is no longer in the list. */
   activeUploader: string
-  /** Followed creators first, revealed hidden sets last, otherwise arrival order. */
+  /** Linked sets first, then followed creators, revealed hidden sets last, otherwise arrival order. */
   visibleSets: PosterSetSummary[]
   /** Sets kept back by hidden creators, among those the other filters allow. */
   hiddenCount: number
@@ -65,6 +65,21 @@ export function byPopularity(a: PosterSetSummary, b: PosterSetSummary): number {
 }
 
 /**
+ * Joins the sets read from a title's links with the ones the sites found for
+ * it. Linked sets come first; a found set that is also linked is dropped so
+ * the list never shows it twice.
+ *
+ * @param linked - Sets read from the title's links.
+ * @param found - Sets the sites returned.
+ * @returns One list, linked first.
+ */
+export function mergeLinkedSets(linked: PosterSetSummary[], found: PosterSetSummary[]): PosterSetSummary[] {
+  if (!linked.length) return found
+  const keys = new Set(linked.map(setKey))
+  return [...linked, ...found.filter(s => !keys.has(setKey(s)))]
+}
+
+/**
  * Applies the sets panel's filters and the creator preferences to a title's
  * sets, in one place so the dropdown, the list and the hidden count always
  * agree.
@@ -82,9 +97,13 @@ export function arrangeSets(sets: PosterSetSummary[], opts: ArrangeOptions): Arr
 
   const byValue = new Map<string, { s: PosterSetSummary; rank: number }>()
   const sitesByName = new Map<string, Set<SetSource>>()
+  // A linked set is the user's own choice: it shows whatever its creator's
+  // state, and ahead of everything else.
+  const hidden = (s: PosterSetSummary) => stateOf(s) === 'hidden' && !s.linkedFrom
+  const rankOf = (s: PosterSetSummary) => s.linkedFrom ? -1 : RANK[stateOf(s)]
   for (const s of sourceSets) {
     const st = stateOf(s)
-    if (st === 'hidden' && !opts.showHidden) continue
+    if (hidden(s) && !opts.showHidden) continue
     const value = uploaderValue(s)
     const rank = RANK[st]
     const prev = byValue.get(value)
@@ -106,9 +125,9 @@ export function arrangeSets(sets: PosterSetSummary[], opts: ArrangeOptions): Arr
   // Sets with nothing to apply under the type chips are dropped, so the chips
   // narrow the list instead of only dimming art.
   const matching = byUploader.filter(s => s.posters.some(p => opts.types.has(posterFileType(p))))
-  const hiddenCount = matching.filter(s => stateOf(s) === 'hidden').length
-  const shown = opts.showHidden ? matching : matching.filter(s => stateOf(s) !== 'hidden')
-  const visibleSets = [...shown].sort((a, b) => RANK[stateOf(a)] - RANK[stateOf(b)])
+  const hiddenCount = matching.filter(hidden).length
+  const shown = opts.showHidden ? matching : matching.filter(s => !hidden(s))
+  const visibleSets = [...shown].sort((a, b) => rankOf(a) - rankOf(b))
 
   return { sourceCounts, activeSource, sourceSets, uploaders, activeUploader, visibleSets, hiddenCount }
 }

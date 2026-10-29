@@ -656,3 +656,182 @@ describe('PosterdbScraper.browseSets', () =>
     expect(newContext).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('pickSearchHits', () =>
+{
+  const wants = titleAliases('Marvel Cinematic Universe', 'collection')
+
+  it('takes every duplicate entry of a title along, best first', () =>
+  {
+    const hits = [
+      hit('1', 'Marvel Cinematic universe'), hit('2', 'Marvel Cinematic Universe'), hit('3', 'Marvel Knights'),
+      hit('4', 'Marvel Cinematic Universe (Collection)'), hit('5', 'Marvel Cinematic Universe Collection'),
+    ]
+    expect(mod.pickSearchHits(hits, wants).map(h => h.mediaId)).toEqual(['1', '2', '4', '5'])
+  })
+
+  it('keeps only duplicates that share the chosen year', () =>
+  {
+    const dune = titleAliases('Dune', 'movie')
+    const hits = [hit('1', 'Dune', 1984), hit('2', 'Dune', 2021), hit('3', 'Dune', 2021), hit('4', 'Dune')]
+    expect(mod.pickSearchHits(hits, dune, 2021).map(h => h.mediaId)).toEqual(['2', '3'])
+    expect(mod.pickSearchHits(hits, dune, 1984).map(h => h.mediaId)).toEqual(['1'])
+    expect(mod.pickSearchHits([hit('3', 'Dune: Part Two', 2024)], dune)).toEqual([])
+  })
+
+  it('caps how many entries are read', () =>
+  {
+    const hits = Array.from({ length: 9 }, (_, i) => hit(String(i), 'Marvel Cinematic Universe'))
+    expect(mod.pickSearchHits(hits, wants)).toHaveLength(6)
+  })
+})
+
+describe('page markers and link types', () =>
+{
+  const EMPTY_MEDIA = '<html><head><title>Marvel Cinematic universe | The Poster Database (TPDb)</title></head><body>' +
+    '<p class="h2 text-center pt-4">Either no posters have been made for this item, or they\'ve all been filtered out.</p></body></html>'
+
+  it('tells an empty media page from a challenge page', () =>
+  {
+    expect(mod.isMediaPage(cheerio.load(EMPTY_MEDIA))).toBe(true)
+    expect(mod.isMediaPage(cheerio.load(mediaPage([{ id: 'a', caption: 'Dune (2021)' }])))).toBe(true)
+    expect(mod.isMediaPage(cheerio.load('<html><head><title>Just a moment...</title></head><body></body></html>'))).toBe(false)
+  })
+
+  it('reads the parent set of a poster page', () =>
+  {
+    expect(mod.parentSetId(cheerio.load('<a class="btn" href="https://theposterdb.com/set/4475" data-toggle="tooltip" title="View Set Page">Set</a>'))).toBe('4475')
+    expect(mod.parentSetId(cheerio.load('<a class="rounded view_all" href="/set/77">all</a>'))).toBe('77')
+    expect(mod.parentSetId(cheerio.load('<div id="main_poster_container"></div>'))).toBe('')
+  })
+
+  it('classifies title pages apart from the requests listing', () =>
+  {
+    expect(mod.posterdbUrlType('https://theposterdb.com/posters/1993')).toBe('media')
+    expect(mod.posterdbUrlType('https://theposterdb.com/posters/requests')).toBe('unknown')
+    expect(mod.posterdbUrlType('https://theposterdb.com/poster/9772')).toBe('poster')
+  })
+})
+
+describe('PosterdbScraper.browseSets across duplicate entries', () =>
+{
+  const SEARCH = searchUrl('Marvel Cinematic Universe', 'collections')
+  const EMPTY = `${BASE}/posters/2711312`
+  const FULL = `${BASE}/posters/1993`
+  const OTHER = `${BASE}/posters/3233991`
+  const EMPTY_PAGE = '<html><head><title>Marvel Cinematic universe | The Poster Database (TPDb)</title></head><body>' +
+    '<p class="h2 text-center pt-4">Either no posters have been made for this item, or they\'ve all been filtered out.</p></body></html>'
+  const mcu = (id: string, uploader: string, setId: string): CardSpec =>
+    ({ id, caption: 'Marvel Cinematic Universe', type: 'collection', uploader, setId })
+
+  it('merges the sets of every same-titled entry and names the fullest page', async () =>
+  {
+    const fetchMock = serve({
+      [SEARCH]: searchPage('Marvel Cinematic Universe', [hit('2711312', 'Marvel Cinematic universe'), hit('1993', 'Marvel Cinematic Universe'), hit('5', 'Marvel Knights')]),
+      [EMPTY]: EMPTY_PAGE,
+      [FULL]: mediaPage([mcu('r1', 'red', '4475')]),
+      [profileUrl('red')]: profilePage(CUSTOM_AVATAR),
+    })
+    const scraper = new PosterdbScraper()
+    const browser = fakeBrowser(scraper, () => '')
+
+    const result = await scraper.browseSets('Marvel Cinematic Universe', undefined, 'collection')
+
+    expect(result.sets.map(s => s.id)).toEqual(['4475'])
+    expect(result.sets[0].posters[0].isCollection).toBe(true)
+    expect(result.mediaUrl).toBe(FULL)
+    expect(result.capped).toBe(false)
+    expect(requests(fetchMock, EMPTY)).toBe(1)
+    expect(requests(fetchMock, FULL)).toBe(1)
+    // An entry with no posters is a real answer, not a page that failed to render.
+    expect(browser).not.toHaveBeenCalled()
+  })
+
+  it('lists a set that two entries share once', async () =>
+  {
+    serve({
+      [SEARCH]: searchPage('Marvel Cinematic Universe', [hit('3233991', 'Marvel Cinematic Universe'), hit('1993', 'Marvel Cinematic Universe')]),
+      [OTHER]: mediaPage([mcu('o1', 'alice', '10')]),
+      [FULL]: mediaPage([mcu('f1', 'alice', '10'), mcu('f2', 'bob', '20')]),
+      [profileUrl('alice')]: profilePage(CUSTOM_AVATAR),
+      [profileUrl('bob')]: profilePage(STOCK_AVATAR),
+    })
+    const scraper = new PosterdbScraper()
+    fakeBrowser(scraper, () => '')
+
+    const result = await scraper.browseSets('Marvel Cinematic Universe', undefined, 'collection')
+
+    expect(result.sets.map(s => s.id)).toEqual(['10', '20'])
+    expect(result.mediaUrl).toBe(FULL)
+  })
+})
+
+describe('PosterdbScraper.linkSets', () =>
+{
+  const SET = `${BASE}/set/4475`
+  const POSTER = `${BASE}/poster/9772`
+  const POSTER_PAGE = `<html><head><title>Marvel Cinematic Universe - RedHeadJedi | The Poster Database (TPDb)</title></head><body>` +
+    `<a href="${BASE}/api/assets/9772/view" id="main_poster_container"></a>` +
+    `<a class="btn" href="${SET}" data-toggle="tooltip" title="View Set Page">View Set Page</a></body></html>`
+  const SET_PAGE = setPage('Marvel Cinematic Universe', 'red', [
+    { id: 'r1', caption: 'Marvel Cinematic Universe', type: 'collection', uploader: 'red', setId: '4475', size: 3 },
+    { id: 'r2', caption: 'Iron Man (2008)', uploader: 'red', setId: '4475', size: 3 },
+    { id: 'r3', caption: 'Robert Downey Jr.', type: 'person', uploader: 'red', setId: '4475', size: 3 },
+  ])
+
+  it('reads a set page and classifies it against the title', async () =>
+  {
+    serve({ [SET]: SET_PAGE, [profileUrl('red')]: profilePage(CUSTOM_AVATAR) })
+    const scraper = new PosterdbScraper()
+    fakeBrowser(scraper, () => '')
+
+    const sets = await scraper.linkSets(SET, 'Marvel Cinematic Universe', undefined, 'collection')
+
+    expect(sets).toHaveLength(1)
+    expect(sets[0]).toMatchObject({ id: '4475', source: 'posterdb', setName: 'Marvel Cinematic Universe', uploader: 'red', setUrl: SET, uploaderAvatar: CUSTOM_AVATAR_URL, posterCount: 2 })
+    expect(sets[0].posters.map(p => [p.title, p.isCollection, p.isCollectionMember])).toEqual([
+      ['Marvel Cinematic Universe', true, undefined], ['Iron Man', undefined, true],
+    ])
+  })
+
+  it('follows a poster page to its set', async () =>
+  {
+    const fetchMock = serve({ [POSTER]: POSTER_PAGE, [SET]: SET_PAGE, [profileUrl('red')]: profilePage(CUSTOM_AVATAR) })
+    const scraper = new PosterdbScraper()
+    fakeBrowser(scraper, () => '')
+
+    const sets = await scraper.linkSets(POSTER, 'Iron Man', 2008, 'movie')
+
+    expect(sets.map(s => s.id)).toEqual(['4475'])
+    expect(sets[0].posters.map(p => [p.title, p.isCollectionMember])).toEqual([['Marvel Cinematic Universe', undefined], ['Iron Man', undefined]])
+    expect(requests(fetchMock, POSTER)).toBe(1)
+  })
+
+  it('refuses a poster that is in no set, a profile, and pages it does not read', async () =>
+  {
+    serve({ [POSTER]: `<html><head><title>x | TPDb</title></head><body><a href="${BASE}/api/assets/9772/view" id="main_poster_container"></a></body></html>` })
+    const scraper = new PosterdbScraper()
+    fakeBrowser(scraper, () => '')
+
+    await expect(scraper.linkSets(POSTER, 'X', undefined, 'movie')).rejects.toThrow(/not part of a set/)
+    await expect(scraper.linkSets(`${BASE}/user/red`, 'X', undefined, 'movie')).rejects.toThrow(/profile/)
+    await expect(scraper.linkSets(`${BASE}/about`, 'X', undefined, 'movie')).rejects.toThrow(/Not a ThePosterDB/)
+  })
+
+  it('reads every set on a title page', async () =>
+  {
+    serve({
+      [`${BASE}/posters/1993`]: mediaPage([
+        { id: 'a1', caption: 'Marvel Cinematic Universe', type: 'collection', uploader: 'alice', setId: '10' },
+        { id: 'b1', caption: 'Marvel Cinematic Universe', type: 'collection', uploader: 'bob', setId: '20' },
+      ]),
+      [profileUrl('alice')]: profilePage(CUSTOM_AVATAR),
+      [profileUrl('bob')]: profilePage(STOCK_AVATAR),
+    })
+    const scraper = new PosterdbScraper()
+    fakeBrowser(scraper, () => '')
+
+    const sets = await scraper.linkSets(`${BASE}/posters/1993`, 'Marvel Cinematic Universe', undefined, 'collection')
+    expect(sets.map(s => s.id)).toEqual(['10', '20'])
+  })
+})

@@ -1,7 +1,7 @@
 import type { IpcMain, BrowserWindow } from 'electron'
 import { handlers } from '../handlers'
 import { appEvents } from '../runtime/events'
-import type { SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk } from './types'
+import type { SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk, LinkedSetsReq, LinkSetReq, UnlinkSetReq } from './types'
 
 export function registerLibraryHandlers(ipcMain: IpcMain, win?: BrowserWindow) {
   if (win) {
@@ -20,4 +20,7 @@ export function registerLibraryHandlers(ipcMain: IpcMain, win?: BrowserWindow) {
   ipcMain.handle('library:refreshUserSets', (_e, req: UserSetsReq) => handlers.library.refreshUserSets(req))
   ipcMain.handle('library:creatorSearch', (_e, req: CreatorSearchReq) => handlers.library.creatorSearch(req))
   ipcMain.handle('library:currentArt', (_e, req: CurrentArtReq) => handlers.library.currentArt(req))
+  ipcMain.handle('library:linkedSets', (_e, req: LinkedSetsReq) => handlers.library.linkedSets(req))
+  ipcMain.handle('library:linkSet', (_e, req: LinkSetReq) => handlers.library.linkSet(req))
+  ipcMain.handle('library:unlinkSet', (_e, req: UnlinkSetReq) => handlers.library.unlinkSet(req))
 }

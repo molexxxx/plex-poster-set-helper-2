@@ -212,6 +212,9 @@ export async function startServer() {
       year: q.year ? parseInt(q.year, 10) : undefined,
     })
   })
+  app.post('/api/library/linked-sets', async (req) => handlers.library.linkedSets(req.body as Parameters<typeof handlers.library.linkedSets>[0]))
+  app.post('/api/library/link-set', async (req) => handlers.library.linkSet(req.body as Parameters<typeof handlers.library.linkSet>[0]))
+  app.post('/api/library/unlink-set', async (req) => { handlers.library.unlinkSet(req.body as Parameters<typeof handlers.library.unlinkSet>[0]); return { ok: true } })
 
   // Scrape
   app.post('/api/scrape/url', async (req) => handlers.scrape.url(req.body as Parameters<typeof handlers.scrape.url>[0]))

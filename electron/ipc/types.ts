@@ -171,6 +171,8 @@ export interface AppConfig {
   posterdbSubscriptions?: string[]
   /** Creators whose sets the Library Browser tucks away behind a "Show" toggle. */
   hiddenCreators?: HiddenCreator[]
+  /** Set links the user attached to library items, by Plex ratingKey. */
+  linkedSets?: Record<string, string[]>
   /** Local history of applied poster sets (source of truth for Reset). */
   appliedPosters?: AppliedRecord[]
   /** Show the "minimized to tray" notification (default true). */
@@ -557,6 +559,43 @@ export interface PosterSetSummary {
    * order is the rank; MediUX ranks by `downloads`.
    */
   popularityRank?: number
+  /**
+   * The link the user attached to this title that the set was read from.
+   * Linked sets list first, stay visible when their creator is hidden, and
+   * can be unlinked again.
+   */
+  linkedFrom?: string
+}
+
+/** The Plex item a pasted set link is attached to. */
+export interface LinkedItemRef {
+  key: string
+  type: 'movie' | 'show' | 'collection'
+  title: string
+  year?: number
+}
+
+export interface LinkedSetsReq {
+  item: LinkedItemRef
+  /** Re-read every link instead of using the remembered sets. */
+  fresh?: boolean
+}
+
+export interface LinkSetReq {
+  item: LinkedItemRef
+  /** A MediUX set, boxset, movie, or show page, or a ThePosterDB set, poster, or title page. */
+  url: string
+}
+
+export interface UnlinkSetReq {
+  itemKey: string
+  url: string
+}
+
+export interface LinkedSetsRes {
+  sets: PosterSetSummary[]
+  /** Links that could not be read, each with the reason; `sets` lacks theirs. */
+  errors?: Array<{ url: string; error: string }>
 }
 
 export interface BrowseSetsReq {
@@ -791,4 +830,7 @@ export type IpcChannels = {
   'library:userSetsChunk':   { event: UserSetsChunk }
   'library:creatorSearch':   { req: CreatorSearchReq; res: UserSetsRes }
   'library:currentArt':      { req: CurrentArtReq; res: CurrentArtRes }
+  'library:linkedSets':      { req: LinkedSetsReq; res: LinkedSetsRes }
+  'library:linkSet':         { req: LinkSetReq; res: LinkedSetsRes }
+  'library:unlinkSet':       { req: UnlinkSetReq; res: void }
 }

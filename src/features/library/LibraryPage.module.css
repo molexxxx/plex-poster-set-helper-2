@@ -2045,3 +2045,90 @@
   font-size: var(--text-xs);
   color: var(--color-accent-error);
 }
+
+/* -- Linked sets and poster picks ------------------------------------------ */
+
+.panelActionOn { color: var(--color-accent); }
+
+.linkRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+  flex-shrink: 0;
+}
+.linkHint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+.linkUrl { word-break: break-all; color: var(--color-text-secondary); }
+
+.linkedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.unlinkAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
+.unlinkAction:hover { color: var(--color-accent-error); background: rgba(255, 255, 255, 0.06); }
+.unlinkAction:focus-visible { outline: 2px solid var(--color-accent-border); outline-offset: 1px; }
+
+/* A group whose posters compete for one Plex slot says so and lets the user pick. */
+.groupHint {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+
+.groupThumbWrap { position: relative; }
+.groupThumbWrap .groupThumb { width: 100%; }
+.groupThumbSelected .groupThumb { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+.groupThumbPassed .groupThumb img { opacity: 0.55; transition: opacity var(--duration-fast); }
+.groupThumbPassed .groupThumb:hover img { opacity: 0.9; }
+
+.pickBtn {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
+.pickBtn:hover { background: rgba(0, 0, 0, 0.85); color: var(--color-accent-hover); }
+.pickBtn:focus-visible { outline: 2px solid var(--color-accent-border); outline-offset: 1px; }
+.pickBtnOn { color: var(--color-accent); }

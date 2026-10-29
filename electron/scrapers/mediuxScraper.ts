@@ -828,6 +828,32 @@ export class MediuxScraper extends BaseScraper {
   }
 
   /**
+   * Reads the sets behind a link the user attached to a title: one set, a
+   * boxset's sets, or every set on a movie or show page.
+   *
+   * @param url - MediUX link.
+   * @returns The sets, ready for the Library Browser.
+   * @throws When the link is a creator page or not a page the app reads, or the page has no set data.
+   */
+  async linkSets(url: string): Promise<PosterSetSummary[]> {
+    const titlePage = /\/(movies|shows)\/(\d+)/.exec(url)
+    if (titlePage) return this.browseSets(titlePage[2], titlePage[1] === 'movies' ? 'movie' : 'show')
+    if (/\/user\//.test(url)) throw new Error('A creator page lists every set they made; open it from the Creators tab, or link one set, a boxset, or a title page here')
+    const set = /\/sets\/(\d+)/.exec(url)
+    if (!set && !/\/boxsets\/\d+/.test(url)) throw new Error('Not a MediUX set, boxset, movie, or show page link')
+
+    const result = await this._fetchSets(url, 25_000, true)
+    if (!result?.sets.length) throw new Error('No set data found at that link')
+    const own = set ? result.sets.filter(s => String(s.id) === set[1]) : result.sets
+    const sets = await this._enrichCollectionSets(own.length ? own : result.sets)
+    const allTypes = new Set(['poster', 'backdrop', 'title_card'])
+    return sets.map(s => ({
+      ...setToSummary(s, allTypes, { ...result.fallback, ...deriveSetFallback(s) }),
+      downloads: setDownloads(s),
+    }))
+  }
+
+  /**
    * Lists one page of a creator's sets with a parsed title/year per set so the
    * caller can match them against the Plex library. matchedKey is filled in
    * later by the library handler.

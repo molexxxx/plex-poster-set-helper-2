@@ -30,6 +30,7 @@ const DEFAULTS: AppConfig = {
   mediuxSubscriptions: [],
   posterdbSubscriptions: [],
   hiddenCreators: [],
+  linkedSets: {},
   appliedPosters: [],
   trayNotice: true,
   excludedLibraries: [],
