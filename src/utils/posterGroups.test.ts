@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { posterFileType, groupPosters, setKey, ALL_TYPES, collectionName, variantKey, variantClusters, resolveVariants } from './posterGroups'
+import { posterFileType, groupPosters, setKey, ALL_TYPES, collectionName, variantKey, variantClusters, resolveVariants, memberKey, moviesInLibrary, posterPageUrl, defaultSetApplyScope } from './posterGroups'
 import type { PosterInfo } from '../../electron/ipc/types'
 
 function p(overrides: Partial<PosterInfo> = {}): PosterInfo {
@@ -152,5 +152,52 @@ describe('variants: one poster per Plex slot', () => {
     const out = resolveVariants([hp, fb, m1, m1b, m2], 'title')
     expect(out.map(x => x.url)).toEqual(['hp.jpg', 'fb.jpg', 'm1.jpg', 'm2.jpg'])
     expect([...variantClusters([m1, m1b, m2], 'title').values()].map(c => c.length)).toEqual([2, 1])
+  })
+})
+
+describe('moviesInLibrary', () => {
+  // A ThePosterDB collection set browsed from one of its movies: the viewed
+  // title's poster is plain, the sibling is a member the library lacks.
+  const coll = p({ url: 'c.jpg', title: 'Enchanted Collection', isCollection: true, source: 'posterdb' })
+  const enchanted = p({ url: 'e.jpg', title: 'Enchanted', year: 2007, source: 'posterdb' })
+  const disenchanted = p({ url: 'd.jpg', title: 'Disenchanted', year: 2022, source: 'posterdb', isCollectionMember: true })
+  const notViewed = () => false
+
+  it('counts the viewed title when the set carries a plain poster for it', () => {
+    expect(moviesInLibrary([coll, enchanted, disenchanted], 'title', notViewed, () => false)).toBe(1)
+    expect(defaultSetApplyScope(true, 1)).toEqual({ movies: 'this', collectionPoster: true })
+  })
+
+  it('counts siblings only when they are in the library', () => {
+    const inLib = (k: string) => k === memberKey(disenchanted)
+    expect(moviesInLibrary([coll, enchanted, disenchanted], 'title', notViewed, inLib)).toBe(2)
+  })
+
+  it('counts a viewed member poster once, however it was tagged', () => {
+    const m = p({ url: 'm.jpg', title: 'Toy Story', tmdbId: '862', isCollectionMember: true })
+    const other = p({ url: 'o.jpg', title: 'Toy Story 2', tmdbId: '863', isCollectionMember: true })
+    const viewed = (x: PosterInfo) => x.tmdbId === '862'
+    expect(moviesInLibrary([m, other], 'title', viewed, () => true)).toBe(2)
+    expect(moviesInLibrary([m, other], 'title', viewed, () => false)).toBe(1)
+  })
+
+  it('ignores collection art and counts only library members from a collection view', () => {
+    const inLib = (k: string) => k === memberKey(disenchanted)
+    expect(moviesInLibrary([coll, enchanted, disenchanted], 'collection', notViewed, inLib)).toBe(1)
+    expect(moviesInLibrary([coll], 'title', notViewed, () => true)).toBe(0)
+  })
+})
+
+describe('posterPageUrl', () => {
+  it('links a ThePosterDB poster to its own page', () => {
+    const tpdb = p({ source: 'posterdb', url: 'https://theposterdb.com/api/assets/289863' })
+    expect(posterPageUrl(tpdb, 'https://theposterdb.com/set/1')).toBe('https://theposterdb.com/poster/289863')
+  })
+
+  it('links a MediUX poster to its set, and nothing when no page is known', () => {
+    const mx = p({ source: 'mediux', url: 'https://api.mediux.pro/assets/abc' })
+    expect(posterPageUrl(mx, 'https://mediux.pro/sets/9')).toBe('https://mediux.pro/sets/9')
+    expect(posterPageUrl(mx)).toBeUndefined()
+    expect(posterPageUrl(p({ source: 'posterdb', url: 'https://example.com/x.jpg' }))).toBeUndefined()
   })
 })

@@ -1083,7 +1083,36 @@
   accent-color: var(--color-accent);
 }
 
-.setActions { margin-top: auto; display: flex; align-items: center; gap: var(--space-2); }
+.setActions { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+/* Opens the set on its site; pushed to the end of the actions row. */
+.openSetBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color var(--duration-fast), border-color var(--duration-fast), background var(--duration-fast);
+}
+.openSetBtn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+}
+.openSetBtn:focus-visible { outline: 2px solid var(--color-accent-border); outline-offset: 1px; }
+
+.scopeNote {
+  padding-left: 26px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
 
 /* Full-width expand affordance - clearly visible */
 .setExpandBar {
@@ -2132,3 +2161,33 @@
 .pickBtn:hover { background: rgba(0, 0, 0, 0.85); color: var(--color-accent-hover); }
 .pickBtn:focus-visible { outline: 2px solid var(--color-accent-border); outline-offset: 1px; }
 .pickBtnOn { color: var(--color-accent); }
+
+/* Opens the poster on its site. Shown while the thumb is hovered or the
+   link has focus, and always on touch screens, which cannot hover. */
+.thumbLink {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.65);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast), color var(--duration-fast), background var(--duration-fast);
+}
+.groupThumbWrap:hover .thumbLink,
+.thumbLink:focus-visible { opacity: 1; }
+.thumbLink:hover { background: rgba(0, 0, 0, 0.85); color: var(--color-accent-hover); }
+.thumbLink:focus-visible { outline: 2px solid var(--color-accent-border); outline-offset: 1px; }
+
+@media (hover: none) {
+  .thumbLink { opacity: 1; }
+}

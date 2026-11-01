@@ -109,6 +109,63 @@ export function collectionName(s: string): string {
 }
 
 /**
+ * Identifies the movie a collection-member poster targets.
+ *
+ * @param p - A collection-member poster.
+ * @returns Its TMDB id, else its lowercased title and year.
+ */
+export function memberKey(p: PosterInfo): string {
+  return p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`
+}
+
+/**
+ * Counts the library titles a set's movie posters reach. From a title view
+ * that is the viewed title when the set carries art for it, plus each sibling
+ * movie found in the library; from a collection view, each member movie
+ * found in the library.
+ *
+ * @param posters - Posters from one set.
+ * @param context - Whether a collection or a title is being viewed.
+ * @param isViewed - Whether a member poster targets the viewed title.
+ * @param inLibrary - Whether the movie behind a memberKey is in the library.
+ * @returns The count the movie apply scope is built from.
+ */
+export function moviesInLibrary(
+  posters: PosterInfo[],
+  context: ApplyContext,
+  isViewed: (p: PosterInfo) => boolean,
+  inLibrary: (key: string) => boolean,
+): number {
+  const siblings = new Set<string>()
+  let viewed = false
+  for (const p of posters) {
+    if (p.isCollection) continue
+    if (context === 'title' && (!p.isCollectionMember || isViewed(p))) {
+      viewed = true
+      continue
+    }
+    if (p.isCollectionMember && inLibrary(memberKey(p))) siblings.add(memberKey(p))
+  }
+  return siblings.size + (viewed ? 1 : 0)
+}
+
+/**
+ * The page a poster can be viewed on at its site. ThePosterDB has a page per
+ * poster; a MediUX poster links to the page of its set.
+ *
+ * @param p - The poster.
+ * @param setUrl - The page of the set the poster came from.
+ * @returns The page, or undefined when none is known.
+ */
+export function posterPageUrl(p: PosterInfo, setUrl?: string): string | undefined {
+  if (p.source === 'posterdb') {
+    const id = /\/api\/assets\/(\d+)/.exec(p.url)?.[1]
+    if (id) return `https://theposterdb.com/poster/${id}`
+  }
+  return setUrl
+}
+
+/**
  * Names the Plex slot a poster fills: which item it lands on (the viewed
  * one, a member movie, or a collection) and which art slot there. Posters
  * sharing a key would overwrite each other, so only one of them is applied.
@@ -121,7 +178,7 @@ export function variantKey(p: PosterInfo, context: ApplyContext): string {
   const target = p.isCollection
     ? (context === 'collection' ? 'collection' : `collection:${collectionName(p.title)}`)
     : p.isCollectionMember
-      ? `member:${p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`}`
+      ? `member:${memberKey(p)}`
       : 'self'
   return `${target}|${posterSlot(p)}`
 }

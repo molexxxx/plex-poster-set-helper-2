@@ -10,7 +10,7 @@ import Spinner from '../../components/ui/Spinner'
 import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
 import Pager from '../../components/ui/Pager'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
-import { groupPosters, posterFileType, setKey, ALL_TYPES, SOURCE_LABEL, SOURCE_SHORT, defaultSetApplyScope, collectionName, variantKey, variantClusters, defaultVariant, resolveVariants, type ApplyContext, type FileType, type SetApplyScope, type SetSource } from '../../utils/posterGroups'
+import { groupPosters, posterFileType, setKey, ALL_TYPES, SOURCE_LABEL, SOURCE_SHORT, defaultSetApplyScope, collectionName, variantKey, variantClusters, defaultVariant, resolveVariants, memberKey, moviesInLibrary, posterPageUrl, type ApplyContext, type FileType, type SetApplyScope, type SetSource } from '../../utils/posterGroups'
 import { useCreatorPrefs, parseCreatorInput, type CreatorState } from '../../utils/creatorPrefs'
 import { arrangeSets, byPopularity, mergeLinkedSets, uploaderValue } from '../../utils/librarySets'
 import { recordApplied, recordAppliedBatch, recordAppliedQuietly, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
@@ -175,16 +175,19 @@ function timeAgo(ts: number): string {
 interface ApplyState { status: 'idle' | 'applying' | 'done' | 'error'; done: number; total: number; error?: string }
 
 /**
- * Error text for a finished apply: upload failures first, then a failure to
- * save the history that drives the Applied badges and filters.
+ * Error text for a finished apply: upload failures first, then targets that
+ * were skipped, then a failure to save the history that drives the Applied
+ * badges and filters.
  *
  * @param failed - Posters that failed to upload.
  * @param historyError - Why the history write failed, if it did.
+ * @param skipped - Why each skipped target was left alone.
  * @returns The text, or undefined when everything went through.
  */
-function applyError(failed: number, historyError?: string): string | undefined {
+function applyError(failed: number, historyError?: string, skipped: string[] = []): string | undefined {
   const parts: string[] = []
   if (failed) parts.push(`${failed} failed`)
+  parts.push(...skipped)
   if (historyError) parts.push(`history not saved: ${historyError}`)
   return parts.length ? parts.join(' · ') : undefined
 }
@@ -948,6 +951,8 @@ function SetsPanel({ item, onClose, onItemPoster }: {
   // tmdbId (or title|year). Resolved with the same findItem the apply uses, so
   // the "N movies" count matches exactly what "apply all" will touch.
   const [memberInLib, setMemberInLib] = useState<Map<string, boolean>>(new Map())
+  // Whether a Plex Collection exists for each collection poster's name.
+  const [collectionInPlex, setCollectionInPlex] = useState<Map<string, boolean>>(new Map())
   const [appliedIdx, setAppliedIdx] = useState<AppliedIndex>({ setKeys: new Set(), titles: new Set(), posterUrls: new Set(), currentByItem: new Map(), currentPosterUrls: new Set() })
   const [schedJobs, setSchedJobs] = useState<ScheduledJob[]>([])
   const [quickCron, setQuickCron] = useState(DEFAULT_QUICK_CRON)
@@ -1288,7 +1293,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     const unique = new Map<string, { title: string; year?: number; tmdbId?: string }>()
     for (const s of allSets) for (const p of s.posters) {
       if (!p.isCollectionMember) continue
-      const k = p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`
+      const k = memberKey(p)
       if (!unique.has(k)) unique.set(k, { title: p.title, year: p.year, tmdbId: p.tmdbId })
     }
     if (unique.size === 0) { setMemberInLib(new Map()); return }
@@ -1319,6 +1324,30 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     })()
     return () => { cancelled = true }
   }, [allSets, item.tmdbId, resolvedTmdbId, isCollectionItem, collectionMembers])
+
+  // Which collection posters have a Plex Collection to land on from a title
+  // view, keyed by collectionName and resolved with the same findCollection
+  // the apply uses. A name not resolved yet counts as present; a collection
+  // view never reads the map, since its target is the viewed collection.
+  useEffect(() => {
+    if (isCollectionItem) return
+    const names = new Map<string, string>()
+    for (const s of allSets) for (const p of s.posters) {
+      if (p.isCollection && !names.has(collectionName(p.title))) names.set(collectionName(p.title), p.title)
+    }
+    if (names.size === 0) return
+    let cancelled = false
+    ;(async () => {
+      const out = new Map<string, boolean>()
+      for (const [name, title] of names) {
+        const found = await window.api.plex.findCollection(title).catch(() => null)
+        if (cancelled) return
+        out.set(name, !!found)
+      }
+      if (!cancelled) setCollectionInPlex(out)
+    })()
+    return () => { cancelled = true }
+  }, [allSets, isCollectionItem])
 
   const creatorOf = useCallback((s: PosterSetSummary) => stateOf(s.source, s.uploader), [stateOf])
 
@@ -1354,14 +1383,42 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     return main ? (main.thumbUrl ?? main.url) : undefined
   }
 
-  /** Stable key for a collection-member poster's movie (matches the memberInLib map). */
-  const memberKey = (p: PosterInfo) => p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`
+  /**
+   * What a set can apply from this view, shared by its card and its apply so
+   * the controls always describe what Apply will do.
+   *
+   * @param s - The set.
+   * @returns The movie counts, the collection-art state, and the scope in effect.
+   */
+  function scopeOf(s: PosterSetSummary) {
+    const context: ApplyContext = isCollectionItem ? 'collection' : 'title'
+    const moviesInLib = moviesInLibrary(s.posters, context, isThisItem, k => !!memberInLib.get(k))
+    const moviesTotal = moviesInLibrary(s.posters, context, isThisItem, () => true)
+    // From a Plex Collection, a set that tags neither collection art nor
+    // member posters has its plain posters applied as the collection's art.
+    const hasCollectionArt = s.posters.some(p => p.isCollection)
+      || (isCollectionItem
+          && !s.posters.some(p => p.isCollectionMember)
+          && s.posters.some(p => !p.isCollection))
+    const collNames = isCollectionItem ? [] : [...new Set(s.posters.filter(p => p.isCollection).map(p => collectionName(p.title)))]
+    const collectionMissing = collNames.length > 0 && collNames.every(n => collectionInPlex.get(n) === false)
+    const defaultScope = defaultSetApplyScope(hasCollectionArt && !collectionMissing, moviesInLib)
+    const picked = collectionScope[setKey(s)] ?? defaultScope
+    return {
+      moviesInLib,
+      moviesTotal,
+      hasCollectionArt,
+      collectionMissing,
+      defaultScope,
+      scope: collectionMissing ? { ...picked, collectionPoster: false } : picked,
+      showScope: hasCollectionArt || moviesInLib > 1 || (isCollectionItem && moviesInLib > 0),
+    }
+  }
 
   async function applySet(s: PosterSetSummary) {
     // Every per-set map is keyed by source, never by the raw id (see setKey).
     const sKey = setKey(s)
-    const memberIds = [...new Set(s.posters.filter(p => p.isCollectionMember).map(p => p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`))]
-    const collectionInLib = memberIds.filter(k => memberInLib.get(k)).length
+    const { scope, showScope } = scopeOf(s)
 
     const collectionArt = s.posters.filter(p => p.isCollection)
     const members       = s.posters.filter(p => p.isCollectionMember)
@@ -1373,8 +1430,6 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     const effectiveCollArt = isCollectionItem && collectionArt.length === 0 && members.length === 0
       ? plain
       : collectionArt
-    const hasCollectionArt = effectiveCollArt.length > 0
-    const scope = collectionScope[sKey] ?? defaultSetApplyScope(hasCollectionArt, collectionInLib)
     const chosen = picks[sKey] ?? {}
 
     if (isCollectionItem) {
@@ -1459,11 +1514,10 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     // never shown for it (see `showScope`); its posters must always apply. Only
     // suppress the viewed item's own art when the scope control is actually
     // present and the user set it to "none".
-    const scopeControllable = hasCollectionArt || collectionInLib > 1
     // One poster per Plex slot (see resolveVariants): two posters for the same
     // slot would otherwise both upload, and the last would win.
     const viewedPosters = resolveVariants(
-      scopeControllable && scope.movies === 'none' ? [] : [...plain, ...members.filter(isThisItem)],
+      showScope && scope.movies === 'none' ? [] : [...plain, ...members.filter(isThisItem)],
       'title', chosen,
     )
     const siblingMembers = resolveVariants(
@@ -1478,6 +1532,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     setApplyMap(m => ({ ...m, [sKey]: { status: 'applying', done: 0, total: enabledTotal } }))
 
     let totalDone = 0, totalFailed = 0
+    const skipped: string[] = []
     const records: AppliedRecord[] = []
     const bump = (d: number) =>
       setApplyMap(m => ({ ...m, [sKey]: { status: 'applying', done: totalDone + d, total: enabledTotal } }))
@@ -1499,7 +1554,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     if (siblingMembers.length > 0) {
       const movieMap = new Map<string, { title: string; year?: number; tmdbId?: string; posters: PosterInfo[] }>()
       for (const p of siblingMembers) {
-        const key = p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`
+        const key = memberKey(p)
         const existing = movieMap.get(key)
         if (existing) existing.posters.push(p)
         else movieMap.set(key, { title: p.title, year: p.year, tmdbId: p.tmdbId, posters: [p] })
@@ -1536,8 +1591,10 @@ function SetsPanel({ item, onClose, onItemPoster }: {
       }
       for (const posters of byCollection.values()) {
         const coll = await window.api.plex.findCollection(posters[0].title) as { key: string; title: string; thumb?: string; libraryTitle?: string } | null
-        // No matching Plex Collection object - skip quietly (the movies still applied).
-        if (!coll) continue
+        if (!coll) {
+          skipped.push(`no Plex collection matches "${posters[0].title}"`)
+          continue
+        }
         const collRes = await applyPosters(coll.key, posters, types, bump)
         totalDone += collRes.done; totalFailed += collRes.failed
         if (collRes.done > 0) {
@@ -1566,7 +1623,11 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     }
     setApplyMap(m => ({
       ...m,
-      [sKey]: { status: totalFailed && !totalDone ? 'error' : 'done', done: totalDone, total: enabledTotal, error: applyError(totalFailed, historyError) },
+      [sKey]: {
+        status: !totalDone && (totalFailed || skipped.length) ? 'error' : 'done',
+        done: totalDone, total: enabledTotal,
+        error: applyError(totalFailed, historyError, skipped),
+      },
     }))
   }
 
@@ -1854,22 +1915,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
               : itemApplied
                 ? <span className={styles.scheduledBadge}><Library size={11} /> Has art</span>
                 : undefined
-          // Distinct movies this set spans, and how many are actually in the
-          // library. The toggle only matters when more than the viewed item is
-          // present, and the label reflects what "apply all" will really touch.
-          const memberIds = [...new Set(s.posters.filter(p => p.isCollectionMember).map(p => p.tmdbId ?? `${p.title.toLowerCase()}|${p.year ?? ''}`))]
-          const collectionTotal = memberIds.length
-          const collectionInLib = memberIds.filter(k => memberInLib.get(k)).length
-          // Mirror the effectiveCollArt logic in applySet: plain posters act as
-          // collection art when viewing from a Plex Collection and the set has no
-          // explicitly-tagged collection art or per-movie member posters.
-          const hasCollectionArt = s.posters.some(p => p.isCollection)
-            || (isCollectionItem
-                && !s.posters.some(p => p.isCollectionMember)
-                && s.posters.some(p => !p.isCollection && !p.isCollectionMember))
-          const applyScope = collectionScope[sKey] ?? defaultSetApplyScope(hasCollectionArt, collectionInLib)
-          const showScope = hasCollectionArt || collectionInLib > 1
-            || (isCollectionItem && memberIds.some(k => memberInLib.get(k)))
+          const { moviesInLib, moviesTotal, hasCollectionArt, collectionMissing, defaultScope, scope: applyScope, showScope } = scopeOf(s)
           const scheduledBy = coveringJob(coverage, s.id, s.uploader, s.source)
           return (
             <SetCard
@@ -1894,15 +1940,16 @@ function SetsPanel({ item, onClose, onItemPoster }: {
               scheduleHint={describeCron(quickCron)}
               scheduleError={scheduleError?.setId === sKey ? scheduleError.message : undefined}
               scheduling={schedulingId === sKey}
-              collectionMovies={collectionInLib}
-              collectionTotal={collectionTotal}
+              collectionMovies={moviesInLib}
+              collectionTotal={moviesTotal}
               hasCollectionArt={hasCollectionArt}
+              collectionMissing={collectionMissing}
               applyScope={showScope ? applyScope : undefined}
               scopeContext={isCollectionItem ? 'collection' : 'movie'}
               onApplyScopeChange={showScope ? (patch) => {
                 setCollectionScope(m => ({
                   ...m,
-                  [sKey]: { ...(m[sKey] ?? defaultSetApplyScope(hasCollectionArt, collectionInLib)), ...patch },
+                  [sKey]: { ...(m[sKey] ?? defaultScope), ...patch },
                 }))
                 setApplyMap(m => { const next = { ...m }; delete next[sKey]; return next })
               } : undefined}
@@ -1939,7 +1986,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
 }
 
 /** Small skeleton-aware thumbnail button used in the SetCard expanded view. */
-function ThumbButton({ url, label, episode, onClick, selectable, selected, onSelect }: {
+function ThumbButton({ url, label, episode, onClick, selectable, selected, onSelect, pageUrl, site }: {
   url: string
   label: string
   episode?: number
@@ -1949,6 +1996,10 @@ function ThumbButton({ url, label, episode, onClick, selectable, selected, onSel
   /** This is the poster that will be applied. */
   selected?: boolean
   onSelect?: () => void
+  /** Where the poster can be viewed on its site; shows an open link on hover. */
+  pageUrl?: string
+  /** The site's display name, for the link's label. */
+  site?: string
 }) {
   const [loaded, setLoaded] = useState(false)
   const thumb = (
@@ -1968,11 +2019,23 @@ function ThumbButton({ url, label, episode, onClick, selectable, selected, onSel
       {episode != null && <span className={styles.epBadge}>E{episode}</span>}
     </button>
   )
-  if (!selectable) return thumb
+  const openLabel = `Open on ${site ?? 'its site'}`
+  const link = pageUrl && (
+    <button
+      className={styles.thumbLink}
+      onClick={() => window.api.app.openExternal(pageUrl)}
+      title={openLabel}
+      aria-label={openLabel}
+    >
+      <ExternalLink size={11} />
+    </button>
+  )
+  if (!selectable) return link ? <div className={styles.groupThumbWrap}>{thumb}{link}</div> : thumb
   const pickLabel = selected ? 'This poster will be applied' : 'Apply this poster instead'
   return (
     <div className={`${styles.groupThumbWrap} ${selected ? styles.groupThumbSelected : styles.groupThumbPassed}`}>
       {thumb}
+      {link}
       <button
         className={`${styles.pickBtn} ${selected ? styles.pickBtnOn : ''}`}
         onClick={onSelect}
@@ -1987,7 +2050,7 @@ function ThumbButton({ url, label, episode, onClick, selectable, selected, onSel
 }
 
 /** Expandable card for one poster set: preview, uploader, source, counts, apply state, and grouped posters. */
-function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, creator = 'none', onCreatorChange, showSource, selectable, checked, onToggleSelect, onSchedule, scheduledBy, onOpenSchedule, scheduleHint, scheduleError, scheduling, collectionMovies, collectionTotal, hasCollectionArt, applyScope, scopeContext, onApplyScopeChange, linked, onUnlink, variantContext, itemTitle, picks, onPick }: {
+function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, creator = 'none', onCreatorChange, showSource, selectable, checked, onToggleSelect, onSchedule, scheduledBy, onOpenSchedule, scheduleHint, scheduleError, scheduling, collectionMovies, collectionTotal, hasCollectionArt, collectionMissing, applyScope, scopeContext, onApplyScopeChange, linked, onUnlink, variantContext, itemTitle, picks, onPick }: {
   set: PosterSetSummary
   apply?: ApplyState
   onApply: () => void
@@ -2026,6 +2089,8 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
   collectionTotal?: number
   /** Set includes a collection-level poster (applied to the Plex Collection object). */
   hasCollectionArt?: boolean
+  /** No Plex Collection matches the set's collection poster, so it cannot be applied. */
+  collectionMissing?: boolean
   /** Independent movie / collection-poster apply choices. */
   applyScope?: SetApplyScope
   /** Whether scope labels refer to a Plex Collection or a single movie. */
@@ -2202,6 +2267,16 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
                     {scheduling ? <Loader2 size={12} className={styles.spin} /> : <CalendarClock size={12} />} Schedule
                   </button>
             )}
+            {set.setUrl && (
+              <button
+                className={styles.openSetBtn}
+                onClick={() => window.api.app.openExternal(set.setUrl!)}
+                title={`Open this set on ${SOURCE_LABEL[set.source]}`}
+                aria-label={`Open this set on ${SOURCE_LABEL[set.source]}`}
+              >
+                <ExternalLink size={12} />
+              </button>
+            )}
           </div>
           {scheduleError && (
             <div className={styles.scheduleError} role="alert">
@@ -2222,7 +2297,7 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
                     ? ((collectionMovies ?? 0) > 1 ? 'all' : 'this')
                     : 'none',
                 })}
-                label="Apply to movies"
+                label={(collectionMovies ?? 0) === 1 && scopeContext !== 'collection' ? 'Apply to this title' : 'Apply to movies'}
               />
               {applyScope.movies !== 'none' && (collectionMovies ?? 0) > 1 && scopeContext !== 'collection' && (
                 <div className={styles.scopeSubOptions}>
@@ -2266,11 +2341,17 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
             </div>
           )}
           {hasCollectionArt && (
-            <Checkbox
-              checked={applyScope.collectionPoster}
-              onChange={() => onApplyScopeChange({ collectionPoster: !applyScope.collectionPoster })}
-              label="Apply collection poster"
-            />
+            <div className={styles.scopeBlock}>
+              <Checkbox
+                checked={applyScope.collectionPoster}
+                onChange={() => onApplyScopeChange({ collectionPoster: !applyScope.collectionPoster })}
+                label="Apply collection poster"
+                disabled={collectionMissing}
+              />
+              {collectionMissing && (
+                <span className={styles.scopeNote}>No matching collection in Plex. Create it in Plex and refresh to apply this poster.</span>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -2323,6 +2404,8 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
                             selectable={choosable}
                             selected={chosen === p.url}
                             onSelect={() => onPick?.(slot, p.url)}
+                            pageUrl={posterPageUrl(p, set.setUrl)}
+                            site={SOURCE_LABEL[p.source]}
                           />
                         )
                       })}
