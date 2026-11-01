@@ -4,6 +4,19 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.13.0
+
+### Collection sets apply to the movie you opened
+Opening a movie whose set also covers other films, such as a ThePosterDB set with Enchanted, Disenchanted, and an Enchanted collection poster, and pressing Apply could report "Applied 0" and change nothing. The card only counted the other movies you own toward what it would apply, so when you had none of them it left out the movie you were looking at, and the one poster left, the collection poster, had no Plex collection to go to. The movie you opened now always gets its poster, under a new **Apply to this title** option, and the card still offers every movie you own when you have more of the set. When Plex has no collection matching the set's collection poster, that option is grayed out with a note saying so, and anything skipped during an apply is named in the result. (#68)
+
+### Open sets and posters on their site
+Each set card has a new button at the end of its actions that opens the set on MediUX or ThePosterDB. In the expanded preview, hovering a poster shows a button that opens it too: ThePosterDB posters open their own page, and MediUX posters open their set, since MediUX has no page per poster. On touch screens the buttons always show. (#69)
+
+### Navigation that fits small screens
+On a 1366x768 screen the floating dock sat on top of the sets panel and over whatever scrolled beneath it. On small windows, under 800 pixels tall or 1100 wide as measured after display scaling, such as a 1366x768 laptop or a 1080p screen at 150%, the dock now moves into the status bar, between the connection status and the version, where it takes its own space and covers nothing. Larger windows, including a 1080p laptop at 125%, keep the floating dock as before, and it now moves to the space left of the sets panel while the panel is open instead of covering it. To choose for yourself, **Settings → General → Navigation Dock** offers **Automatic** (the default), **Floating** to keep the floating dock everywhere, and **Status bar** to dock it everywhere. (#70)
+
+Thanks to @diabWH3 for reporting all three.
+
 ## What's new in v2.12.0
 
 ### Plex artwork shows again
