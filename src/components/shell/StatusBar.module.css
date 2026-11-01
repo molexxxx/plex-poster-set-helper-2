@@ -17,6 +17,45 @@
   gap: var(--space-2);
 }
 
+/* With the navigation docked here: status left, navigation centered, version
+   right. Raised above the log drawer so the dock's hover labels show over it. */
+.barDocked {
+  height: var(--statusbar-height-docked);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: var(--space-3);
+  z-index: 25;
+}
+
+.barDocked .left,
+.barDocked .right {
+  min-width: 0;
+}
+
+.barDocked .right {
+  justify-content: flex-end;
+}
+
+.barDocked .text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Too narrow for labels beside the dock: the status dot still shows. */
+@media (max-width: 640px) {
+  .barDocked {
+    padding: 0 var(--space-2);
+    gap: var(--space-1);
+  }
+
+  .barDocked .text,
+  .barDocked .updateBadge span {
+    display: none;
+  }
+}
+
 .dot {
   width: 7px;
   height: 7px;

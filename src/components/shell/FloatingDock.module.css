@@ -6,6 +6,13 @@
   z-index: 30;
   /* Only the dock itself should capture clicks; the area around it stays passthrough. */
   pointer-events: none;
+  transition: left var(--duration-base) var(--ease-out-expo);
+}
+
+/* With the Library sets panel open, center in the space left of the panel
+   instead of over it. The panel publishes its width in --library-panel-width. */
+:global(html[data-library-panel]) .wrap {
+  left: calc((100% - var(--library-panel-width, 560px)) / 2);
 }
 
 .dock {
@@ -150,4 +157,40 @@
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.04em;
+}
+
+/* Docked: an inline row of the status bar, nothing to float or pass through.
+   Kept last so it overrides the floating and compact rules above. */
+.barWrap {
+  display: flex;
+  justify-content: center;
+}
+
+.dockBar {
+  padding: 0;
+  gap: 1px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.dockBar .item {
+  width: 32px;
+  height: 32px;
+}
+
+.dockBar .dot {
+  bottom: 2px;
+}
+
+.dockBar .divider {
+  height: 18px;
+}
+
+.dockBar .cmdBtn {
+  height: 26px;
+  padding: 0 var(--space-2);
 }

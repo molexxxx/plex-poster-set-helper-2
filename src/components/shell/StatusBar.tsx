@@ -3,8 +3,12 @@ import { useAppContext } from '../../app/AppContext'
 import { useUpdater } from '../../features/updater/UpdaterContext'
 import styles from './StatusBar.module.css'
 
-/** Bottom status bar. */
-export default function StatusBar() {
+/**
+ * Bottom status bar.
+ *
+ * @param nav - The navigation dock, when it is docked here instead of floating.
+ */
+export default function StatusBar({ nav }: { nav?: React.ReactNode }) {
   const { plexConnected, navigate } = useAppContext()
   const { status, info, progress, version, reopen, restart } = useUpdater()
 
@@ -19,7 +23,7 @@ export default function StatusBar() {
   })()
 
   return (
-    <div className={styles.bar}>
+    <div className={`${styles.bar} ${nav ? styles.barDocked : ''}`}>
       <div className={styles.left}>
         {plexConnected ? (
           <>
@@ -27,13 +31,14 @@ export default function StatusBar() {
             <span className={styles.text}>{label}</span>
           </>
         ) : (
-          <button className={styles.connectBtn} onClick={() => navigate('settings')}>
+          <button className={styles.connectBtn} onClick={() => navigate('settings')} title={label}>
             <span className={`${styles.dot} ${dotClass}`} />
             <span className={styles.text}>{label}</span>
             <Settings size={10} className={styles.settingsIcon} />
           </button>
         )}
       </div>
+      {nav}
       <div className={styles.right}>
         {updateBadge && (
           <button className={styles.updateBadge} onClick={updateBadge.onClick}>

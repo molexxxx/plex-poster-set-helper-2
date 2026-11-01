@@ -51,19 +51,26 @@ interface Props {
   onToggleLogs: () => void
   onOpenPalette: () => void
   isMac: boolean
+  /** floating overlays the pages; bar sits inline in the status bar. */
+  variant?: 'floating' | 'bar'
 }
 
-/** Floating, glassy dock pinned bottom-center. Condenses while the log drawer is open. */
-export default function FloatingDock({ activeTab, logOpen, onNavigate, onToggleLogs, onOpenPalette, isMac }: Props) {
-  const compact = logOpen
-  const iconSize = compact ? 17 : 20
+/**
+ * Navigation dock. Floating, it is a glassy bar pinned bottom-center that
+ * condenses while the log drawer is open; as a bar, it is a slim row inside
+ * the status bar.
+ */
+export default function FloatingDock({ activeTab, logOpen, onNavigate, onToggleLogs, onOpenPalette, isMac, variant = 'floating' }: Props) {
+  const bar = variant === 'bar'
+  const compact = logOpen || bar
+  const iconSize = bar ? 16 : compact ? 17 : 20
 
   const mainEntries = NAV_ENTRIES.filter(e => e.id !== 'settings')
   const settings = NAV_ENTRIES.find(e => e.id === 'settings')!
 
   return (
-    <div className={styles.wrap}>
-      <div className={`${styles.dock} ${compact ? styles.dockCompact : ''}`}>
+    <nav className={bar ? styles.barWrap : styles.wrap} aria-label="Main navigation">
+      <div className={`${styles.dock} ${compact ? styles.dockCompact : ''} ${bar ? styles.dockBar : ''}`}>
         {mainEntries.map(e => (
           <DockButton
             key={e.id}
@@ -93,9 +100,9 @@ export default function FloatingDock({ activeTab, logOpen, onNavigate, onToggleL
 
         <button type="button" className={styles.cmdBtn} onClick={onOpenPalette} aria-label="Open command palette">
           <Search size={14} />
-          {!compact && <span className={styles.kbd}>{isMac ? '⌘' : 'Ctrl'} F</span>}
+          {!logOpen && <span className={styles.kbd}>{isMac ? '⌘' : 'Ctrl'} F</span>}
         </button>
       </div>
-    </div>
+    </nav>
   )
 }

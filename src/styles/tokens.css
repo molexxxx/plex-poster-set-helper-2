@@ -107,7 +107,15 @@
   /* Layout */
   --titlebar-height:         38px;
   --statusbar-height:        28px;
+  /* The status bar with the navigation docked in it. */
+  --statusbar-height-docked: 40px;
   --content-padding:         var(--space-6);
   /* Bottom breathing room inside scrollers so content clears the floating dock. */
   --dock-clearance:          84px;
+}
+
+/* Docked in the status bar, the dock covers nothing; keep ordinary padding. */
+:root[data-dock='bar'] {
+  --statusbar-height: var(--statusbar-height-docked);
+  --dock-clearance: var(--content-padding);
 }

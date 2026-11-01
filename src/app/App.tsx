@@ -18,12 +18,39 @@ import { UpdaterProvider } from '../features/updater/UpdaterContext'
 import { ResetProvider } from '../features/reset/ResetContext'
 import UpdateToast from '../features/updater/UpdateToast'
 import { AppContext } from './AppContext'
+import type { NavDockMode } from '../../electron/ipc/types'
 
 export type NavTab = 'library' | 'scheduler' | 'mappings' | 'manual' | 'reset' | 'settings'
 
 const NAV_ORDER: NavTab[] = ['library', 'scheduler', 'manual', 'mappings', 'reset', 'settings']
 
 const IS_MAC = /mac/i.test(navigator.platform)
+
+/**
+ * Windows too short or narrow for the floating dock to stay clear of content.
+ * Media queries measure CSS pixels after display scaling: a 1366x768 screen
+ * or a 1080p one at 150% matches, while a 1080p one at 125% (about 1536x816)
+ * keeps the floating dock, which already moves aside for the sets panel.
+ */
+const COMPACT_WINDOW_QUERY = '(max-height: 799px), (max-width: 1099px)'
+
+/**
+ * Tracks a media query.
+ *
+ * @param query - The media query.
+ * @returns Whether it currently matches.
+ */
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const onChange = () => setMatches(mq.matches)
+    onChange()
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [query])
+  return matches
+}
 
 const PAGE_MAP: Record<NavTab, React.ReactNode> = {
   library:   <LibraryPage />,
@@ -48,6 +75,10 @@ export default function App() {
   const [authReady, setAuthReady] = useState(false)
   // In Docker/VNC, skip the animated background to keep idle CPU low.
   const [reduceMotion, setReduceMotion] = useState(false)
+  const [navDock, setNavDockState] = useState<NavDockMode>('auto')
+  const compactWindow = useMediaQuery(COMPACT_WINDOW_QUERY)
+  // Docked, the dock is a row of the status bar and covers nothing.
+  const docked = navDock === 'bar' || (navDock === 'auto' && compactWindow)
 
   const direction = NAV_ORDER.indexOf(activeTab) > NAV_ORDER.indexOf(prevTab) ? 1 : -1
 
@@ -55,6 +86,20 @@ export default function App() {
     setPrevTab(activeTab)
     setActiveTab(tab)
   }
+
+  function setNavDock(mode: NavDockMode) {
+    setNavDockState(mode)
+    void window.api.config.set({ navDock: mode })
+  }
+
+  useEffect(() => {
+    window.api.config.get().then(c => setNavDockState(c.navDock ?? 'auto')).catch(() => { /* keep the default */ })
+  }, [authReady])
+
+  // Pages size their bottom clearance from this (see tokens.css).
+  useEffect(() => {
+    document.documentElement.dataset.dock = docked ? 'bar' : 'floating'
+  }, [docked])
 
   useEffect(() => {
     window.api.auth.getStatus().then(s => setPlexConnected(s.status === 'authorized'))
@@ -131,7 +176,7 @@ export default function App() {
   }
 
   return (
-    <AppContext.Provider value={{ navigate, plexConnected }}>
+    <AppContext.Provider value={{ navigate, plexConnected, navDock, setNavDock }}>
     <UpdaterProvider>
     <ResetProvider>
     {/* Setup gate - shown on first launch until Chromium is installed */}
@@ -170,7 +215,7 @@ export default function App() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: direction * -24 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              // The dock floats and overlays content; pages fill the full height and add their
+              // A floating dock overlays content; pages fill the full height and add their
               // own bottom clearance (--dock-clearance) inside their scrollers.
               style={{ height: '100%', overflow: 'auto', padding: 'var(--content-padding)' }}
             >
@@ -179,14 +224,16 @@ export default function App() {
           </AnimatePresence>
         </main>
 
-        <FloatingDock
-          activeTab={activeTab}
-          logOpen={logOpen}
-          onNavigate={navigate}
-          onToggleLogs={() => setLogOpen(v => !v)}
-          onOpenPalette={() => setPaletteOpen(true)}
-          isMac={IS_MAC}
-        />
+        {!docked && (
+          <FloatingDock
+            activeTab={activeTab}
+            logOpen={logOpen}
+            onNavigate={navigate}
+            onToggleLogs={() => setLogOpen(v => !v)}
+            onOpenPalette={() => setPaletteOpen(true)}
+            isMac={IS_MAC}
+          />
+        )}
       </div>
 
       <LogDrawer open={logOpen} onClose={() => setLogOpen(false)} />
@@ -202,7 +249,19 @@ export default function App() {
 
       <UpdateToast />
 
-      <StatusBar />
+      <StatusBar
+        nav={docked ? (
+          <FloatingDock
+            variant="bar"
+            activeTab={activeTab}
+            logOpen={logOpen}
+            onNavigate={navigate}
+            onToggleLogs={() => setLogOpen(v => !v)}
+            onOpenPalette={() => setPaletteOpen(true)}
+            isMac={IS_MAC}
+          />
+        ) : undefined}
+      />
     </div>
     </ResetProvider>
     </UpdaterProvider>

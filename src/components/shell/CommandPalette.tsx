@@ -69,7 +69,7 @@ const SETTINGS_ITEMS: Array<{ anchor: string; label: string; keywords: string; i
   { anchor: 'mediux-filters', label: 'MediUX Asset Types',          keywords: 'posters backdrops title cards filters asset types', icon: <Filter size={16} /> },
   { anchor: 'scraper',        label: 'Scraper - Max Workers',       keywords: 'scraper workers parallel speed concurrency', icon: <Sliders size={16} /> },
   { anchor: 'browser',        label: 'Browser Engine (Chromium)',   keywords: 'browser chromium playwright install engine', icon: <Globe size={16} /> },
-  { anchor: 'general',        label: 'General - Tray & Logs',       keywords: 'tray notification append logs general', icon: <Wrench size={16} /> },
+  { anchor: 'general',        label: 'General - Dock, Tray & Logs', keywords: 'navigation dock status bar floating small screen tray notification append logs general', icon: <Wrench size={16} /> },
   { anchor: 'application',    label: 'Application & Updates',       keywords: 'version update logs application about', icon: <Package size={16} /> },
 ]
 

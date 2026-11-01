@@ -185,11 +185,19 @@ export interface AppConfig {
   librarySort?: LibrarySort
   /** Library Browser grid sort direction (default 'desc'). */
   librarySortDir?: SortDir
+  /** Where the navigation dock sits (default 'auto'). */
+  navDock?: NavDockMode
   /** Chromium executable to use instead of the managed or bundled one. */
   browserExecutablePath?: string
   /** Signature of the browser executable that last passed a launch check. */
   browserVerified?: string
 }
+
+/**
+ * Navigation dock placement: floating over the pages, docked in the status
+ * bar, or docked only while the window is too small to float it clear of content.
+ */
+export type NavDockMode = 'auto' | 'floating' | 'bar'
 
 /** A creator the user chose to hide, scoped to the site they publish on. */
 export interface HiddenCreator {

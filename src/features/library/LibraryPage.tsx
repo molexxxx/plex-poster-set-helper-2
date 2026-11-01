@@ -251,6 +251,14 @@ function MyLibraryView({ targetSection, targetItem }: { targetSection: string | 
   const offsetRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // The floating dock centers itself beside an open sets panel instead of over it.
+  const panelOpen = selected != null
+  useEffect(() => {
+    if (!panelOpen) return
+    document.documentElement.dataset.libraryPanel = 'open'
+    return () => { delete document.documentElement.dataset.libraryPanel }
+  }, [panelOpen])
+
   useEffect(() => {
     window.api.config.get().then(c => {
       setCollectionsEnabled(c.collectionsEnabled !== false)

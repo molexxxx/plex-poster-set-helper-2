@@ -21,8 +21,16 @@ import Checkbox from '../../components/ui/Checkbox'
 import { useUpdater } from '../updater/UpdaterContext'
 import DockerUpdateModal from '../updater/DockerUpdateModal'
 import { useNavStore } from '../../app/navStore'
-import type { AppConfig, Library, PlexAuthStatus, BrowserStatus, BrowserActionResult, BrowserInstallError, BrowserSource } from '../../../electron/ipc/types'
+import { useAppContext } from '../../app/AppContext'
+import type { AppConfig, Library, PlexAuthStatus, BrowserStatus, BrowserActionResult, BrowserInstallError, BrowserSource, NavDockMode } from '../../../electron/ipc/types'
 import styles from './SettingsPage.module.css'
+
+/** Navigation dock placements offered in General. */
+const NAV_DOCK_OPTIONS: Array<{ value: NavDockMode; label: string; description: string }> = [
+  { value: 'auto', label: 'Automatic', description: 'Floats on large windows, docks in the status bar on small ones' },
+  { value: 'floating', label: 'Floating', description: 'Always floats at the bottom of the window' },
+  { value: 'bar', label: 'Status bar', description: 'Always docked in the status bar, never over content' },
+]
 
 /**
  * Maps a Plex agent identifier to a short display label.
@@ -288,6 +296,8 @@ export default function SettingsPage() {
       setClearingCaches(false)
     }
   }
+
+  const { navDock, setNavDock } = useAppContext()
 
   function autosave<K extends keyof AppConfig>(key: K, value: AppConfig[K]) {
     setCfg(prev => prev ? { ...prev, [key]: value } : prev)
@@ -1050,6 +1060,23 @@ export default function SettingsPage() {
 
         {/* General */}
         <Section icon={<Wrench size={15} />} title="General" anchor="general">
+          <FieldRow compact label="Navigation Dock" hint="Where the page buttons sit. Automatic docks them in the status bar when the window is too small for the floating dock to stay clear of content.">
+            <div className={styles.segmented} role="radiogroup" aria-label="Navigation dock">
+              {NAV_DOCK_OPTIONS.map(o => (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={navDock === o.value}
+                  className={`${styles.segment} ${navDock === o.value ? styles.segmentActive : ''}`}
+                  onClick={() => setNavDock(o.value)}
+                  title={o.description}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </FieldRow>
           <FieldRow compact label="Tray Notification" hint="Show a notice when the app minimizes to the system tray">
             <Switch
               checked={merged.trayNotice ?? true}

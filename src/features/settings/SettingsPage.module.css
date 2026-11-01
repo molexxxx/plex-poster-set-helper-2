@@ -188,6 +188,46 @@
   gap: var(--space-2);
 }
 
+/* Small radio group for a choice among a few short options. */
+.segmented {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+}
+
+.segment {
+  padding: 4px var(--space-3);
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration-fast), background var(--duration-fast), border-color var(--duration-fast);
+}
+
+.segment:hover {
+  color: var(--color-text-primary);
+}
+
+.segment:focus-visible {
+  outline: 2px solid var(--color-accent-border);
+  outline-offset: 1px;
+}
+
+.segmentActive,
+.segmentActive:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-border);
+}
+
 /* Inline variant: label + hint fill the row while the control sits compact and
    centered on the right. Used for toggles, action buttons, and value chips
    (General / Application), where the default stacked full-width control wastes
