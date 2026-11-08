@@ -73,18 +73,34 @@ describe('title mappings', () =>
   it('finds the Plex title for a poster-site title, with or without a year', () =>
   {
     expect(mappedPlexTitle(mappings, 'Avengers Endgame')).toBe('Avengers: Endgame')
-    expect(mappedPlexTitle(mappings, 'avengers - endgame (2019)')).toBe('Avengers: Endgame')
-    expect(mappedPlexTitle(mappings, 'Shogun')).toBe('Shōgun')
+    expect(mappedPlexTitle(mappings, 'avengers - endgame (2019)', 2019)).toBe('Avengers: Endgame')
+    expect(mappedPlexTitle(mappings, 'Shogun', 2024)).toBe('Shōgun')
     expect(mappedPlexTitle(mappings, 'Avengers')).toBeNull()
     expect(mappedPlexTitle(undefined, 'Avengers Endgame')).toBeNull()
   })
 
+  it('skips a mapping whose written year names a different release', () =>
+  {
+    expect(mappedPlexTitle(mappings, 'Shogun', 1980)).toBeNull()
+    const perRelease = { 'The Office (US)': 'The Office (2005)', 'The Office (UK)': 'The Office (2001)' }
+    expect(mappedPlexTitle(perRelease, 'The Office', 2001)).toBe('The Office (UK)')
+    expect(mappedPlexTitle(perRelease, 'The Office', 2005)).toBe('The Office (US)')
+  })
+
   it('picks only an exact title, preferring the poster year', () =>
   {
-    const pool = [c('Shōgun', 1980), c('Shōgun', 2024), c('Shogun Assassin', 1980)]
-    expect(pickMappedItem(pool, 'Shōgun', 2024)).toBe(pool[1])
+    const pool = [c('Shōgun', 2024), c('Shōgun', 2023), c('Shogun Assassin', 1980)]
+    expect(pickMappedItem(pool, 'Shōgun', { year: 2024 })).toBe(pool[0])
     expect(pickMappedItem(pool, 'Shōgun')).toBe(pool[0])
-    expect(pickMappedItem(pool, 'Shōgun', 1999)).toBe(pool[0])
     expect(pickMappedItem([c('Shogun Assassin', 1980)], 'Shōgun')).toBeNull()
+  })
+
+  it('never lands a poster on a release from another year or with another TMDB id', () =>
+  {
+    const us = [c('The Office (US)', 2005, '2316')]
+    expect(pickMappedItem(us, 'The Office (US)', { year: 2001 })).toBeNull()
+    expect(pickMappedItem(us, 'The Office (US)', { year: 2005, tmdbId: '2996' })).toBeNull()
+    expect(pickMappedItem(us, 'The Office (US)', { year: 2005, tmdbId: '2316' })).toBe(us[0])
+    expect(pickMappedItem(us, 'The Office (US)', { year: 2006 })).toBe(us[0])
   })
 })

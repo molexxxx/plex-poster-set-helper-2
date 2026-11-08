@@ -120,39 +120,55 @@ export function pickLibraryMatch<T extends MatchCandidate>(candidates: T[], want
   return best?.item ?? null
 }
 
+/** Years further apart than this name different releases, not one title listed twice. */
+const MAPPING_YEAR_SLACK = 1
+
+function yearsAgree(a: number | undefined, b: number | undefined): boolean
+{
+  return a == null || b == null || Math.abs(a - b) <= MAPPING_YEAR_SLACK
+}
+
 /**
  * Finds the Plex title a user mapped a poster-site title to on the Title
- * Mappings page. A year on either side is optional, so "Avengers Endgame"
- * and "Avengers Endgame (2019)" name the same mapping.
+ * Mappings page. A year written on the poster-site side, as in
+ * "The Office (2005)", must agree with the poster's year, so one site title
+ * can be mapped once per release.
  *
  * @param mappings - Saved mappings, keyed by Plex title.
  * @param siteTitle - The title as the poster site shows it.
+ * @param year - The poster's year, when known.
  * @returns The mapped Plex title, or null when no mapping names it.
  */
-export function mappedPlexTitle(mappings: Record<string, string> | undefined, siteTitle: string): string | null
+export function mappedPlexTitle(mappings: Record<string, string> | undefined, siteTitle: string, year?: number): string | null
 {
   const wanted = normTitle(stripTitleYear(siteTitle))
   if (!wanted) return null
   for (const [plexTitle, mapped] of Object.entries(mappings ?? {}))
   {
-    if (normTitle(stripTitleYear(mapped)) === wanted) return plexTitle
+    if (normTitle(stripTitleYear(mapped)) !== wanted) continue
+    if (!yearsAgree(titleYear(mapped), year)) continue
+    return plexTitle
   }
   return null
 }
 
 /**
- * Picks the library item a title mapping points at. A mapping is an exact
- * instruction, so only exact titles qualify; the poster's year breaks a tie
- * between namesakes.
+ * Picks the library item a title mapping points at. Only exact titles
+ * qualify, and an item is passed over when its year or TMDB id says it is a
+ * different release than the poster, so a mapping for the US "The Office"
+ * never takes posters made for the 2001 UK series.
  *
  * @param candidates - Search results for the mapped Plex title.
  * @param plexTitle - The Plex title the mapping names.
- * @param year - The poster's year, when known.
- * @returns The mapped item, or null when the library has no such title.
+ * @param want - The poster's year and TMDB id, when known.
+ * @returns The mapped item, or null when the library has no such release.
  */
-export function pickMappedItem<T extends MatchCandidate>(candidates: T[], plexTitle: string, year?: number): T | null
+export function pickMappedItem<T extends MatchCandidate>(candidates: T[], plexTitle: string, want: { year?: number; tmdbId?: string } = {}): T | null
 {
   const wanted = normTitle(plexTitle)
-  const exact = candidates.filter(c => normTitle(c.title) === wanted)
-  return exact.find(c => year == null || c.year === year) ?? exact[0] ?? null
+  const fits = candidates.filter(c =>
+    normTitle(c.title) === wanted
+    && yearsAgree(c.year, want.year)
+    && (!want.tmdbId || !c.tmdbId || c.tmdbId === want.tmdbId))
+  return fits.find(c => want.year == null || c.year === want.year) ?? fits[0] ?? null
 }

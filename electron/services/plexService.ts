@@ -448,9 +448,10 @@ export const PlexService = {
   },
 
   /**
-   * Finds a library item by title (and optional year). A Title Mappings entry
-   * naming the title wins, since it is the user's explicit choice; otherwise
-   * exact matches are preferred, falling back to a fuzzy search.
+   * Finds a library item by title (and optional year). A library item with the
+   * poster's TMDB id wins; then a Title Mappings entry for the title, when its
+   * year and id agree with the poster; then exact titles, falling back to a
+   * fuzzy search.
    *
    * @param req - Title, optional year, library include-list, and media type.
    * @returns The best match, or null when nothing qualifies.
@@ -492,13 +493,16 @@ export const PlexService = {
       return found
     }
 
-    const mappedTitle = mappedPlexTitle(ConfigService.get().titleMappings, title)
+    const candidates = await gather(title)
+    const byId = tmdbId ? candidates.find(c => c.tmdbId === tmdbId) : undefined
+    if (byId) return byId
+
+    const mappedTitle = mappedPlexTitle(ConfigService.get().titleMappings, title, year)
     if (mappedTitle) {
-      const mapped = pickMappedItem(await gather(mappedTitle), mappedTitle, year)
+      const mapped = pickMappedItem(await gather(mappedTitle), mappedTitle, { year, tmdbId })
       if (mapped) return mapped
     }
 
-    const candidates = await gather(title)
     const picked = pickLibraryMatch(candidates, { title, year, tmdbId })
     if (picked) return picked
     const wanted = normTitle(title)
