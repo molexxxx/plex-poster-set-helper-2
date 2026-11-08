@@ -7,6 +7,8 @@ export interface LibraryIntent {
   section?: string
   /** A MediUX creator to open in the Creators view. */
   creator?: string
+  /** Open the Creators view on whichever creator it shows first. */
+  creators?: boolean
   /** A specific library item to open the MediUX sets panel for. */
   item?: LibraryItem
 }

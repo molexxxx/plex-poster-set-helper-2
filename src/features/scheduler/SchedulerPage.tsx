@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useMemo, useRef, useId } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  CalendarClock, Plus, Play, Trash2, Clock, CheckCircle2, AlertCircle, AlertTriangle, Loader2, X, Save, Server,
-  ArrowUp, ArrowDown, Hourglass, Square, CircleSlash, Pencil, ChevronDown, LibraryBig,
+  Plus, Play, Trash2, Clock, CheckCircle2, AlertCircle, AlertTriangle, Loader2, X, Save, Server,
+  ArrowUp, ArrowDown, Hourglass, Square, CircleSlash, Pencil, ChevronDown, LibraryBig, Users,
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Switch from '../../components/ui/Switch'
@@ -11,7 +11,6 @@ import Segmented from '../../components/ui/Segmented'
 import Menu from '../../components/ui/Menu'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import ProgressBar from '../../components/ui/ProgressBar'
-import EmptyState from '../../components/ui/EmptyState'
 import type { ScheduledJob, SchedulerEngineStatus, CronPreview, JobRun } from '../../../electron/ipc/types'
 import {
   HOUR_INTERVALS, analyzeUrls, creatorOfUrl, cronToForm, describeCron, describeProgress, describeRun, formToCron, relativeTime,
@@ -746,6 +745,44 @@ function JobDetail({ job, now, starting, canMoveUp, canMoveDown, canStop, onEdit
   )
 }
 
+/** First-run panel: what a job does, and the three ways to make one. */
+function EmptyJobs({ onNew, onOpenCreators, onOpenLibrary }: { onNew: () => void; onOpenCreators: () => void; onOpenLibrary: () => void }) {
+  const titleId = useId()
+  return (
+    <section className={styles.block} aria-labelledby={titleId}>
+      <div className={styles.blockHead}>
+        <h2 id={titleId} className={styles.blockTitle}>No scheduled jobs yet</h2>
+      </div>
+      <p className={styles.emptyIntro}>
+        A job checks MediUX creators and sets, or ThePosterDB sets, on a schedule and applies their new art to Plex by itself.
+      </p>
+      <div className={styles.panel}>
+        <div className={styles.detailRow}>
+          <div className={styles.detailRowText}>
+            <span className={styles.detailRowLabel}>Keep up with a creator</span>
+            <span className={styles.detailRowValue}>Follow a MediUX creator in the Library Browser&apos;s Creators tab and use Sync. Their new uploads apply as they appear.</span>
+          </div>
+          <Button variant="secondary" size="sm" icon={<Users size={13} />} onClick={onOpenCreators}>Open Creators</Button>
+        </div>
+        <div className={styles.detailRow}>
+          <div className={styles.detailRowText}>
+            <span className={styles.detailRowLabel}>Keep one set current</span>
+            <span className={styles.detailRowValue}>Open a title in the Library Browser and use Schedule on one of its sets.</span>
+          </div>
+          <Button variant="secondary" size="sm" icon={<LibraryBig size={13} />} onClick={onOpenLibrary}>Open the Library Browser</Button>
+        </div>
+        <div className={styles.detailRow}>
+          <div className={styles.detailRowText}>
+            <span className={styles.detailRowLabel}>Start from links</span>
+            <span className={styles.detailRowValue}>Paste MediUX or ThePosterDB links and pick when the job runs.</span>
+          </div>
+          <Button variant="primary" size="sm" icon={<Plus size={13} />} onClick={onNew}>New job</Button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 /** Scheduler: a queue of jobs that apply MediUX and ThePosterDB art to Plex on a schedule, with the selected job beside it. */
 export default function SchedulerPage() {
   const [jobs,        setJobs]        = useState<ScheduledJob[]>([])
@@ -756,8 +793,10 @@ export default function SchedulerPage() {
   const [engine,      setEngine]      = useState<SchedulerEngineStatus>({ external: false })
   const [actionError, setActionError] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState('')
+  const [loaded,      setLoaded]      = useState(false)
   const now = useNow()
   const { navigate } = useAppContext()
+  const goLibrary = useNavStore(s => s.goLibrary)
   const lastStatuses = useRef(new Map<string, string | undefined>())
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -777,7 +816,7 @@ export default function SchedulerPage() {
   }, [])
 
   useEffect(() => {
-    void attempt(load)
+    void attempt(load).finally(() => setLoaded(true))
     const off = window.api.scheduler.onChange((updated: ScheduledJob[]) => setJobs(updated))
     // The engine heartbeat can come and go while this page is open, and each job's next run moves on once it fires.
     const poll = setInterval(() => {
@@ -873,35 +912,69 @@ export default function SchedulerPage() {
   const troubled     = jobs.filter(j => j.enabled && (j.lastStatus === 'error' || j.lastStatus === 'partial'))
   const selectedIndex = selected ? jobs.findIndex(j => j.id === selected.id) : -1
 
+  const notices = (
+    <>
+      {engine.external && (
+        <div className={styles.infoNotice}>
+          <Server size={14} aria-hidden />
+          <span>A 24/7 scheduler elsewhere runs these jobs, even when this app is closed. Changes here reach it automatically.</span>
+        </div>
+      )}
+
+      {actionError && (
+        <div className={styles.errorNotice} role="alert">
+          <AlertCircle size={14} aria-hidden />
+          <span>{actionError}</span>
+          <Button variant="ghost" size="sm" icon={<X size={13} />} aria-label="Dismiss" onClick={() => setActionError(null)} />
+        </div>
+      )}
+    </>
+  )
+
   return (
     <div className={styles.page}>
-      <div className={styles.layout}>
-        <aside className={styles.sidebar} aria-label="Jobs">
-          <div className={styles.sidebarHead}>
-            <div>
-              <h1 className="page-title">Scheduler</h1>
-              <p className="page-subtitle">Jobs run one at a time, top to bottom.</p>
-            </div>
-            <Button variant="primary" size="sm" icon={<Plus size={13} />} onClick={() => setEditing('new')}>New job</Button>
-          </div>
+      {loaded && jobs.length === 0 && (
+        <div className={styles.emptyPage}>
+          <header>
+            <h1 className="page-title">Scheduler</h1>
+            <p className="page-subtitle">Applies new art from MediUX and ThePosterDB to Plex on a schedule.</p>
+          </header>
+          {notices}
+          <EmptyJobs
+            onNew={() => setEditing('new')}
+            onOpenCreators={() => { goLibrary({ creators: true }); navigate('library') }}
+            onOpenLibrary={() => navigate('library')}
+          />
+        </div>
+      )}
 
-          {troubled.length > 0 && (
-            <div className={styles.warnNotice}>
-              <AlertTriangle size={14} aria-hidden />
-              <span>
-                {troubled.length === 1 ? 'One job' : `${troubled.length} jobs`} had problems on the last run:{' '}
-                {troubled.map((job, i) => (
-                  <span key={job.id}>
-                    {i > 0 && ', '}
-                    <button type="button" className={styles.inlineLink} onClick={() => reveal(job.id)}>{job.name}</button>
-                  </span>
-                ))}
-                .
-              </span>
+      {jobs.length > 0 && (
+        <div className={styles.layout}>
+          <aside className={styles.sidebar} aria-label="Jobs">
+            <div className={styles.sidebarHead}>
+              <div>
+                <h1 className="page-title">Scheduler</h1>
+                <p className="page-subtitle">Jobs run one at a time, top to bottom.</p>
+              </div>
+              <Button variant="primary" size="sm" icon={<Plus size={13} />} onClick={() => setEditing('new')}>New job</Button>
             </div>
-          )}
 
-          {jobs.length > 0 && (
+            {troubled.length > 0 && (
+              <div className={styles.warnNotice}>
+                <AlertTriangle size={14} aria-hidden />
+                <span>
+                  {troubled.length === 1 ? 'One job' : `${troubled.length} jobs`} had problems on the last run:{' '}
+                  {troubled.map((job, i) => (
+                    <span key={job.id}>
+                      {i > 0 && ', '}
+                      <button type="button" className={styles.inlineLink} onClick={() => reveal(job.id)}>{job.name}</button>
+                    </span>
+                  ))}
+                  .
+                </span>
+              </div>
+            )}
+
             <div ref={listRef} className={styles.jobList} role="listbox" aria-label="Scheduled jobs, in run order" onKeyDown={onListKey}>
               {jobs.map((job, index) => {
                 const status = jobStatus(job, starting.has(job.id))
@@ -934,56 +1007,31 @@ export default function SchedulerPage() {
                 )
               })}
             </div>
-          )}
-        </aside>
+          </aside>
 
-        <div className={styles.main}>
-          {engine.external && (
-            <div className={styles.infoNotice}>
-              <Server size={14} aria-hidden />
-              <span>A 24/7 scheduler elsewhere runs these jobs, even when this app is closed. Changes here reach it automatically.</span>
-            </div>
-          )}
+          <div className={styles.main}>
+            {notices}
 
-          {actionError && (
-            <div className={styles.errorNotice} role="alert">
-              <AlertCircle size={14} aria-hidden />
-              <span>{actionError}</span>
-              <Button variant="ghost" size="sm" icon={<X size={13} />} aria-label="Dismiss" onClick={() => setActionError(null)} />
-            </div>
-          )}
-
-          {selected ? (
-            <JobDetail
-              key={selected.id}
-              job={selected}
-              now={now}
-              starting={starting.has(selected.id)}
-              canMoveUp={selectedIndex > 0}
-              canMoveDown={selectedIndex < jobs.length - 1}
-              canStop={!engine.external}
-              onEdit={() => setEditing(selected)}
-              onDelete={() => setDeleting(selected)}
-              onToggle={enabled => void attempt(() => window.api.scheduler.save({ ...selected, enabled }))}
-              onRunNow={() => void runNow(selected.id)}
-              onStop={() => void attempt(() => window.api.scheduler.stop(selected.id))}
-              onMove={delta => moveJob(selected.id, delta)}
-            />
-          ) : (
-            <EmptyState
-              icon={<CalendarClock size={22} />}
-              title="No scheduled jobs"
-              description="A job applies new art from MediUX creators and sets on a schedule. Create one here, or use Schedule on a set or Sync on a creator in the Library Browser."
-              action={
-                <div className={styles.emptyActions}>
-                  <Button variant="primary" size="sm" icon={<Plus size={13} />} onClick={() => setEditing('new')}>Create a job</Button>
-                  <Button variant="secondary" size="sm" icon={<LibraryBig size={13} />} onClick={() => navigate('library')}>Open the Library Browser</Button>
-                </div>
-              }
-            />
-          )}
+            {selected && (
+              <JobDetail
+                key={selected.id}
+                job={selected}
+                now={now}
+                starting={starting.has(selected.id)}
+                canMoveUp={selectedIndex > 0}
+                canMoveDown={selectedIndex < jobs.length - 1}
+                canStop={!engine.external}
+                onEdit={() => setEditing(selected)}
+                onDelete={() => setDeleting(selected)}
+                onToggle={enabled => void attempt(() => window.api.scheduler.save({ ...selected, enabled }))}
+                onRunNow={() => void runNow(selected.id)}
+                onStop={() => void attempt(() => window.api.scheduler.stop(selected.id))}
+                onMove={delta => moveJob(selected.id, delta)}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {editing !== null && (
         <JobForm

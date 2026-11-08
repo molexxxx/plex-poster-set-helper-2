@@ -52,13 +52,13 @@ function useMediaQuery(query: string): boolean {
 }
 
 /**
- * Whether this install has saved work on the legacy pages, so they stay in
- * the navigation until the user hides them.
+ * Whether the legacy pages belong in the navigation before the user picks:
+ * when they hold saved work the user would otherwise lose sight of.
  *
  * @param config - The loaded config.
  * @returns True when there are title mappings or a bulk file with links in it.
  */
-async function hasLegacyData(config: AppConfig): Promise<boolean> {
+async function legacyToolsByDefault(config: AppConfig): Promise<boolean> {
   if (Object.keys(config.titleMappings ?? {}).length > 0) return true
   for (const file of await window.api.bulk.listFiles()) {
     if ((await window.api.bulk.readFile(file)).length > 0) return true
@@ -112,7 +112,7 @@ export default function App() {
   useEffect(() => {
     window.api.config.get().then(async c => {
       setNavDockState(c.navDock ?? 'auto')
-      setShowLegacyState(c.showLegacyTools ?? await hasLegacyData(c).catch(() => false))
+      setShowLegacyState(c.showLegacyTools ?? await legacyToolsByDefault(c).catch(() => false))
     }).catch(() => { /* keep the defaults */ })
   }, [authReady])
 

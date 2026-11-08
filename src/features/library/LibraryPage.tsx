@@ -714,8 +714,8 @@ export default function LibraryPage() {
   // Consume a deep-link intent from the command palette (creator, section, or item).
   useEffect(() => {
     if (!libraryIntent) return
-    if (libraryIntent.creator) {
-      setCreatorTarget(libraryIntent.creator)
+    if (libraryIntent.creator || libraryIntent.creators) {
+      if (libraryIntent.creator) setCreatorTarget(libraryIntent.creator)
       setMode('creators')
     } else if (libraryIntent.item) {
       if (libraryIntent.section) setSectionTarget(libraryIntent.section)
