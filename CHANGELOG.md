@@ -4,6 +4,20 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.14.0
+
+### Quieter when idle, quicker between pages
+The glow behind the window was redrawn on every refresh of the display, even with nothing happening, which kept about 15% of a processor core busy on a 165 Hz screen. It is now drawn once and looks the same, and the app does no work at all while it sits idle. Switching pages no longer waits for the previous page to slide away first: the new page shows at once, in a few milliseconds instead of about a quarter of a second.
+
+### Smooth scrolling in the Library Browser
+Scrolling the title grid and the sets panel with a mouse wheel now glides instead of stepping. It turns off when the system asks for less motion (**Animation effects** in Windows' Visual effects settings), and the Docker web UI keeps the browser's own scrolling.
+
+### Your Plex account shows right after sign-in
+After approving the Plex sign-in, Settings could fall back to the sign-in prompt while the status bar said Connected, and the account only appeared after leaving Settings and coming back. It now shows as soon as Plex confirms the sign-in.
+
+### Applying a set leaves the sets panel in place
+When an apply finished, the Current Plex Art strip at the top of the sets panel emptied into a loading row and rebuilt, shifting the list beneath it. It now stays where it is and swaps in the new art as it loads.
+
 ## What's new in v2.13.0
 
 ### Collection sets apply to the movie you opened
