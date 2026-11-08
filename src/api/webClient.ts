@@ -108,6 +108,7 @@ export function createWebClient(): Api {
       userSets: (req: UserSetsReq) => apiFetch('/api/library/user-sets', { method: 'POST', body: JSON.stringify(req) }),
       startUserSets: (req: UserSetsReq) => apiFetch('/api/library/start-user-sets', { method: 'POST', body: JSON.stringify(req) }),
       refreshUserSets: (req: UserSetsReq) => apiFetch('/api/library/refresh-user-sets', { method: 'POST', body: JSON.stringify(req) }),
+      rereadUserSets: (req: UserSetsReq) => apiFetch('/api/library/reread-user-sets', { method: 'POST', body: JSON.stringify(req) }),
       onUserSetsChunk: (cb: (chunk: UserSetsChunk) => void) =>
         onSse('library:userSetsChunk', (_ev, data) => cb(data as UserSetsChunk)),
       creatorSearch: (req: CreatorSearchReq) => apiFetch('/api/library/creator-search', { method: 'POST', body: JSON.stringify(req) }),

@@ -199,8 +199,9 @@ export const handlers = {
     },
     // Streaming entry point: returns whatever is buffered now and (re)starts a
     // background crawl that emits `library:userSetsChunk` as pages land.
-    startUserSets: async (req: UserSetsReq): Promise<UserSetsSnapshot> => CreatorSetsService.start(req.username),
-    refreshUserSets: async (req: UserSetsReq): Promise<UserSetsSnapshot> => CreatorSetsService.refresh(req.username),
+    startUserSets: async (req: UserSetsReq): Promise<UserSetsSnapshot> => CreatorSetsService.start(req.username, undefined, req.rev),
+    refreshUserSets: async (req: UserSetsReq): Promise<UserSetsSnapshot> => CreatorSetsService.check(req.username, req.rev),
+    rereadUserSets: async (req: UserSetsReq): Promise<UserSetsSnapshot> => CreatorSetsService.reread(req.username, req.rev),
     creatorSearch: async (req: CreatorSearchReq): Promise<UserSetsRes> => {
       const username = req.username
       const q = req.query.trim()

@@ -41,12 +41,30 @@ interface CrawlState {
   touchedAt: number
   /** A background incremental refresh is in flight. */
   refreshing: boolean
+  /** A full re-read runs beside the cached sets, which stay in use until it finishes. */
+  rereading: boolean
+  /** Changes whenever `sets` changes, so a caller holding this revision can skip the transfer. */
+  rev: number
   /** The crawl or refresh in flight; settles (never rejects) when it finishes. */
   pending: Promise<void> | null
   signal: { aborted: boolean }
 }
 
 const store = new Map<string, CrawlState>()
+/** Seeded from the clock so a revision held by a client never matches one from an earlier process. */
+let revision = Date.now()
+
+function bump(state: CrawlState): void {
+  state.rev = ++revision
+}
+
+function newState(username: string): CrawlState {
+  return {
+    username, sets: [], seen: new Set(), status: 'crawling', capped: false, lastPage: 0, fetchedAt: 0,
+    startedAt: Date.now(), touchedAt: Date.now(), refreshing: false, rereading: false, rev: ++revision,
+    pending: null, signal: { aborted: false },
+  }
+}
 /** Opening a creator seen within this window does no network at all. */
 const FRESH_TTL = 15 * 60 * 1000
 /**
@@ -100,7 +118,8 @@ function ensureLoaded(): void {
         username: c.username, sets, seen: new Set(sets.map(s => s.id)),
         status: c.partial ? 'crawling' : c.capped ? 'capped' : 'done', capped: !!c.capped,
         lastPage: c.partial ? c.lastPage ?? 0 : 0, fetchedAt: c.partial ? 0 : c.fetchedAt ?? 0,
-        startedAt: c.startedAt ?? 0, touchedAt: Date.now(), refreshing: false, pending: null, signal: { aborted: false },
+        startedAt: c.startedAt ?? 0, touchedAt: Date.now(), refreshing: false, rereading: false, rev: ++revision,
+        pending: null, signal: { aborted: false },
       })
     }
   } catch { /* no cache yet */ }
@@ -138,14 +157,26 @@ function key(username: string): string {
   return username.trim().toLowerCase()
 }
 
-function snapshot(state: CrawlState): UserSetsSnapshot {
+/**
+ * What a caller sees of a creator right now.
+ *
+ * @param state - The creator's buffer.
+ * @param knownRev - Revision the caller already holds; when current, the sets are left out.
+ */
+function snapshot(state: CrawlState, knownRev?: number): UserSetsSnapshot {
+  const unchanged = knownRev === state.rev
   return {
     username: state.username,
-    sets: state.sets,
+    sets: unchanged ? [] : state.sets,
     status: state.status,
     capped: state.capped,
     collected: state.sets.length,
     error: state.error,
+    rev: state.rev,
+    fetchedAt: state.fetchedAt,
+    ...(unchanged ? { unchanged: true } : {}),
+    ...(state.refreshing ? { checking: true } : {}),
+    ...(state.rereading ? { rereading: true } : {}),
   }
 }
 
@@ -171,8 +202,10 @@ function evictLru(): void {
 /**
  * Full background crawl of a cold creator, streaming batches as pages land and
  * checkpointing each one. A state with progress resumes from its last page.
+ * A quiet crawl (a full re-read running beside the cached sets) streams
+ * nothing; its caller swaps the result in when it finishes.
  */
-async function runCrawl(state: CrawlState): Promise<void> {
+async function runCrawl(state: CrawlState, quiet = false): Promise<void> {
   const resuming = state.lastPage > 0 && state.sets.length > 0
   if (resuming) Logger.info('Library', `Resuming the crawl of "${state.username}" at page ${state.lastPage} with ${state.sets.length} set(s) collected`)
   try {
@@ -185,21 +218,26 @@ async function runCrawl(state: CrawlState): Promise<void> {
         // instead of waiting for the whole crawl to finish.
         const matched = info.done ? [] : await mapPool(newSets, 8, matchOne)
         if (state.signal.aborted) return
+        const added: MediuxUserSet[] = []
         for (const m of matched) {
           if (state.seen.has(m.id)) continue
           state.seen.add(m.id)
           state.sets.push(m)
+          added.push(m)
         }
+        if (added.length) bump(state)
         state.lastPage = info.page
         if (info.done) {
           state.status = info.capped ? 'capped' : 'done'
           state.capped = info.capped
           state.fetchedAt = state.startedAt || Date.now()
         }
+        if (quiet) return
         persist()
         appEvents.emitEvent('library:userSetsChunk', {
-          username: state.username, sets: matched, collected: state.sets.length,
+          username: state.username, sets: added, collected: state.sets.length,
           page: state.lastPage, done: info.done, capped: state.capped, status: state.status,
+          rev: state.rev, fetchedAt: state.fetchedAt,
         })
       },
     })
@@ -208,11 +246,53 @@ async function runCrawl(state: CrawlState): Promise<void> {
     state.status = 'error'
     state.error = err instanceof Error ? err.message : String(err)
     Logger.error('Library', `Creator crawl failed for "${state.username}": ${state.error}`)
+    if (quiet) return
     persist()
     appEvents.emitEvent('library:userSetsChunk', {
       username: state.username, sets: [], collected: state.sets.length,
-      page: state.lastPage, done: true, capped: state.capped, status: 'error', error: state.error,
+      page: state.lastPage, done: true, capped: state.capped, status: 'error', error: state.error, rev: state.rev,
     })
+  }
+}
+
+/**
+ * Re-reads a creator's whole catalog beside the cached one, which stays on
+ * screen and in use until the new read finishes; then swaps it in with a single
+ * `reset` chunk. A failed re-read leaves the cached catalog as it was.
+ */
+async function runReread(state: CrawlState): Promise<void> {
+  state.rereading = true
+  const shadow = newState(state.username)
+  shadow.signal = state.signal
+  try {
+    await runCrawl(shadow, true)
+    if (state.signal.aborted) return
+    if (shadow.status === 'error') {
+      Logger.warn('Library', `Re-reading "${state.username}" failed; keeping the cached catalog: ${shadow.error}`)
+      appEvents.emitEvent('library:userSetsChunk', {
+        username: state.username, sets: [], collected: state.sets.length, page: state.lastPage, done: true,
+        capped: state.capped, status: state.status, rev: state.rev, fetchedAt: state.fetchedAt,
+        error: `Could not re-read the catalog: ${shadow.error}`,
+      })
+      return
+    }
+    state.sets = shadow.sets
+    state.seen = shadow.seen
+    state.capped = shadow.capped
+    state.status = shadow.status
+    state.lastPage = 0
+    state.error = undefined
+    state.fetchedAt = shadow.fetchedAt
+    state.startedAt = shadow.startedAt
+    bump(state)
+    persist()
+    Logger.info('Library', `Re-read "${state.username}": ${state.sets.length} set(s)`)
+    appEvents.emitEvent('library:userSetsChunk', {
+      username: state.username, sets: state.sets, collected: state.sets.length, page: state.lastPage, done: true,
+      capped: state.capped, status: state.status, reset: true, rev: state.rev, fetchedAt: state.fetchedAt,
+    })
+  } finally {
+    state.rereading = false
   }
 }
 
@@ -220,8 +300,8 @@ async function runCrawl(state: CrawlState): Promise<void> {
  * Cheap background resync of a cached creator: walk the newest pages only,
  * collecting sets not already cached or changed since they were cached, and
  * stop as soon as a page yields nothing new (we've reached known territory).
- * Fresh sets are prepended and the UI is sent a single `reset` chunk with the
- * merged list.
+ * Fresh sets are prepended, and the UI is sent only those sets in one `upsert`
+ * chunk rather than the whole catalog again.
  */
 async function runIncrementalRefresh(state: CrawlState): Promise<void> {
   if (state.refreshing) return
@@ -247,27 +327,31 @@ async function runIncrementalRefresh(state: CrawlState): Promise<void> {
     }
     if (signal.aborted) return
 
+    let matched: MediuxUserSet[] = []
     if (fresh.length) {
-      const matched = await mapPool(fresh, 8, matchOne)
+      matched = await mapPool(fresh, 8, matchOne)
       if (signal.aborted) return
       const freshIds = new Set(matched.map(s => s.id))
       state.sets = [...matched, ...state.sets.filter(s => !freshIds.has(s.id))]
       for (const s of matched) state.seen.add(s.id)
+      bump(state)
       Logger.scrape('Library', `Creator "${state.username}": ${matched.length} new or updated set(s) on resync`)
     }
     state.fetchedAt = Date.now()
     state.status = state.capped ? 'capped' : 'done'
     persist()
     appEvents.emitEvent('library:userSetsChunk', {
-      username: state.username, sets: state.sets, collected: state.sets.length,
-      page: state.lastPage, done: true, capped: state.capped, status: state.status, reset: true,
+      username: state.username, sets: matched, collected: state.sets.length,
+      page: state.lastPage, done: true, capped: state.capped, status: state.status,
+      ...(matched.length ? { upsert: true } : {}), rev: state.rev, fetchedAt: state.fetchedAt,
     })
   } catch (err) {
-    // A resync failure is non-fatal: keep the cached data on screen.
-    Logger.warn('Library', `Creator resync failed for "${state.username}": ${err instanceof Error ? err.message : err}`)
+    const message = err instanceof Error ? err.message : String(err)
+    Logger.warn('Library', `Creator resync failed for "${state.username}": ${message}`)
     appEvents.emitEvent('library:userSetsChunk', {
-      username: state.username, sets: state.sets, collected: state.sets.length,
-      page: state.lastPage, done: true, capped: state.capped, status: state.capped ? 'capped' : 'done', reset: true,
+      username: state.username, sets: [], collected: state.sets.length,
+      page: state.lastPage, done: true, capped: state.capped, status: state.capped ? 'capped' : 'done',
+      rev: state.rev, fetchedAt: state.fetchedAt, error: `Could not check for new sets: ${message}`,
     })
   } finally {
     state.refreshing = false
@@ -290,8 +374,9 @@ export const CreatorSetsService = {
    *
    * @param username - Creator to browse.
    * @param maxAgeMs - A cached catalog older than this is resynced.
+   * @param knownRev - Revision the caller already holds; an unchanged catalog comes back without its sets.
    */
-  start(username: string, maxAgeMs = FRESH_TTL): UserSetsSnapshot {
+  start(username: string, maxAgeMs = FRESH_TTL, knownRev?: number): UserSetsSnapshot {
     ensureLoaded()
     const k = key(username)
     const existing = store.get(k)
@@ -307,21 +392,59 @@ export const CreatorSetsService = {
           existing.signal = { aborted: false }
           track(existing, () => runCrawl(existing))
         }
-      } else if (!existing.refreshing) {
+      } else if (!existing.refreshing && !existing.rereading) {
         const fresh = Date.now() - existing.fetchedAt < maxAgeMs
         if (!fresh) track(existing, () => runIncrementalRefresh(existing))
       }
-      return snapshot(existing)
+      return snapshot(existing, knownRev)
     }
 
-    const state: CrawlState = {
-      username, sets: [], seen: new Set(), status: 'crawling', capped: false, lastPage: 0, fetchedAt: 0,
-      startedAt: Date.now(), touchedAt: Date.now(), refreshing: false, pending: null, signal: { aborted: false },
-    }
+    const state = newState(username)
     store.set(k, state)
     evictLru()
     track(state, () => runCrawl(state))
-    return snapshot(state)
+    return snapshot(state, knownRev)
+  },
+
+  /**
+   * Checks MediUX for sets added or updated since the catalog was cached,
+   * whatever its age, keeping the cached sets in use meanwhile. A creator not
+   * cached yet starts its first crawl instead.
+   *
+   * @param username - Creator to check.
+   * @param knownRev - Revision the caller already holds.
+   */
+  check(username: string, knownRev?: number): UserSetsSnapshot {
+    ensureLoaded()
+    const existing = store.get(key(username))
+    if (!existing || existing.status === 'crawling' || existing.status === 'error') return this.start(username, FRESH_TTL, knownRev)
+    existing.touchedAt = Date.now()
+    if (!existing.refreshing && !existing.rereading) track(existing, () => runIncrementalRefresh(existing))
+    return snapshot(existing, knownRev)
+  },
+
+  /**
+   * Re-reads a creator's whole catalog from the first page, for when the cache
+   * looks wrong. The cached sets stay in use until the new read finishes.
+   *
+   * @param username - Creator to re-read.
+   * @param knownRev - Revision the caller already holds.
+   */
+  reread(username: string, knownRev?: number): UserSetsSnapshot {
+    ensureLoaded()
+    const existing = store.get(key(username))
+    if (!existing || !existing.sets.length) {
+      if (existing) { existing.signal.aborted = true; store.delete(key(username)) }
+      return this.start(username, FRESH_TTL, knownRev)
+    }
+    existing.touchedAt = Date.now()
+    if (!existing.rereading) {
+      existing.signal.aborted = true
+      existing.signal = { aborted: false }
+      existing.refreshing = false
+      track(existing, () => runReread(existing))
+    }
+    return snapshot(existing, knownRev)
   },
 
   /**
@@ -342,15 +465,6 @@ export const CreatorSetsService = {
     if (state.status === 'error') throw new Error(state.error ?? `Could not read @${username}'s sets`)
     state.touchedAt = Date.now()
     return { sets: state.sets, capped: state.capped }
-  },
-
-  /** Aborts any running work for a creator and starts a fresh full crawl. */
-  refresh(username: string): UserSetsSnapshot {
-    ensureLoaded()
-    const k = key(username)
-    const existing = store.get(k)
-    if (existing) { existing.signal.aborted = true; store.delete(k) }
-    return this.start(username)
   },
 
   /** Writes a pending cache save at once; called on quit so the latest checkpoint survives. */

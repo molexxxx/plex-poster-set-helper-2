@@ -671,6 +671,8 @@ export interface UserSetsReq {
    * cumulative.
    */
   page?: number
+  /** Revision of the catalog the caller already holds; an unchanged catalog comes back without its sets. */
+  rev?: number
 }
 
 /**
@@ -709,12 +711,22 @@ export interface UserSetsSnapshot {
   /** Total sets buffered so far. */
   collected: number
   error?: string
+  /** Changes whenever the catalog's sets change. */
+  rev: number
+  /** The caller's `rev` is current, so `sets` is left empty. */
+  unchanged?: boolean
+  /** When the catalog was last checked against MediUX (ms epoch), 0 when never. */
+  fetchedAt: number
+  /** A check for new sets is running. */
+  checking?: boolean
+  /** A full re-read of the catalog is running; the cached sets stay in use until it finishes. */
+  rereading?: boolean
 }
 
 /** A streamed batch of a creator's sets as the background crawl progresses. */
 export interface UserSetsChunk {
   username: string
-  /** Newly matched sets in this batch, or the full list when `reset` is set. */
+  /** Newly matched sets in this batch; the full list when `reset` is set; new or updated sets when `upsert` is set. */
   sets: MediuxUserSet[]
   /** Total sets buffered so far (across all chunks). */
   collected: number
@@ -724,9 +736,15 @@ export interface UserSetsChunk {
   done: boolean
   capped: boolean
   status: CreatorCrawlStatus
-  /** Replace the list with `sets` instead of appending (incremental resync). */
+  /** Replace the list with `sets` (a finished full re-read). */
   reset?: boolean
+  /** Put `sets` first, replacing any with the same id (a check that found new or updated sets). */
+  upsert?: boolean
   error?: string
+  /** The catalog's revision after this chunk. */
+  rev: number
+  /** When the catalog was last checked against MediUX (ms epoch). */
+  fetchedAt?: number
 }
 
 export interface BrowseSetsRes {
@@ -843,6 +861,7 @@ export type IpcChannels = {
   'library:userSets':        { req: UserSetsReq; res: UserSetsRes }
   'library:startUserSets':   { req: UserSetsReq; res: UserSetsSnapshot }
   'library:refreshUserSets': { req: UserSetsReq; res: UserSetsSnapshot }
+  'library:rereadUserSets':  { req: UserSetsReq; res: UserSetsSnapshot }
   'library:userSetsChunk':   { event: UserSetsChunk }
   'library:creatorSearch':   { req: CreatorSearchReq; res: UserSetsRes }
   'library:currentArt':      { req: CurrentArtReq; res: CurrentArtRes }

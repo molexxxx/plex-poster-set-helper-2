@@ -45,6 +45,7 @@ const api = {
     userSets: (req: UserSetsReq) => ipcRenderer.invoke('library:userSets', req),
     startUserSets: (req: UserSetsReq) => ipcRenderer.invoke('library:startUserSets', req),
     refreshUserSets: (req: UserSetsReq) => ipcRenderer.invoke('library:refreshUserSets', req),
+    rereadUserSets: (req: UserSetsReq) => ipcRenderer.invoke('library:rereadUserSets', req),
     onUserSetsChunk: (cb: (chunk: UserSetsChunk) => void) =>
     {
       const handler = (_: unknown, data: UserSetsChunk) => cb(data)

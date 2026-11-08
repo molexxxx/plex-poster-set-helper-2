@@ -220,3 +220,99 @@ describe('CreatorSetsService crawl checkpoints', () =>
     expect(readCache().creators.alice.partial).toBeUndefined()
   })
 })
+
+describe('CreatorSetsService revisions and checks', () =>
+{
+  const chunks = async () =>
+  {
+    const { appEvents } = await import('../../electron/runtime/events')
+    return vi.mocked(appEvents.emitEvent).mock.calls
+      .filter(c => c[0] === 'library:userSetsChunk')
+      .map(c => c[1] as { sets: MediuxUserSet[]; upsert?: boolean; reset?: boolean; error?: string; rev: number })
+  }
+  const lastChunk = async () =>
+  {
+    const list = await chunks()
+    return list[list.length - 1]
+  }
+
+  it('leaves the sets out when the caller already holds the current revision', async () =>
+  {
+    crawlReturns([userSet('1', 'd1'), userSet('2', 'd2')])
+    await CreatorSetsService.catalog('Alice')
+
+    const first = CreatorSetsService.start('Alice')
+    const again = CreatorSetsService.start('Alice', undefined, first.rev)
+
+    expect(first.sets).toHaveLength(2)
+    expect(first.fetchedAt).toBeGreaterThan(0)
+    expect(again.unchanged).toBe(true)
+    expect(again.sets).toEqual([])
+    expect(again.collected).toBe(2)
+    expect(CreatorSetsService.start('Alice', undefined, first.rev - 1).sets).toHaveLength(2)
+  })
+
+  it('checks a fresh catalog on request and sends only the new or updated sets', async () =>
+  {
+    crawlReturns([userSet('1', 'd1'), userSet('2', 'd2')])
+    await CreatorSetsService.catalog('Alice')
+    const before = CreatorSetsService.start('Alice').rev
+    vi.mocked(ScraperFactory.browseMediuxUser).mockImplementation(async (_user, page) =>
+      page === 1 ? [userSet('3', 'd3'), userSet('1', 'd1'), userSet('2', 'd2')] : [])
+
+    CreatorSetsService.check('Alice')
+    const { sets } = await CreatorSetsService.catalog('Alice')
+
+    const last = await lastChunk()
+    expect(last.upsert).toBe(true)
+    expect(last.sets.map(s => s.id)).toEqual(['3'])
+    expect(last.rev).toBeGreaterThan(before)
+    expect(sets.map(s => s.id)).toEqual(['3', '1', '2'])
+  })
+
+  it('keeps the revision when a check finds nothing new', async () =>
+  {
+    crawlReturns([userSet('1', 'd1')])
+    await CreatorSetsService.catalog('Alice')
+    const before = CreatorSetsService.start('Alice').rev
+    vi.mocked(ScraperFactory.browseMediuxUser).mockImplementation(async () => [userSet('1', 'd1')])
+
+    CreatorSetsService.check('Alice')
+    await CreatorSetsService.catalog('Alice')
+
+    const last = await lastChunk()
+    expect(last.upsert).toBeUndefined()
+    expect(last.sets).toEqual([])
+    expect(CreatorSetsService.start('Alice', undefined, before).unchanged).toBe(true)
+  })
+
+  it('re-reads the whole catalog beside the cached one and swaps it in when done', async () =>
+  {
+    crawlReturns([userSet('1', 'd1'), userSet('2', 'd2')])
+    await CreatorSetsService.catalog('Alice')
+    crawlReturns([userSet('4', 'd4'), userSet('1', 'd1')])
+
+    const during = CreatorSetsService.reread('Alice')
+    expect(during.sets.map(s => s.id)).toEqual(['1', '2'])
+    expect(during.rereading).toBe(true)
+    const { sets } = await CreatorSetsService.catalog('Alice')
+
+    expect(sets.map(s => s.id)).toEqual(['4', '1'])
+    const last = await lastChunk()
+    expect(last.reset).toBe(true)
+    expect(last.sets.map(s => s.id)).toEqual(['4', '1'])
+  })
+
+  it('keeps the cached catalog when a re-read fails', async () =>
+  {
+    crawlReturns([userSet('1', 'd1')])
+    await CreatorSetsService.catalog('Alice')
+    vi.mocked(ScraperFactory.browseMediuxUserAll).mockRejectedValue(new Error('MediUX is down'))
+
+    CreatorSetsService.reread('Alice')
+    const { sets } = await CreatorSetsService.catalog('Alice')
+
+    expect(sets.map(s => s.id)).toEqual(['1'])
+    expect((await lastChunk()).error).toContain('MediUX is down')
+  })
+})

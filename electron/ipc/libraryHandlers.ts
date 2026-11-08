@@ -18,6 +18,7 @@ export function registerLibraryHandlers(ipcMain: IpcMain, win?: BrowserWindow) {
   ipcMain.handle('library:userSets', (_e, req: UserSetsReq) => handlers.library.userSets(req))
   ipcMain.handle('library:startUserSets', (_e, req: UserSetsReq) => handlers.library.startUserSets(req))
   ipcMain.handle('library:refreshUserSets', (_e, req: UserSetsReq) => handlers.library.refreshUserSets(req))
+  ipcMain.handle('library:rereadUserSets', (_e, req: UserSetsReq) => handlers.library.rereadUserSets(req))
   ipcMain.handle('library:creatorSearch', (_e, req: CreatorSearchReq) => handlers.library.creatorSearch(req))
   ipcMain.handle('library:currentArt', (_e, req: CurrentArtReq) => handlers.library.currentArt(req))
   ipcMain.handle('library:linkedSets', (_e, req: LinkedSetsReq) => handlers.library.linkedSets(req))
