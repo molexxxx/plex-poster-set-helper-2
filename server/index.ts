@@ -8,6 +8,7 @@ import { Logger } from '../electron/services/logger'
 import { PlexService } from '../electron/services/plexService'
 import { SchedulerService } from '../electron/services/schedulerService'
 import { PlaywrightService } from '../electron/services/playwrightService'
+import { CreatorSetsService } from '../electron/services/creatorSetsService'
 import { handlers } from '../electron/handlers'
 import { appEvents } from '../electron/runtime/events'
 import {
@@ -346,6 +347,13 @@ export async function startServer() {
 }
 
 if (require.main === module) {
+  // `docker stop` sends SIGTERM; save the creator crawl checkpoint before exiting.
+  for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+    process.once(signal, () => {
+      CreatorSetsService.flush()
+      process.exit(0)
+    })
+  }
   startServer().catch(err => {
     console.error('Server failed to start:', err)
     process.exit(1)

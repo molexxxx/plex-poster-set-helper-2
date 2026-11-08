@@ -19,6 +19,10 @@ import type { MediuxUserSet, UserSetsSnapshot, CreatorCrawlStatus } from '../ipc
  * is refreshed incrementally in the background - only the newest pages are
  * fetched, stopping as soon as it reaches sets already cached - so unchanged
  * creators cost at most a page or two, not a full crawl.
+ *
+ * A full crawl of a large creator takes minutes, so it is checkpointed after
+ * every batch of pages. A crawl cut short by quitting the app or by a page that
+ * failed to load resumes from its last page instead of starting over.
  */
 
 interface CrawlState {
@@ -31,6 +35,8 @@ interface CrawlState {
   error?: string
   /** When the crawl/refresh settled; drives the freshness gate. */
   fetchedAt: number
+  /** When the current full crawl began, kept across resumes; a finished crawl is as fresh as this. */
+  startedAt: number
   /** Last time a caller touched this creator; drives LRU eviction. */
   touchedAt: number
   /** A background incremental refresh is in flight. */
@@ -60,10 +66,20 @@ export const CREATOR_CACHE_VERSION = 2
 
 const cacheFile = () => path.join(getUserDataPath(), 'creator-sets.json')
 
-interface PersistedCreator { username: string; sets: MediuxUserSet[]; capped: boolean; fetchedAt: number }
+interface PersistedCreator {
+  username: string
+  sets: MediuxUserSet[]
+  capped: boolean
+  fetchedAt: number
+  /** The crawl has not finished; it resumes from `lastPage`. */
+  partial?: boolean
+  lastPage?: number
+  startedAt?: number
+}
 
 let loaded = false
 let saveTimer: NodeJS.Timeout | null = null
+let writing: Promise<void> = Promise.resolve()
 
 /** Lazily seed the in-memory store from disk on first use. */
 function ensureLoaded(): void {
@@ -82,23 +98,38 @@ function ensureLoaded(): void {
       const sets = (c.sets ?? []).map(s => (s.source ? s : { ...s, source: 'mediux' as const }))
       store.set(k, {
         username: c.username, sets, seen: new Set(sets.map(s => s.id)),
-        status: c.capped ? 'capped' : 'done', capped: !!c.capped, lastPage: 0,
-        fetchedAt: c.fetchedAt ?? 0, touchedAt: Date.now(), refreshing: false, pending: null, signal: { aborted: false },
+        status: c.partial ? 'crawling' : c.capped ? 'capped' : 'done', capped: !!c.capped,
+        lastPage: c.partial ? c.lastPage ?? 0 : 0, fetchedAt: c.partial ? 0 : c.fetchedAt ?? 0,
+        startedAt: c.startedAt ?? 0, touchedAt: Date.now(), refreshing: false, pending: null, signal: { aborted: false },
       })
     }
   } catch { /* no cache yet */ }
 }
 
-/** Debounced write of the settled creators to disk. */
+/** The cache file's contents: finished catalogs, plus unfinished crawls with enough progress to resume. */
+function serialize(): string {
+  const creators: Record<string, PersistedCreator> = {}
+  for (const [k, s] of store) {
+    const partial = s.status === 'crawling' || s.status === 'error'
+    if (partial && !s.sets.length) continue
+    creators[k] = partial
+      ? { username: s.username, sets: s.sets, capped: false, fetchedAt: 0, partial: true, lastPage: s.lastPage, startedAt: s.startedAt }
+      : { username: s.username, sets: s.sets, capped: s.capped, fetchedAt: s.fetchedAt, startedAt: s.startedAt }
+  }
+  return JSON.stringify({ version: CREATOR_CACHE_VERSION, creators })
+}
+
+/** Debounced write of the cache. Writes go through a temp file, so quitting mid-write never leaves a truncated cache. */
 function persist(): void {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    const creators: Record<string, PersistedCreator> = {}
-    for (const [k, s] of store) {
-      if (s.status === 'crawling') continue   // never persist a partial crawl
-      creators[k] = { username: s.username, sets: s.sets, capped: s.capped, fetchedAt: s.fetchedAt }
-    }
-    fs.promises.writeFile(cacheFile(), JSON.stringify({ version: CREATOR_CACHE_VERSION, creators }), 'utf-8')
+    saveTimer = null
+    const json = serialize()
+    const file = cacheFile()
+    const tmp = `${file}.tmp`
+    writing = writing
+      .then(() => fs.promises.writeFile(tmp, json, 'utf-8'))
+      .then(() => fs.promises.rename(tmp, file))
       .catch(err => Logger.warn('Library', `Failed to persist creator cache: ${err instanceof Error ? err.message : err}`))
   }, 500)
 }
@@ -137,11 +168,17 @@ function evictLru(): void {
   persist()
 }
 
-/** Full background crawl of a cold creator, streaming batches as pages land. */
+/**
+ * Full background crawl of a cold creator, streaming batches as pages land and
+ * checkpointing each one. A state with progress resumes from its last page.
+ */
 async function runCrawl(state: CrawlState): Promise<void> {
+  const resuming = state.lastPage > 0 && state.sets.length > 0
+  if (resuming) Logger.info('Library', `Resuming the crawl of "${state.username}" at page ${state.lastPage} with ${state.sets.length} set(s) collected`)
   try {
     await ScraperFactory.browseMediuxUserAll(state.username, {
       signal: state.signal,
+      ...(resuming ? { startPage: state.lastPage, seen: new Set(state.seen) } : {}),
       onBatch: async (newSets, info) => {
         if (state.signal.aborted) return
         // Match only this batch, so library matches stream in with the sets
@@ -157,9 +194,9 @@ async function runCrawl(state: CrawlState): Promise<void> {
         if (info.done) {
           state.status = info.capped ? 'capped' : 'done'
           state.capped = info.capped
-          state.fetchedAt = Date.now()
-          persist()
+          state.fetchedAt = state.startedAt || Date.now()
         }
+        persist()
         appEvents.emitEvent('library:userSetsChunk', {
           username: state.username, sets: matched, collected: state.sets.length,
           page: state.lastPage, done: info.done, capped: state.capped, status: state.status,
@@ -170,8 +207,8 @@ async function runCrawl(state: CrawlState): Promise<void> {
     if (state.signal.aborted) return
     state.status = 'error'
     state.error = err instanceof Error ? err.message : String(err)
-    state.fetchedAt = Date.now()
     Logger.error('Library', `Creator crawl failed for "${state.username}": ${state.error}`)
+    persist()
     appEvents.emitEvent('library:userSetsChunk', {
       username: state.username, sets: [], collected: state.sets.length,
       page: state.lastPage, done: true, capped: state.capped, status: 'error', error: state.error,
@@ -259,19 +296,27 @@ export const CreatorSetsService = {
     const k = key(username)
     const existing = store.get(k)
 
-    if (existing && existing.status !== 'error') {
+    if (existing) {
       existing.touchedAt = Date.now()
-      if (existing.status !== 'crawling' && !existing.refreshing) {
+      if (existing.status === 'crawling' || existing.status === 'error') {
+        // An unfinished crawl loaded from disk, or one a failed page stopped,
+        // picks up from its checkpoint; a crawl already running is left alone.
+        if (!existing.pending) {
+          existing.status = 'crawling'
+          existing.error = undefined
+          existing.signal = { aborted: false }
+          track(existing, () => runCrawl(existing))
+        }
+      } else if (!existing.refreshing) {
         const fresh = Date.now() - existing.fetchedAt < maxAgeMs
         if (!fresh) track(existing, () => runIncrementalRefresh(existing))
       }
       return snapshot(existing)
     }
-    if (existing) { existing.signal.aborted = true; store.delete(k) }
 
     const state: CrawlState = {
-      username, sets: [], seen: new Set(), status: 'crawling', capped: false,
-      lastPage: 0, fetchedAt: 0, touchedAt: Date.now(), refreshing: false, pending: null, signal: { aborted: false },
+      username, sets: [], seen: new Set(), status: 'crawling', capped: false, lastPage: 0, fetchedAt: 0,
+      startedAt: Date.now(), touchedAt: Date.now(), refreshing: false, pending: null, signal: { aborted: false },
     }
     store.set(k, state)
     evictLru()
@@ -306,6 +351,21 @@ export const CreatorSetsService = {
     const existing = store.get(k)
     if (existing) { existing.signal.aborted = true; store.delete(k) }
     return this.start(username)
+  },
+
+  /** Writes a pending cache save at once; called on quit so the latest checkpoint survives. */
+  flush(): void {
+    if (!saveTimer) return
+    clearTimeout(saveTimer)
+    saveTimer = null
+    const file = cacheFile()
+    const tmp = `${file}.flush.tmp`
+    try {
+      fs.writeFileSync(tmp, serialize(), 'utf-8')
+      fs.renameSync(tmp, file)
+    } catch (err) {
+      Logger.warn('Library', `Failed to persist creator cache: ${err instanceof Error ? err.message : err}`)
+    }
   },
 
   /** Aborts and clears every buffered crawl (e.g. on shutdown); the next use re-reads the disk cache. */

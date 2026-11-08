@@ -50,9 +50,14 @@ function crawlReturns(sets: MediuxUserSet[])
 beforeEach(() =>
 {
   vi.clearAllMocks()
-  CreatorSetsService.clear()
-  fs.rmSync(path.join(dir, 'creator-sets.json'), { force: true })
+  CreatorSetsService.clearDisk()
 })
+
+/** Reads the creator cache file as written. */
+function readCache(): { version: number; creators: Record<string, { sets: MediuxUserSet[]; partial?: boolean; lastPage?: number }> }
+{
+  return JSON.parse(fs.readFileSync(path.join(dir, 'creator-sets.json'), 'utf-8'))
+}
 
 describe('CreatorSetsService.catalog', () =>
 {
@@ -152,5 +157,66 @@ describe('CreatorSetsService.catalog', () =>
     vi.mocked(ScraperFactory.browseMediuxUserAll).mockRejectedValue(new Error("Could not load page 2 of @bob's sets: fetch failed"))
 
     await expect(CreatorSetsService.catalog('Bob')).rejects.toThrow("Could not load page 2 of @bob's sets: fetch failed")
+  })
+})
+
+describe('CreatorSetsService crawl checkpoints', () =>
+{
+  it('resumes a crawl cut short by quitting from its last page after a relaunch', async () =>
+  {
+    vi.mocked(ScraperFactory.browseMediuxUserAll).mockImplementationOnce(async (_user, opts) =>
+    {
+      await opts?.onBatch?.([userSet('1', 'd1'), userSet('2', 'd2')], { page: 2, done: false, capped: false })
+      return new Promise(() => {})
+    })
+    CreatorSetsService.start('Alice')
+    await vi.waitFor(() => expect(CreatorSetsService.start('Alice').collected).toBe(2))
+
+    CreatorSetsService.flush()
+    expect(readCache().creators.alice).toMatchObject({ partial: true, lastPage: 2 })
+
+    CreatorSetsService.clear()
+    vi.mocked(ScraperFactory.browseMediuxUserAll).mockImplementationOnce(async (_user, opts) =>
+    {
+      await opts?.onBatch?.([userSet('3', 'd3')], { page: 3, done: false, capped: false })
+      await opts?.onBatch?.([], { page: 3, done: true, capped: false })
+      return { sets: [], capped: false }
+    })
+
+    const { sets } = await CreatorSetsService.catalog('Alice')
+
+    expect(sets.map(s => s.id)).toEqual(['1', '2', '3'])
+    const resumed = vi.mocked(ScraperFactory.browseMediuxUserAll).mock.calls[1][1]
+    expect(resumed?.startPage).toBe(2)
+    expect([...(resumed?.seen ?? [])]).toEqual(['1', '2'])
+  })
+
+  it('resumes after a page fails instead of crawling from the first page again', async () =>
+  {
+    vi.mocked(ScraperFactory.browseMediuxUserAll).mockImplementationOnce(async (_user, opts) =>
+    {
+      await opts?.onBatch?.([userSet('1', 'd1')], { page: 2, done: false, capped: false })
+      throw new Error('Could not load page 3')
+    })
+    await expect(CreatorSetsService.catalog('Alice')).rejects.toThrow('Could not load page 3')
+
+    CreatorSetsService.flush()
+    expect(readCache().creators.alice).toMatchObject({ partial: true, lastPage: 2 })
+
+    crawlReturns([userSet('2', 'd2')])
+    const { sets } = await CreatorSetsService.catalog('Alice')
+
+    expect(sets.map(s => s.id)).toEqual(['1', '2'])
+    expect(vi.mocked(ScraperFactory.browseMediuxUserAll).mock.calls[1][1]?.startPage).toBe(2)
+  })
+
+  it('saves a finished crawl as complete', async () =>
+  {
+    crawlReturns([userSet('1', 'd1')])
+    await CreatorSetsService.catalog('Alice')
+
+    CreatorSetsService.flush()
+
+    expect(readCache().creators.alice.partial).toBeUndefined()
   })
 })

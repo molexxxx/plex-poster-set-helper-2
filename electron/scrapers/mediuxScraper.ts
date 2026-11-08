@@ -21,6 +21,12 @@ const USER_PAGE_TIMEOUT_MS = 60_000
 const USER_PAGE_RETRY_MS = 2_000
 /** Creator pages fetched concurrently during a catalog crawl. */
 const USER_CRAWL_BATCH = 4
+/**
+ * Pages of already-seen sets a resumed crawl walks before it calls the catalog
+ * finished. Sets added since the checkpoint push known sets onto later pages,
+ * so the pages just past the resume point can hold nothing new mid-catalog.
+ */
+const RESUME_SLACK_PAGES = 12
 
 interface SeasonEntry { id?: string | number; season_number?: number }
 
@@ -960,6 +966,9 @@ export class MediuxScraper extends BaseScraper {
    *   scraper's shared `_aborted` flag for this crawl's loop guard.
    * @param opts.onBatch - Called with each batch's new sets, then once with an
    *   empty `done: true` batch.
+   * @param opts.startPage - First page to fetch, to resume a checkpointed crawl.
+   * @param opts.seen - Set ids collected before the resume point; they are
+   *   skipped, and pages holding only them do not end the crawl at once.
    * @returns The deduped sets (newest-first) and whether the page cap stopped it.
    */
   async browseAllUserSets(
@@ -969,6 +978,8 @@ export class MediuxScraper extends BaseScraper {
       maxPages?: number
       signal?: { aborted: boolean }
       onBatch?: (newSets: MediuxUserSet[], info: { page: number; done: boolean; capped: boolean }) => void | Promise<void>
+      startPage?: number
+      seen?: ReadonlySet<string>
     } = {},
   ): Promise<{ sets: MediuxUserSet[]; capped: boolean }> {
     const batchSize = Math.max(1, opts.batchSize ?? USER_CRAWL_BATCH)
@@ -978,14 +989,15 @@ export class MediuxScraper extends BaseScraper {
     // background creator crawl from the shared foreground-scrape abort flag.
     const aborted = () => (signal ? signal.aborted : this._aborted)
 
-    const seen = new Set<string>()
+    const seen = new Set<string>(opts.seen ?? [])
     const all: MediuxUserSet[] = []
     let reachedEnd = false
     let lastPage = 0
+    let resumeSlack = seen.size > 0 ? RESUME_SLACK_PAGES : 0
 
     // When streaming, fetch a small first batch so the first sets render almost
     // immediately, then ramp up to the full concurrent batch size.
-    let start = 1
+    let start = Math.max(1, opts.startPage ?? 1)
     let curBatch = onBatch ? Math.min(2, batchSize) : batchSize
     while (start <= maxPages && !aborted()) {
       const pages: number[] = []
@@ -1007,8 +1019,15 @@ export class MediuxScraper extends BaseScraper {
         }
       }
 
-      // A full batch with no new ids means we've gone past the catalog's end.
-      if (fresh.length === 0) { reachedEnd = true; break }
+      // A full batch with no new ids means we've gone past the catalog's end,
+      // unless a resumed crawl is still inside sets it collected before.
+      if (fresh.length === 0) {
+        const empty = batch.every(pageSets => pageSets.length === 0)
+        if (empty || resumeSlack <= 0) { reachedEnd = true; break }
+        resumeSlack -= pages.length
+      } else {
+        resumeSlack = 0
+      }
 
       await onBatch?.(fresh, { page: lastPage, done: false, capped: false })
 

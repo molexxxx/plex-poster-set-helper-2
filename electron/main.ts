@@ -17,6 +17,7 @@ import { registerBrowserHandlers, wireBrowserEvents } from './ipc/browserHandler
 import { registerLibraryHandlers } from './ipc/libraryHandlers'
 import { SchedulerService } from './services/schedulerService'
 import { PlaywrightService } from './services/playwrightService'
+import { CreatorSetsService } from './services/creatorSetsService'
 
 /**
  * Dev = running against the Vite dev server. Containers run an unpackaged
@@ -413,6 +414,7 @@ app.on('window-all-closed', () => {
 // Ensure forceQuit is set before close handlers fire (e.g. from app.quit() calls)
 app.on('before-quit', () => {
   forceQuit = true
+  CreatorSetsService.flush()
   PlaywrightService.shutdown()
 })
 

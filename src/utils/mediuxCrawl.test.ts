@@ -126,4 +126,28 @@ describe('MediuxScraper.browseAllUserSets', () =>
     expect(result.capped).toBe(false)
     expect(onBatch).toHaveBeenLastCalledWith([], expect.objectContaining({ done: true, capped: false }))
   })
+
+  it('resumes from a page and keeps walking past pages holding only sets it already has', async () =>
+  {
+    const scraper = new MediuxScraper()
+    scraper.browseUserSets = vi.fn(async (_u: string, page = 1) => (page <= 10 ? [set(page)] : []))
+    const seen = new Set(['s1', 's2', 's3', 's4', 's5'])
+
+    const result = await scraper.browseAllUserSets('alice', { batchSize: 2, startPage: 3, seen, onBatch: vi.fn() })
+
+    expect(result.sets.map(s => s.id)).toEqual(['s6', 's7', 's8', 's9', 's10'])
+    expect(vi.mocked(scraper.browseUserSets).mock.calls[0][1]).toBe(3)
+  })
+
+  it('ends a resumed crawl at empty pages', async () =>
+  {
+    const scraper = new MediuxScraper()
+    scraper.browseUserSets = vi.fn(async (_u: string, page = 1) => (page <= 4 ? [set(page)] : []))
+
+    const result = await scraper.browseAllUserSets('alice', { batchSize: 2, startPage: 3, seen: new Set(['s3', 's4']), onBatch: vi.fn() })
+
+    expect(result.sets).toEqual([])
+    expect(result.capped).toBe(false)
+    expect(vi.mocked(scraper.browseUserSets).mock.calls.map(c => c[1])).toEqual([3, 4, 5, 6])
+  })
 })
