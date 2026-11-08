@@ -290,24 +290,6 @@ export const handlers = {
         throw err
       }
     },
-    signIn: async (_win?: BrowserWindow | null) => {
-      try {
-        const token = await PlexAuthService.signIn(_win ?? null, emitAuth)
-        const cfg = ConfigService.get()
-        if (cfg.baseUrl) {
-          PlexService.connect({ baseUrl: cfg.baseUrl, token }).catch(err => {
-            Logger.warn('Auth', `Auto-connect after sign-in failed: ${err instanceof Error ? err.message : err}`)
-          })
-        }
-        return token
-      } catch (err) {
-        const error = err instanceof Error ? err.message : String(err)
-        if (error !== 'Sign-in cancelled') {
-          emitAuth({ status: 'error', error })
-        }
-        throw err
-      }
-    },
     getStatus: async () => {
       const status = PlexAuthService.getStatus()
       if (status.status === 'authorized') {

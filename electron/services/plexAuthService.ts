@@ -98,17 +98,13 @@ function stopPoll() {
 /** Handles the plex.tv PIN auth flow, token storage, and server auto-discovery. */
 export const PlexAuthService = {
   /**
-   * Signs in via the plex.tv PIN flow: requests a strong PIN, opens the auth
-   * URL (or surfaces it for browserless environments), and polls until the
-   * user authorises or the flow times out.
+   * Starts the plex.tv PIN flow: requests a strong PIN, opens the auth URL on
+   * the desktop (the web UI shows it instead), and returns the waiting status
+   * at once while polling continues until the user authorizes or it times out.
    *
    * @param _win - Unused; kept for the IPC call signature.
    * @param onStatus - Receives status updates to forward to the renderer.
-   * @returns The authenticated Plex token.
-   */
-  /**
-   * Starts the PIN flow and returns the waiting status immediately while
-   * polling continues in the background (used by the web server).
+   * @returns The waiting status, carrying the PIN and auth URL.
    */
   async beginSignIn(
     _win: BrowserWindow | null,
@@ -189,14 +185,6 @@ export const PlexAuthService = {
   waitForActiveSignIn(): Promise<string> {
     if (!_activeSignIn) return Promise.reject(new Error('No sign-in in progress'))
     return _activeSignIn
-  },
-
-  async signIn(
-    _win: BrowserWindow | null,
-    onStatus: (status: PlexAuthStatus) => void,
-  ): Promise<string> {
-    await this.beginSignIn(_win, onStatus)
-    return this.waitForActiveSignIn()
   },
 
   /**

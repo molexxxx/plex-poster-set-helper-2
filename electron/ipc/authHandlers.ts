@@ -8,7 +8,9 @@ export function registerAuthHandlers(ipcMain: IpcMain, win: BrowserWindow) {
     if (!win.isDestroyed()) win.webContents.send('auth:statusChange', status)
   })
 
-  ipcMain.handle('auth:plexSignIn', () => handlers.auth.signIn(win))
+  // Resolves with the authorization link as soon as the PIN flow starts, like the web
+  // route; completion arrives through auth:statusChange.
+  ipcMain.handle('auth:plexSignIn', async () => (await handlers.auth.beginSignIn(win)).authUrl ?? '')
   ipcMain.handle('auth:plexStatus', () => handlers.auth.getStatus())
   ipcMain.handle('auth:disconnect', () => handlers.auth.disconnect())
 }

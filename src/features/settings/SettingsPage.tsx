@@ -383,7 +383,7 @@ export default function SettingsPage() {
     setAuthStatus({ status: 'waiting' })
     try {
       const authUrl = await window.api.auth.signIn()
-      if (authUrl) setAuthStatus({ status: 'waiting', authUrl })
+      if (authUrl) setAuthStatus(prev => prev.status === 'waiting' ? { ...prev, authUrl } : prev)
     } catch {
       setSigningIn(false)
       setAuthStatus({ status: 'idle' })
