@@ -39,7 +39,8 @@
   /* Text hierarchy */
   --color-text-primary:   #f0f2f8;
   --color-text-secondary: #8b93b0;
-  --color-text-muted:     #4e5568;
+  /* At least 4.5:1 on base, surface, and elevated, so hints stay readable. */
+  --color-text-muted:     #7d859f;
   --color-text-disabled:  #2e3447;
 
   /* Borders */

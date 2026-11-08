@@ -1,5 +1,4 @@
 import { useId } from 'react'
-import { motion } from 'framer-motion'
 import styles from './Switch.module.css'
 
 interface SwitchProps {
@@ -8,24 +7,28 @@ interface SwitchProps {
   label?: string
   description?: string
   disabled?: boolean
+  /** Accessible name when the switch has no visible label of its own. */
+  ariaLabel?: string
+  /** Id of the element that names the switch, such as a settings row label. */
+  ariaLabelledBy?: string
+  /** Id of the element that describes the switch. */
+  ariaDescribedBy?: string
 }
 
 /** Toggle switch with optional label and description. */
-export default function Switch({ checked, onChange, label, description, disabled }: SwitchProps) {
+export default function Switch({ checked, onChange, label, description, disabled, ariaLabel, ariaLabelledBy, ariaDescribedBy }: SwitchProps) {
   const id = useId()
 
   return (
     <label htmlFor={id} className={[styles.wrapper, disabled ? styles.disabled : ''].filter(Boolean).join(' ')}>
-      <div className={styles.text}>
-        {label && <span className={styles.label}>{label}</span>}
-        {description && <span className={styles.description}>{description}</span>}
-      </div>
+      {(label || description) && (
+        <div className={styles.text}>
+          {label && <span className={styles.label}>{label}</span>}
+          {description && <span className={styles.description}>{description}</span>}
+        </div>
+      )}
       <div className={[styles.track, checked ? styles.on : ''].join(' ')}>
-        <motion.div
-          className={styles.thumb}
-          animate={{ x: checked ? 18 : 2 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-        />
+        <div className={styles.thumb} />
         <input
           id={id}
           type="checkbox"
@@ -34,7 +37,9 @@ export default function Switch({ checked, onChange, label, description, disabled
           onChange={e => onChange(e.target.checked)}
           disabled={disabled}
           className={styles.input}
-          aria-checked={checked}
+          aria-label={label ? undefined : ariaLabel}
+          aria-labelledby={label ? undefined : ariaLabelledBy}
+          aria-describedby={ariaDescribedBy}
         />
       </div>
     </label>

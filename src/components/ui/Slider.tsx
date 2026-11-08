@@ -12,6 +12,8 @@ interface SliderProps {
   ticks?: number
   disabled?: boolean
   formatValue?: (v: number) => string
+  /** Accessible name when the slider has no visible label of its own. */
+  ariaLabel?: string
 }
 
 /** Single-value slider with optional ticks. */
@@ -26,6 +28,7 @@ export default function Slider({
   ticks,
   disabled = false,
   formatValue,
+  ariaLabel,
 }: SliderProps) {
   const id = useId()
   const [dragging, setDragging] = useState(false)
@@ -73,6 +76,7 @@ export default function Slider({
           disabled={disabled}
           className={styles.input}
           aria-valuetext={display}
+          aria-label={label ? undefined : ariaLabel}
         />
       </div>
 

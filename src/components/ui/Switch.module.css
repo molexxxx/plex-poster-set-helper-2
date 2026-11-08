@@ -23,30 +23,42 @@
 
 .track {
   position: relative;
-  width: 38px;
+  width: 40px;
   height: 22px;
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: var(--radius-full);
   flex-shrink: 0;
-  transition: background var(--duration-base), border-color var(--duration-base);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
 }
+
+.wrapper:hover .track:not(.on) { border-color: rgba(255, 255, 255, 0.48); }
 
 .track.on {
   background: var(--color-accent-interactive);
   border-color: var(--color-accent-interactive);
-  box-shadow: 0 0 8px rgba(229, 160, 13, 0.25);
+}
+
+.track:has(.input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .thumb {
   position: absolute;
-  top: 2px;
-  width: 16px;
-  height: 16px;
-  background: #fff;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: var(--color-text-secondary);
   border-radius: var(--radius-full);
-  box-shadow: var(--shadow-sm);
   pointer-events: none;
+  transition: transform 140ms var(--ease-out-expo), background var(--duration-fast);
+}
+
+.track.on .thumb {
+  background: var(--color-accent-contrast);
+  transform: translateX(18px);
 }
 
 .input {
@@ -57,4 +69,8 @@
   height: 100%;
   cursor: pointer;
   margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb { transition: none; }
 }

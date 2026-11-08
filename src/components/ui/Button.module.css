@@ -17,37 +17,7 @@
     background var(--duration-fast) var(--ease-in-out),
     border-color var(--duration-fast) var(--ease-in-out),
     color var(--duration-fast) var(--ease-in-out),
-    box-shadow var(--duration-base) var(--ease-in-out),
-    opacity var(--duration-fast),
-    transform 100ms var(--ease-out-expo);
-}
-
-.btn:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-/* Shimmer layer - sweeps on hover for primary */
-.btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    108deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.06) 50%,
-    transparent 70%
-  );
-  background-size: 250% 100%;
-  background-position: -100% 0;
-  pointer-events: none;
-  transition: background-position 0.55s var(--ease-out-expo), opacity 0.2s;
-  opacity: 0;
-}
-
-.btn:hover:not(:disabled)::after {
-  background-position: 100% 0;
-  opacity: 1;
+    opacity var(--duration-fast);
 }
 
 .btn:focus-visible {
@@ -93,7 +63,6 @@
 .primary:hover:not(:disabled) {
   background: var(--color-accent-soft-hover);
   border-color: var(--color-accent);
-  box-shadow: 0 0 16px rgba(229, 160, 13, 0.14);
 }
 
 .primary:active:not(:disabled) {
@@ -112,7 +81,11 @@
 .secondary:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.07);
   border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.secondary:active:not(:disabled),
+.ghost:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 /* Ghost - transparent, secondary text */
@@ -138,7 +111,10 @@
 .destructive:hover:not(:disabled) {
   background: rgba(248, 113, 113, 0.14);
   border-color: rgba(248, 113, 113, 0.3);
-  box-shadow: 0 0 16px rgba(248, 113, 113, 0.12);
+}
+
+.destructive:active:not(:disabled) {
+  background: rgba(248, 113, 113, 0.1);
 }
 
 /* -- Icon slot -------------------------------------------------------------- */

@@ -20,6 +20,8 @@ interface SelectProps<T extends string = string> {
   searchable?: boolean
   disabled?: boolean
   error?: string
+  /** Id of an external label, such as a settings row label; read before the selected value. */
+  ariaLabelledBy?: string
 }
 
 /** Custom dropdown select with optional search. */
@@ -32,6 +34,7 @@ export default function Select<T extends string = string>({
   searchable = false,
   disabled = false,
   error,
+  ariaLabelledBy,
 }: SelectProps<T>) {
   const id = useId()
   const [open, setOpen] = useState(false)
@@ -74,6 +77,7 @@ export default function Select<T extends string = string>({
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-labelledby={ariaLabelledBy ? `${ariaLabelledBy} ${id}` : undefined}
         disabled={disabled}
       >
         <span className={[styles.triggerLabel, !selected ? styles.placeholder : ''].join(' ')}>

@@ -13,8 +13,8 @@
   width: 16px;
   height: 16px;
   border-radius: var(--radius-xs);
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.32);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,7 +31,11 @@
 .box.checked {
   background: var(--color-accent-interactive);
   border-color: var(--color-accent-interactive);
-  box-shadow: 0 0 0 3px var(--color-accent-interactive-dim);
+}
+
+.box:has(.input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .dash {
