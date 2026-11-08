@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-release-plex.svg?v=6a0afce1" alt="Latest release" /></a>&nbsp;
-  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-downloads-plex.svg?v=3e429134" alt="Downloads" /></a>&nbsp;
+  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases/latest"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-release-plex.svg?v=96e09d62" alt="Latest release" /></a>&nbsp;
+  <a href="https://github.com/molexxxx/plex-poster-set-helper-2/releases"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-downloads-plex.svg?v=fd231d5f" alt="Downloads" /></a>&nbsp;
   <a href="https://github.com/molexxxx/plex-poster-set-helper-2/actions/workflows/ci.yml"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-ci-plex.svg?v=efd3be62" alt="CI status" /></a>&nbsp;
   <a href="docker/README.md"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-docker-plex.svg?v=328f8c36" alt="Docker guide" /></a>&nbsp;
   <a href="LICENSE"><img height="28" src="https://raw.githubusercontent.com/molexxxx/molexxxx/main/.github/badges/plex-poster-helper-2-license-plex.svg?v=85b68ada" alt="MIT license" /></a>
