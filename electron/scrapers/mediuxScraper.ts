@@ -2,6 +2,7 @@ import { BaseScraper, USER_AGENTS, pick, sleep, sleepConfig, mapPool } from './b
 import { Logger } from '../services/logger'
 import { splitTrailingYear, stripSuffix } from '../services/titleParse'
 import { ConfigService } from '../services/config'
+import { sitePageUrl, MEDIUX_SITE } from './siteUrl'
 import type { PosterInfo, PosterSetSummary, MediuxUserSet } from '../ipc/types'
 import type { Page } from 'playwright'
 
@@ -29,25 +30,13 @@ const USER_CRAWL_BATCH = 4
 const RESUME_SLACK_PAGES = 12
 
 /**
- * Rebuilds a MediUX page URL on the site's own https origin, so a link from a
- * user or a stored job can never point a fetch or the headless browser at
- * another host.
+ * Rebuilds a MediUX page URL on https://mediux.pro (see sitePageUrl).
  *
  * @param url - Page URL to check; a missing scheme is treated as https.
- * @returns The same path and query on https://mediux.pro, or null for any
- *   other host, credentials in the URL, or a non-default port.
+ * @returns The page on the site's origin, or null when it is not a MediUX page.
  */
 export function mediuxPageUrl(url: string): string | null {
-  let parsed: URL
-  try {
-    parsed = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`)
-  } catch {
-    return null
-  }
-  const host = parsed.hostname.toLowerCase()
-  if (host !== 'mediux.pro' && host !== 'www.mediux.pro') return null
-  if (parsed.username || parsed.password || parsed.port) return null
-  return 'https://mediux.pro/' + parsed.pathname.replace(/^\/+/, '') + parsed.search
+  return sitePageUrl(url, MEDIUX_SITE)
 }
 
 interface SeasonEntry { id?: string | number; season_number?: number }

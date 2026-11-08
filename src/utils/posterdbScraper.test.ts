@@ -722,6 +722,14 @@ describe('ThePosterDB URL checks', () =>
     expect(mod.posterdbPageUrl('https://theposterdb.com/set/4475')).toBe('https://theposterdb.com/set/4475')
     expect(mod.posterdbPageUrl('http://www.theposterdb.com/poster/9772?page=2')).toBe('https://theposterdb.com/poster/9772?page=2')
     expect(mod.posterdbPageUrl('theposterdb.com/user/alice')).toBe('https://theposterdb.com/user/alice')
+    expect(mod.posterdbPageUrl('https://theposterdb.com/user/Some%20Name?section=uploads&page=2')).toBe('https://theposterdb.com/user/Some%20Name?section=uploads&page=2')
+    expect(mod.posterdbPageUrl('https://theposterdb.com/search?term=Dune%20(2021)&section=movies')).toBe('https://theposterdb.com/search?term=Dune%20(2021)&section=movies')
+  })
+
+  it('keeps an encoded slash inside its own path segment', () =>
+  {
+    expect(mod.posterdbPageUrl('https://theposterdb.com/user/a%2F..%2Fapi')).toBe('https://theposterdb.com/user/a%2F..%2Fapi')
+    expect(mod.posterdbPageUrl('https://theposterdb.com/user/%E0%A4%A')).toBeNull()
   })
 
   it('refuses links to any other host', () =>

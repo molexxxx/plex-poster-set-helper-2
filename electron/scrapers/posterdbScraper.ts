@@ -3,6 +3,7 @@ import { BaseScraper, sleepConfig, mapPool, USER_AGENTS } from './baseScraper'
 import { Logger } from '../services/logger'
 import { ConfigService } from '../services/config'
 import { stripSuffix } from '../services/titleParse'
+import { sitePageUrl, POSTERDB_SITE } from './siteUrl'
 import type { PosterInfo, PosterSetSummary } from '../ipc/types'
 
 const BASE = 'https://theposterdb.com'
@@ -47,25 +48,13 @@ const FETCH_TIMEOUT_MS = 15_000
 const HEAVY_RESOURCES = new Set(['image', 'media', 'font', 'stylesheet'])
 
 /**
- * Rebuilds a ThePosterDB page URL on the site's own https origin, so a link
- * from a user or a stored job can never point a fetch or the headless browser
- * at another host.
+ * Rebuilds a ThePosterDB page URL on https://theposterdb.com (see sitePageUrl).
  *
  * @param url - Page URL to check; a missing scheme is treated as https.
- * @returns The same path and query on https://theposterdb.com, or null for any
- *   other host, credentials in the URL, or a non-default port.
+ * @returns The page on the site's origin, or null when it is not a ThePosterDB page.
  */
 export function posterdbPageUrl(url: string): string | null {
-  let parsed: URL
-  try {
-    parsed = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`)
-  } catch {
-    return null
-  }
-  const host = parsed.hostname.toLowerCase()
-  if (host !== 'theposterdb.com' && host !== 'www.theposterdb.com') return null
-  if (parsed.username || parsed.password || parsed.port) return null
-  return 'https://theposterdb.com/' + parsed.pathname.replace(/^\/+/, '') + parsed.search
+  return sitePageUrl(url, POSTERDB_SITE)
 }
 
 /**
