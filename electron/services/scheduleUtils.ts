@@ -3,6 +3,8 @@ import { classifyUrl } from '../scrapers/urlSource'
 
 /** Schedule the quick Schedule and Sync actions use until the user picks another. */
 export const DEFAULT_QUICK_CRON = '0 3 * * 0'
+/** Schedules offered for the quick Schedule and Sync actions. */
+export const QUICK_SCHEDULES = ['0 3 * * *', '0 3 * * 0', '0 9 * * 1', '0 */12 * * *', '0 3 1 * *']
 /** Runs kept per job. */
 export const MAX_JOB_HISTORY = 10
 /** Applied-poster history entries kept in config. */
@@ -394,11 +396,24 @@ function sameNumbers(a: number[], b: number[]): boolean
 }
 
 /**
+ * Formats a time of day the way the app shows times everywhere else.
+ *
+ * @param hour - Hour, 0 to 23.
+ * @param minute - Minute, 0 to 59.
+ * @returns A label such as "3:00 AM" or "12:30 PM".
+ */
+function clock12(hour: number, minute: number): string
+{
+  const h = hour % 12 === 0 ? 12 : hour % 12
+  return `${h}:${pad2(minute)} ${hour < 12 ? 'AM' : 'PM'}`
+}
+
+/**
  * Describes a cron expression in plain words, falling back to the expression
  * itself for shapes without a natural description.
  *
  * @param expr - Cron expression.
- * @returns A label such as "Every Sunday at 03:00" or "Every 6 hours".
+ * @returns A label such as "Every Sunday at 3:00 AM" or "Every 6 hours".
  */
 export function describeCron(expr: string): string
 {
@@ -418,7 +433,7 @@ export function describeCron(expr: string): string
 
   const isNum = (s: string) => /^\d+$/.test(s)
   const anyDay = (s: string) => s === '*' || s === '?'
-  const time = isNum(min) && isNum(hour) ? `${pad2(hour)}:${pad2(min)}` : null
+  const time = isNum(min) && isNum(hour) ? clock12(Number(hour), Number(min)) : null
 
   if (anyDay(dom) && anyDay(dow))
   {
@@ -1328,13 +1343,16 @@ export function reorderJobs(jobs: ScheduledJob[], ids: string[]): ScheduledJob[]
  * @param startedAt - When the run started.
  * @param finishedAt - When the run finished.
  * @param trigger - What started the run.
+ * @param stopped - The user stopped the run before it finished; what it did so far is kept.
  * @returns The run result.
  */
-export function finishRun(tally: RunTally, startedAt: Date, finishedAt: Date, trigger: JobRun['trigger']): JobRun
+export function finishRun(tally: RunTally, startedAt: Date, finishedAt: Date, trigger: JobRun['trigger'], stopped = false): JobRun
 {
-  const status: JobRun['status'] = tally.urlCount > 0 && tally.urlErrors >= tally.urlCount
-    ? 'error'
-    : tally.failed > 0 || tally.urlErrors > 0 ? 'partial' : 'success'
+  const status: JobRun['status'] = stopped
+    ? 'stopped'
+    : tally.urlCount > 0 && tally.urlErrors >= tally.urlCount
+      ? 'error'
+      : tally.failed > 0 || tally.urlErrors > 0 ? 'partial' : 'success'
   const run: JobRun = {
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
@@ -1379,27 +1397,33 @@ export function failedRun(message: string, startedAt: Date, finishedAt: Date, tr
   }
 }
 
+function count(n: number): string
+{
+  return n.toLocaleString('en-US')
+}
+
 function plural(n: number, noun: string): string
 {
-  return `${n} ${noun}${n === 1 ? '' : 's'}`
+  return `${count(n)} ${noun}${n === 1 ? '' : 's'}`
 }
 
 /**
  * Summarizes a run in one line.
  *
  * @param run - The run result.
- * @returns A label such as "2 posters applied · 40 already applied".
+ * @returns A label such as "2 posters applied · 1,040 already applied".
  */
 export function describeRun(run: JobRun): string
 {
   const parts: string[] = []
   if (run.uploaded) parts.push(`${plural(run.uploaded, 'poster')} applied`)
-  if (run.skipped) parts.push(`${run.skipped} already applied`)
-  if (run.covered) parts.push(`${run.covered} left to other art`)
-  if (run.noTarget) parts.push(`${run.noTarget} without a season or episode in Plex`)
+  if (run.skipped) parts.push(`${count(run.skipped)} already applied`)
+  if (run.covered) parts.push(`${count(run.covered)} left to other art`)
+  if (run.noTarget) parts.push(`${count(run.noTarget)} without a season or episode in Plex`)
   if (run.unmatched) parts.push(`${plural(run.unmatched, 'title')} not in library`)
-  if (run.failed) parts.push(`${run.failed} failed`)
-  if (run.urlErrors) parts.push(`${plural(run.urlErrors, 'URL')} could not be read`)
+  if (run.failed) parts.push(`${count(run.failed)} failed`)
+  if (run.urlErrors) parts.push(`${plural(run.urlErrors, 'link')} could not be read`)
+  if (run.status === 'stopped') return parts.length ? `Stopped · ${parts.join(' · ')}` : 'Stopped before anything was applied'
   if (!parts.length) return run.status === 'error' ? run.error ?? 'Failed' : 'Nothing new to apply'
   if (!run.uploaded && run.status === 'success') parts.unshift('Up to date')
   return parts.join(' · ')

@@ -397,6 +397,7 @@ export const handlers = {
     save: (job: ScheduledJob) => SchedulerService.save(job),
     delete: (id: string) => SchedulerService.delete(id),
     runNow: (id: string) => SchedulerService.runNow(id),
+    stop: (id: string) => SchedulerService.stop(id),
     setAutoStart: (enable: boolean) => SchedulerService.setAutoStart(enable),
     getAutoStart: () => SchedulerService.getAutoStart(),
     engineStatus: () => SchedulerService.engineStatus(),

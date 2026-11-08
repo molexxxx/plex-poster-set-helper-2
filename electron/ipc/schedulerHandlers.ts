@@ -9,6 +9,7 @@ export function registerSchedulerHandlers(_ipcMain: IpcMain) {
   ipcMain.handle('scheduler:save', (_e, job: ScheduledJob) => handlers.scheduler.save(job))
   ipcMain.handle('scheduler:delete', (_e, id: string) => handlers.scheduler.delete(id))
   ipcMain.handle('scheduler:runNow', (_e, id: string) => handlers.scheduler.runNow(id))
+  ipcMain.handle('scheduler:stop', (_e, id: string) => handlers.scheduler.stop(id))
   ipcMain.handle('scheduler:setAutoStart', (_e, enable: boolean) => handlers.scheduler.setAutoStart(enable))
   ipcMain.handle('scheduler:getAutoStart', () => handlers.scheduler.getAutoStart())
   ipcMain.handle('scheduler:engineStatus', () => handlers.scheduler.engineStatus())

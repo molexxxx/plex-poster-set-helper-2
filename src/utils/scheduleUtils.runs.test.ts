@@ -207,3 +207,18 @@ describe('normalizeJob fillGaps', () =>
     expect(normalizeJob({ ...base, fillGaps: 'yes' }, undefined, { makeId }).fillGaps).toBeUndefined()
   })
 })
+
+describe('stopped runs', () =>
+{
+  it('keeps what a stopped run applied and says it was stopped', () =>
+  {
+    const tally = emptyTally(1)
+    tally.uploaded = 1200
+    tally.skipped = 3400
+    const run = finishRun(tally, START, END, 'manual', true)
+
+    expect(run.status).toBe('stopped')
+    expect(describeRun(run)).toBe('Stopped · 1,200 posters applied · 3,400 already applied')
+    expect(describeRun(finishRun(emptyTally(1), START, END, 'manual', true))).toBe('Stopped before anything was applied')
+  })
+})

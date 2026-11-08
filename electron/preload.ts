@@ -135,6 +135,7 @@ const api = {
     save: (job: ScheduledJob): Promise<ScheduledJob> => ipcRenderer.invoke('scheduler:save', job),
     delete: (id: string): Promise<void> => ipcRenderer.invoke('scheduler:delete', id),
     runNow: (id: string): Promise<void> => ipcRenderer.invoke('scheduler:runNow', id),
+    stop: (id: string): Promise<void> => ipcRenderer.invoke('scheduler:stop', id),
     setAutoStart: (v: boolean): Promise<void> => ipcRenderer.invoke('scheduler:setAutoStart', v),
     getAutoStart: (): Promise<boolean> => ipcRenderer.invoke('scheduler:getAutoStart'),
     engineStatus: (): Promise<SchedulerEngineStatus> => ipcRenderer.invoke('scheduler:engineStatus'),

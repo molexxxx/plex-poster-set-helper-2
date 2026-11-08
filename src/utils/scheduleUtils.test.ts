@@ -191,20 +191,20 @@ describe('describeCron', () =>
 {
   it('describes the common shapes in plain words', () =>
   {
-    expect(describeCron('0 3 * * *')).toBe('Every day at 03:00')
-    expect(describeCron('0 9 * * 1')).toBe('Every Monday at 09:00')
-    expect(describeCron('0 9 * * 1,3,5')).toBe('Mon, Wed and Fri at 09:00')
-    expect(describeCron('30 7 * * 1-5')).toBe('Weekdays at 07:30')
-    expect(describeCron('0 10 * * sat,sun')).toBe('Weekends at 10:00')
-    expect(describeCron('0 3 1 * *')).toBe('Monthly on the 1st at 03:00')
-    expect(describeCron('0 3 22 * *')).toBe('Monthly on the 22nd at 03:00')
-    expect(describeCron('0 3 L * *')).toBe('Monthly on the last day at 03:00')
+    expect(describeCron('0 3 * * *')).toBe('Every day at 3:00 AM')
+    expect(describeCron('0 9 * * 1')).toBe('Every Monday at 9:00 AM')
+    expect(describeCron('0 9 * * 1,3,5')).toBe('Mon, Wed and Fri at 9:00 AM')
+    expect(describeCron('30 7 * * 1-5')).toBe('Weekdays at 7:30 AM')
+    expect(describeCron('0 10 * * sat,sun')).toBe('Weekends at 10:00 AM')
+    expect(describeCron('0 3 1 * *')).toBe('Monthly on the 1st at 3:00 AM')
+    expect(describeCron('0 3 22 * *')).toBe('Monthly on the 22nd at 3:00 AM')
+    expect(describeCron('0 3 L * *')).toBe('Monthly on the last day at 3:00 AM')
     expect(describeCron('0 */6 * * *')).toBe('Every 6 hours')
     expect(describeCron('15 */2 * * *')).toBe('Every 2 hours at :15')
     expect(describeCron('0 * * * *')).toBe('Every hour')
     expect(describeCron('*/10 * * * *')).toBe('Every 10 minutes')
-    expect(describeCron('@daily')).toBe('Every day at 00:00')
-    expect(describeCron(DEFAULT_QUICK_CRON)).toBe('Every Sunday at 03:00')
+    expect(describeCron('@daily')).toBe('Every day at 12:00 AM')
+    expect(describeCron(DEFAULT_QUICK_CRON)).toBe('Every Sunday at 3:00 AM')
   })
 
   it('falls back to the expression for shapes without a description', () =>
@@ -221,7 +221,7 @@ describe('previewCron and withNextRun', () =>
   {
     const preview = previewCron('0 9 * * 1', FRI_NOON, 'America/New_York', 2)
     expect(preview.valid).toBe(true)
-    expect(preview.description).toBe('Every Monday at 09:00')
+    expect(preview.description).toBe('Every Monday at 9:00 AM')
     expect(preview.timeZone).toBe('America/New_York')
     expect(preview.nextRuns.map(r => local(new Date(r)))).toEqual(['2026-10-12 09:00:00', '2026-10-19 09:00:00'])
   })
@@ -449,18 +449,18 @@ describe('describeQuickSync', () =>
 
   it('names the job and its schedule for each outcome', () =>
   {
-    expect(describeQuickSync({ kind: 'exists', job: base }, 0, 'alice')).toBe('Already synced by "Sync @alice" (Every Sunday at 03:00).')
-    expect(describeQuickSync({ kind: 'create', job: base }, 3, 'alice')).toBe('Syncing 3 sets (Every Sunday at 03:00).')
-    expect(describeQuickSync({ kind: 'create', job: base }, 0, 'alice')).toBe('Syncing every set from @alice (Every Sunday at 03:00).')
-    expect(describeQuickSync({ kind: 'update', job: base, added: 1, reenabled: false }, 1, 'alice')).toBe('Added 1 set to "Sync @alice" (Every Sunday at 03:00).')
-    expect(describeQuickSync({ kind: 'update', job: base, added: 0, reenabled: true }, 1, 'alice')).toBe('Turned "Sync @alice" back on (Every Sunday at 03:00).')
+    expect(describeQuickSync({ kind: 'exists', job: base }, 0, 'alice')).toBe('Already synced by "Sync @alice" (Every Sunday at 3:00 AM).')
+    expect(describeQuickSync({ kind: 'create', job: base }, 3, 'alice')).toBe('Syncing 3 sets (Every Sunday at 3:00 AM).')
+    expect(describeQuickSync({ kind: 'create', job: base }, 0, 'alice')).toBe('Syncing every set from @alice (Every Sunday at 3:00 AM).')
+    expect(describeQuickSync({ kind: 'update', job: base, added: 1, reenabled: false }, 1, 'alice')).toBe('Added 1 set to "Sync @alice" (Every Sunday at 3:00 AM).')
+    expect(describeQuickSync({ kind: 'update', job: base, added: 0, reenabled: true }, 1, 'alice')).toBe('Turned "Sync @alice" back on (Every Sunday at 3:00 AM).')
   })
 
   it('reports when a creator job now covers every set', () =>
   {
     const wide = job({ name: 'Sync @alice', urls: [creatorSyncUrl('alice')] })
     expect(describeQuickSync({ kind: 'update', job: wide, added: 1, reenabled: false }, 0, 'alice'))
-      .toBe('"Sync @alice" now syncs every set from @alice (Every day at 03:00).')
+      .toBe('"Sync @alice" now syncs every set from @alice (Every day at 3:00 AM).')
   })
 
   it('never treats a MediUX creator-wide sync as covering a ThePosterDB set', () =>
@@ -570,7 +570,7 @@ describe('run results', () =>
     const run = finishRun({ ...emptyTally(2), uploaded: 3, failed: 1, urlErrors: 1, unmatched: 2, firstError: 'Image download failed: 404' }, start, end, 'manual')
     expect(run.status).toBe('partial')
     expect(run.error).toBe('Image download failed: 404')
-    expect(describeRun(run)).toBe('3 posters applied · 2 titles not in library · 1 failed · 1 URL could not be read')
+    expect(describeRun(run)).toBe('3 posters applied · 2 titles not in library · 1 failed · 1 link could not be read')
   })
 
   it('fails when no URL could be read', () =>

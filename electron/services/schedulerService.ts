@@ -31,6 +31,10 @@ const tasks = new Map<string, ScheduledTask>()
 const queue: Array<{ id: string; trigger: JobRun['trigger'] }> = []
 const queued = new Set<string>()
 const progress = new Map<string, JobProgress>()
+/** Running jobs the user asked to stop; the run ends at its next checkpoint. */
+const stopRequests = new Set<string>()
+/** Wakes a run that is waiting on a creator catalog when it is stopped. */
+const stopWaiters = new Map<string, () => void>()
 let currentId: string | null = null
 let draining = false
 let lastProgressEmit = 0
@@ -78,7 +82,10 @@ interface RunContext {
 function decorate(jobs: ScheduledJob[]): ScheduledJob[] {
   return withNextRun(jobs, new Date()).map(job => {
     const out = { ...job }
-    if (queued.has(job.id)) out.queued = true
+    if (queued.has(job.id)) {
+      out.queued = true
+      out.queuePosition = queue.findIndex(q => q.id === job.id) + 1
+    }
     const p = progress.get(job.id)
     if (p) out.progress = p
     return out
@@ -199,6 +206,32 @@ export const SchedulerService = {
     if (currentId === id) throw new Error(`"${job.name}" is already running`)
     if (queued.has(id)) throw new Error(`"${job.name}" is already queued`)
     this._enqueue(id, 'manual')
+  },
+
+  /**
+   * Stops a job: a waiting run leaves the queue, and a running one ends after
+   * the poster it is applying, keeping what it applied so far.
+   *
+   * @param id - Job id.
+   */
+  stop(id: string): void {
+    const at = queue.findIndex(q => q.id === id)
+    if (at >= 0) {
+      queue.splice(at, 1)
+      queued.delete(id)
+      emit(this._stored())
+      return
+    }
+    if (currentId !== id) return
+    stopRequests.add(id)
+    stopWaiters.get(id)?.()
+    const job = this._stored().find(j => j.id === id)
+    Logger.info('Scheduler', `Stopping "${job?.name ?? id}" after the poster it is applying`)
+  },
+
+  /** Whether the user asked a running job to stop. */
+  _stopping(id: string): boolean {
+    return stopRequests.has(id)
   },
 
   /**
@@ -502,7 +535,11 @@ export const SchedulerService = {
 
     let sets
     try {
-      const catalog = await CreatorSetsService.catalog(creator, CATALOG_MAX_AGE_MS)
+      // A stop must not wait out a long catalog crawl; the crawl itself keeps
+      // going in the background and lands in the cache for the next run.
+      const stopped = new Promise<null>(resolve => stopWaiters.set(job.id, () => resolve(null)))
+      const catalog = await Promise.race([CreatorSetsService.catalog(creator, CATALOG_MAX_AGE_MS), stopped])
+      if (!catalog) return
       sets = catalog.sets
       if (catalog.capped) Logger.warn('Scheduler', `@${creator} has more sets than one crawl reads; the newest ${sets.length} were used`)
     } catch (err) {
@@ -512,6 +549,7 @@ export const SchedulerService = {
       return
     } finally {
       off()
+      stopWaiters.delete(job.id)
     }
 
     Logger.info('Scheduler', `@${creator}: ${sets.length} set(s) to check for "${job.name}"`)
@@ -520,6 +558,7 @@ export const SchedulerService = {
       const current = titleLabel(set.title, set.year)
       const posters = set.posters.filter(p => ctx.filters.has(posterKind(p)))
       for (let j = 0; j < posters.length; j++) {
+        if (this._stopping(job.id)) return
         const poster = posters[j]
         this._setProgress(job.id, { phase: 'applying', done: i, total: sets.length, current, poster: { done: j, total: posters.length } })
         await this._applyPoster(ctx, poster, { setId: set.id, uploader: set.uploader, mediaType: set.mediaType })
@@ -549,6 +588,7 @@ export const SchedulerService = {
       uploader: job.creator,
     }
     for (let j = 0; j < posters.length; j++) {
+      if (this._stopping(job.id)) return
       this._setProgress(job.id, { ...base, poster: { done: j, total: posters.length } })
       await this._applyPoster(ctx, posters[j], source)
     }
@@ -577,6 +617,7 @@ export const SchedulerService = {
       }
 
       for (let i = 0; i < job.urls.length; i++) {
+        if (this._stopping(job.id)) break
         const url = job.urls[i]
         const creator = creatorOfUrl(url)
         if (creator) {
@@ -594,9 +635,10 @@ export const SchedulerService = {
         ConfigService.set({ appliedPosters: mergeAppliedRecords(existing, [...ctx.records.values()]) })
       }
 
-      const run = finishRun(ctx.tally, startedAt, new Date(), trigger)
+      const run = finishRun(ctx.tally, startedAt, new Date(), trigger, this._stopping(job.id))
       const summary = describeRun(run)
       if (run.status === 'success') Logger.success('Scheduler', `Job "${job.name}" done - ${summary}`)
+      else if (run.status === 'stopped') Logger.info('Scheduler', `Job "${job.name}" stopped - ${summary}`)
       else Logger.warn('Scheduler', `Job "${job.name}" finished with problems - ${summary}`)
       this._finishRun(job.id, run)
     } catch (err) {
@@ -605,6 +647,8 @@ export const SchedulerService = {
       this._finishRun(job.id, failedRun(msg, startedAt, new Date(), trigger))
     } finally {
       progress.delete(job.id)
+      stopRequests.delete(job.id)
+      stopWaiters.delete(job.id)
       if (currentId === job.id) currentId = null
     }
   },

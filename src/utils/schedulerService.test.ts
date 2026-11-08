@@ -161,7 +161,7 @@ describe('SchedulerService.preview', () =>
   it('describes the schedule and lists upcoming runs', () =>
   {
     const preview = SchedulerService.preview('0 9 * * 1')
-    expect(preview).toMatchObject({ valid: true, description: 'Every Monday at 09:00' })
+    expect(preview).toMatchObject({ valid: true, description: 'Every Monday at 9:00 AM' })
     expect(preview.nextRuns).toHaveLength(3)
     expect(preview.timeZone).toBeTruthy()
   })
@@ -482,5 +482,61 @@ describe('SchedulerService.init', () =>
     {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('SchedulerService.stop', () =>
+{
+  it('stops a running job after the poster it is applying and keeps what it applied', async () =>
+  {
+    state.config.scheduledJobs = [job()]
+    scrapeReturns({ [SET_URL]: [poster('main'), poster('e1', { season: 1, episode: 1 }), poster('e2', { season: 1, episode: 2 })] })
+    vi.mocked(PlexService.uploadPoster).mockImplementation(async (req) =>
+    {
+      if (req.imageUrl === 'main') SchedulerService.stop('job-1')
+      return { success: true }
+    })
+
+    await SchedulerService._execute(job(), 'manual')
+
+    expect(vi.mocked(PlexService.uploadPoster).mock.calls.map(c => c[0].imageUrl)).toEqual(['main'])
+    expect(storedJob().lastStatus).toBe('stopped')
+    expect(storedJob().history![0]).toMatchObject({ status: 'stopped', uploaded: 1 })
+  })
+
+  it('stops a creator sync that is still waiting for the catalog', async () =>
+  {
+    const creatorJob = job({ urls: [creatorSyncUrl('willtong93')], creator: 'willtong93' })
+    state.config.scheduledJobs = [creatorJob]
+    vi.mocked(CreatorSetsService.catalog).mockReturnValue(new Promise(() => {}))
+
+    const running = SchedulerService._execute(creatorJob, 'schedule')
+    await vi.waitFor(() => expect(CreatorSetsService.catalog).toHaveBeenCalled())
+    SchedulerService.stop('job-1')
+    await running
+
+    expect(storedJob().lastStatus).toBe('stopped')
+    expect(PlexService.uploadPoster).not.toHaveBeenCalled()
+  })
+
+  it('takes a waiting run out of the queue and reports places in line', async () =>
+  {
+    const a = job({ id: 'a', urls: [creatorSyncUrl('willtong93')], creator: 'willtong93' })
+    state.config.scheduledJobs = [a, job({ id: 'b' }), job({ id: 'c' })]
+    vi.mocked(CreatorSetsService.catalog).mockReturnValue(new Promise(() => {}))
+
+    SchedulerService.runNow('a')
+    await vi.waitFor(() => expect(CreatorSetsService.catalog).toHaveBeenCalled())
+    SchedulerService.runNow('c')
+    SchedulerService.runNow('b')
+    expect(SchedulerService.list().map(j => [j.id, j.queuePosition])).toEqual([['a', undefined], ['b', 1], ['c', 2]])
+
+    SchedulerService.stop('b')
+    expect(SchedulerService.list().map(j => [j.id, j.queued ?? false])).toEqual([['a', false], ['b', false], ['c', true]])
+
+    SchedulerService.stop('c')
+    SchedulerService.stop('a')
+    await vi.waitFor(() => expect(storedJob('a').lastStatus).toBe('stopped'))
+    expect(ScraperFactory.scrapeUrl).not.toHaveBeenCalled()
   })
 })

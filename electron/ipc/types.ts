@@ -357,7 +357,8 @@ export interface BrowserActionResult {
   status: BrowserStatus
 }
 
-export type JobRunStatus = 'success' | 'partial' | 'error'
+/** How a run ended; `stopped` means the user stopped it before it finished. */
+export type JobRunStatus = 'success' | 'partial' | 'error' | 'stopped'
 
 /** Outcome of one scheduled job run. */
 export interface JobRun {
@@ -434,6 +435,8 @@ export interface ScheduledJob {
   nextRun?: string
   /** Waiting for an earlier job to finish; computed by the scheduler and never stored. */
   queued?: boolean
+  /** 1-based place among the runs waiting, when queued; computed by the scheduler and never stored. */
+  queuePosition?: number
   /** Position of the current run; computed by the scheduler and never stored. */
   progress?: JobProgress
 }
@@ -813,6 +816,7 @@ export type IpcChannels = {
   'scheduler:save':        { req: ScheduledJob; res: ScheduledJob }
   'scheduler:delete':      { req: string; res: void }
   'scheduler:runNow':      { req: string; res: void }
+  'scheduler:stop':        { req: string; res: void }
   'scheduler:setAutoStart':{ req: boolean; res: void }
   'scheduler:getAutoStart':{ req: void; res: boolean }
   'scheduler:engineStatus':{ req: void; res: SchedulerEngineStatus }

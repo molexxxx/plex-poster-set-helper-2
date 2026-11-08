@@ -191,6 +191,7 @@ export function createWebClient(): Api {
       save: (job): Promise<ScheduledJob> => apiFetch('/api/scheduler/jobs', { method: 'PUT', body: JSON.stringify(job) }),
       delete: (id) => apiFetch(`/api/scheduler/jobs?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
       runNow: (id) => apiFetch('/api/scheduler/run', { method: 'POST', body: JSON.stringify({ id }) }),
+      stop: (id) => apiFetch('/api/scheduler/stop', { method: 'POST', body: JSON.stringify({ id }) }),
       setAutoStart: (v) => apiFetch('/api/scheduler/auto-start', { method: 'POST', body: JSON.stringify({ enable: v }) }),
       getAutoStart: async () => {
         const res = await apiFetch<{ enabled: boolean }>('/api/scheduler/auto-start')

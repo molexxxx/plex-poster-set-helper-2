@@ -288,6 +288,11 @@ export async function startServer() {
     await handlers.scheduler.runNow(b.id)
     return { ok: true }
   })
+  app.post('/api/scheduler/stop', async (req) => {
+    const b = req.body as { id: string }
+    handlers.scheduler.stop(b.id)
+    return { ok: true }
+  })
   app.post('/api/scheduler/auto-start', async (req) => {
     const b = req.body as { enable: boolean }
     handlers.scheduler.setAutoStart(b.enable)

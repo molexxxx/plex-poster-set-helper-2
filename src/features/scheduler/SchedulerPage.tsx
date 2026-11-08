@@ -86,7 +86,7 @@ function StatusIcon({ status, size = 12 }: { status?: CardStatus; size?: number 
 }
 
 const STATUS_LABEL: Record<CardStatus, string> = {
-  running: 'Running', queued: 'Queued', success: 'Succeeded', partial: 'Partly failed', error: 'Failed',
+  running: 'Running', queued: 'Queued', success: 'Succeeded', partial: 'Partly failed', error: 'Failed', stopped: 'Stopped',
 }
 
 
