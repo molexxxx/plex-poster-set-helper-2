@@ -8,14 +8,16 @@ export interface NavEntry {
   /** Typed loosely so any lucide icon assigns cleanly without depending on lucide's prop types. */
   Icon: ComponentType<{ size?: number }>
   hint: string
+  /** An older tool, listed only when Settings > App > Show legacy tools is on. */
+  legacy?: boolean
 }
 
 /** Single source of truth for navigable sections, shared by the dock and command palette. */
 export const NAV_ENTRIES: NavEntry[] = [
   { id: 'library',   label: 'Library Browser', Icon: LibraryBig,    hint: 'Browse Plex libraries and poster sets' },
   { id: 'scheduler', label: 'Scheduler',       Icon: CalendarClock, hint: 'Automated poster jobs and run history' },
-  { id: 'manual',    label: 'Manual Import',   Icon: Wand2,         hint: 'Scrape URLs or run bulk files' },
-  { id: 'mappings',  label: 'Title Mappings',  Icon: ArrowLeftRight, hint: 'Map source titles to Plex titles' },
+  { id: 'manual',    label: 'Manual Import',   Icon: Wand2,         hint: 'Scrape URLs or run bulk files', legacy: true },
+  { id: 'mappings',  label: 'Title Mappings',  Icon: ArrowLeftRight, hint: 'Map source titles to Plex titles', legacy: true },
   { id: 'reset',     label: 'Reset Posters',   Icon: RotateCcw,     hint: 'Restore original Plex artwork' },
   { id: 'settings',  label: 'Settings',        Icon: Settings,      hint: 'Plex connection and preferences' },
 ]

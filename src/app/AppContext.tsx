@@ -11,6 +11,10 @@ interface AppContextValue {
   setNavDock: (mode: NavDockMode) => void
   /** Whether scrollers may opt in to smoothed wheel scrolling (desktop app only). */
   smoothScroll: boolean
+  /** Whether the older Manual Import and Title Mappings pages are listed in the navigation. */
+  showLegacyTools: boolean
+  /** Shows or hides the legacy tools and saves the choice. */
+  setShowLegacyTools: (show: boolean) => void
 }
 
 export const AppContext = createContext<AppContextValue>({
@@ -19,6 +23,8 @@ export const AppContext = createContext<AppContextValue>({
   navDock: 'auto',
   setNavDock: () => {},
   smoothScroll: false,
+  showLegacyTools: false,
+  setShowLegacyTools: () => {},
 })
 
 /** Accesses the shared app context. */

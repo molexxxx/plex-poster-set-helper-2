@@ -13,7 +13,7 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 200px minmax(0, 820px);
+  grid-template-columns: 200px minmax(0, 1fr);
   gap: var(--space-10);
   align-items: start;
 }
@@ -170,6 +170,7 @@
   font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--color-text-muted);
+  max-width: 75ch;
 }
 
 .rowControl {
@@ -336,39 +337,13 @@
 
 /* -- Controls ---------------------------------------------------------------- */
 
-.segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  background: var(--color-bg-base);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-}
-
-.segment {
-  height: 24px;
-  padding: 0 var(--space-3);
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font: inherit;
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  cursor: pointer;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-
-.segment:hover { color: var(--color-text-primary); }
-
-.segmentActive,
-.segmentActive:hover {
-  background: var(--color-bg-elevated);
-  color: var(--color-accent);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-}
-
 .selectWrap { width: 180px; }
+
+.selectWide { width: 240px; }
+
+/* A row wrapped for a deep-link anchor still draws its separator. */
+.list > div > .row { border-top: 1px solid var(--color-border); }
+.list > div:first-child > .row { border-top: none; }
 
 .chevronOpen { transform: rotate(180deg); }
 
@@ -418,13 +393,7 @@
 
 .installLogLine { white-space: pre-wrap; word-break: break-word; }
 
-/* -- Dialogs and announcements ---------------------------------------------- */
-
-.confirmBody {
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--color-text-secondary);
-}
+/* -- Announcements ------------------------------------------------------------ */
 
 .srOnly {
   position: absolute;

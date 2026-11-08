@@ -10,6 +10,7 @@ import type { LibrarySection, ScheduledJob, LibraryItem } from '../../../electro
 import { NAV_ENTRIES } from './navModel'
 import { useScrapeStore } from '../../features/scrape/useScrapeStore'
 import { useNavStore } from '../../app/navStore'
+import { useAppContext } from '../../app/AppContext'
 import { setCreatorState } from '../../utils/creatorPrefs'
 import styles from './CommandPalette.module.css'
 
@@ -68,11 +69,13 @@ const SETTINGS_ITEMS: Array<{ anchor: string; label: string; keywords: string; i
   { anchor: 'tmdb',           label: 'Title matching - TMDB API key',  keywords: 'tmdb api key matching hama tvdb imdb agent', icon: <Film size={16} /> },
   { anchor: 'mediux-filters', label: 'MediUX asset types',             keywords: 'posters backdrops title cards filters asset types', icon: <Filter size={16} /> },
   { anchor: 'collections',    label: 'Show collections in the Library Browser', keywords: 'collections library browser show hide', icon: <Film size={16} /> },
+  { anchor: 'quick-sync',     label: 'Schedule and Sync timing',       keywords: 'quick sync schedule default library browser timing', icon: <CalendarClock size={16} /> },
   { anchor: 'scraper',        label: 'Sets fetched at once',           keywords: 'scraper workers parallel speed concurrency downloads', icon: <Sliders size={16} /> },
   { anchor: 'browser',        label: 'Browser engine (Chromium)',      keywords: 'browser chromium playwright install engine chrome edge', icon: <Globe size={16} /> },
   { anchor: 'general',        label: 'Window - dock, tray, launch at login', keywords: 'navigation dock status bar floating small screen tray notification launch login startup general', icon: <Wrench size={16} /> },
   { anchor: 'application',    label: 'Version and updates',            keywords: 'version update application about', icon: <Package size={16} /> },
   { anchor: 'logs',           label: 'Logs and cached data',           keywords: 'logs clear cache cached data folder', icon: <FolderOpen size={16} /> },
+  { anchor: 'legacy',         label: 'Show legacy tools',              keywords: 'legacy manual import scrape bulk title mappings older tools navigation', icon: <Wrench size={16} /> },
 ]
 
 interface Props {
@@ -88,6 +91,7 @@ interface Props {
 export default function CommandPalette({ open, onClose, onNavigate, onToggleLogs, plexConnected, isMac }: Props) {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
+  const { showLegacyTools } = useAppContext()
   const [recents, setRecents] = useState<string[]>(loadRecents)
   const [subs, setSubs] = useState<string[]>([])
   const [sections, setSections] = useState<LibrarySection[]>([])
@@ -193,9 +197,10 @@ export default function CommandPalette({ open, onClose, onNavigate, onToggleLogs
 
     // Pages
     for (const e of NAV_ENTRIES) {
+      const hidden = e.legacy && !showLegacyTools
       list.push({
-        id: `nav:${e.id}`, group: 'Go to', defaultVisible: true,
-        label: e.label, sub: e.hint, keywords: e.hint,
+        id: `nav:${e.id}`, group: 'Go to', defaultVisible: !hidden,
+        label: e.label, sub: hidden ? `${e.hint} · legacy tool` : e.hint, keywords: `${e.hint}${e.legacy ? ' legacy' : ''}`,
         icon: <e.Icon size={16} />,
         run: () => { onNavigate(e.id); onClose() },
       })
@@ -247,7 +252,7 @@ export default function CommandPalette({ open, onClose, onNavigate, onToggleLogs
     }
 
     return list
-  }, [query, plexConnected, subs, sections, jobs, libResults, onNavigate, onToggleLogs, onClose])
+  }, [query, plexConnected, showLegacyTools, subs, sections, jobs, libResults, onNavigate, onToggleLogs, onClose])
 
   const entries = useMemo<Entry[]>(() => {
     const q = query.trim().toLowerCase()

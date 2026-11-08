@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ScrollText, Search } from 'lucide-react'
 import type { NavTab } from '../../app/App'
 import { NAV_ENTRIES } from './navModel'
+import { useAppContext } from '../../app/AppContext'
 import styles from './FloatingDock.module.css'
 
 interface DockButtonProps {
@@ -65,7 +66,8 @@ export default function FloatingDock({ activeTab, logOpen, onNavigate, onToggleL
   const compact = logOpen || bar
   const iconSize = bar ? 16 : compact ? 17 : 20
 
-  const mainEntries = NAV_ENTRIES.filter(e => e.id !== 'settings')
+  const { showLegacyTools } = useAppContext()
+  const mainEntries = NAV_ENTRIES.filter(e => e.id !== 'settings' && (!e.legacy || showLegacyTools || e.id === activeTab))
   const settings = NAV_ENTRIES.find(e => e.id === 'settings')!
 
   return (

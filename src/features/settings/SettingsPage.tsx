@@ -8,10 +8,12 @@ import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import Switch from '../../components/ui/Switch'
 import Select from '../../components/ui/Select'
-import Modal from '../../components/ui/Modal'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import Segmented from '../../components/ui/Segmented'
 import { useUpdater } from '../updater/UpdaterContext'
 import DockerUpdateModal from '../updater/DockerUpdateModal'
 import { useNavStore } from '../../app/navStore'
+import { DEFAULT_QUICK_CRON, QUICK_SCHEDULES, describeCron } from '../../../electron/services/scheduleUtils'
 import { useAppContext } from '../../app/AppContext'
 import type {
   AppConfig, AppEnv, Library, PlexAuthStatus, BrowserStatus, BrowserActionResult, BrowserInstallError,
@@ -31,8 +33,8 @@ const GROUPS: Array<{ id: GroupId; label: string; Icon: LucideIcon; description:
 /** Which group holds each command-palette deep-link anchor. */
 const ANCHOR_GROUP: Record<string, GroupId> = {
   'plex-account': 'plex', 'plex-server': 'plex', libraries: 'plex',
-  'mediux-filters': 'artwork', collections: 'artwork', tmdb: 'artwork',
-  general: 'app', application: 'app',
+  'mediux-filters': 'artwork', collections: 'artwork', 'quick-sync': 'artwork', tmdb: 'artwork',
+  general: 'app', application: 'app', legacy: 'app',
   scraper: 'advanced', browser: 'advanced', logs: 'advanced',
 }
 
@@ -134,33 +136,6 @@ function Row({ label, description, stacked, children }: {
       </div>
       {control && <div className={styles.rowControl}>{control}</div>}
     </div>
-  )
-}
-
-/** A confirmation for an action that cannot be undone from the page. */
-function ConfirmDialog({ open, title, body, confirmLabel, onConfirm, onCancel }: {
-  open: boolean
-  title: string
-  body: string
-  confirmLabel: string
-  onConfirm: () => void
-  onCancel: () => void
-}) {
-  return (
-    <Modal
-      open={open}
-      onClose={onCancel}
-      title={title}
-      size="sm"
-      footer={
-        <>
-          <Button variant="ghost" size="md" onClick={onCancel} autoFocus>Cancel</Button>
-          <Button variant="destructive" size="md" onClick={onConfirm}>{confirmLabel}</Button>
-        </>
-      }
-    >
-      <p className={styles.confirmBody}>{body}</p>
-    </Modal>
   )
 }
 
@@ -278,7 +253,7 @@ export default function SettingsPage() {
   const [clearingCaches, setClearingCaches] = useState(false)
   const [announcement, setAnnouncement]     = useState('')
 
-  const { navDock, setNavDock } = useAppContext()
+  const { navDock, setNavDock, showLegacyTools, setShowLegacyTools } = useAppContext()
   const isWeb = !!env?.web
 
   const announce = useCallback((message: string) => {
@@ -558,18 +533,6 @@ export default function SettingsPage() {
     tabRefs.current[GROUPS[next].id]?.focus()
   }
 
-  function onDockKey(e: React.KeyboardEvent) {
-    const i = NAV_DOCK_OPTIONS.findIndex(o => o.value === navDock)
-    const next = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? (i + 1) % NAV_DOCK_OPTIONS.length
-      : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? (i - 1 + NAV_DOCK_OPTIONS.length) % NAV_DOCK_OPTIONS.length
-      : -1
-    if (next < 0) return
-    e.preventDefault()
-    setNavDock(NAV_DOCK_OPTIONS[next].value)
-    const buttons = (e.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="radio"]')
-    buttons[next]?.focus()
-  }
-
   if (!cfg) return (
     <div className={styles.loading}><Spinner size="md" /></div>
   )
@@ -790,8 +753,8 @@ export default function SettingsPage() {
                 })}
               </Block>
 
-              {(movieLibs.length > 0 || !serverConnected) && (
-                <Block title="Library Browser" anchor="collections">
+              <Block title="Library Browser" anchor="collections">
+                {(movieLibs.length > 0 || !serverConnected) && (
                   <Row label="Show collections" description="Browse and apply art to your Plex collections.">
                     {({ labelId, descId }) => (
                       <Switch
@@ -802,8 +765,22 @@ export default function SettingsPage() {
                       />
                     )}
                   </Row>
-                </Block>
-              )}
+                )}
+                <div data-anchor="quick-sync">
+                  <Row label="Schedule and Sync timing" description="The schedule a job gets when you use Schedule on a set or Sync on a creator.">
+                    {({ labelId }) => {
+                      const current = cfg.schedulerQuickCron || DEFAULT_QUICK_CRON
+                      const options = (QUICK_SCHEDULES.includes(current) ? QUICK_SCHEDULES : [...QUICK_SCHEDULES, current])
+                        .map(expr => ({ value: expr, label: describeCron(expr) }))
+                      return (
+                        <div className={styles.selectWide}>
+                          <Select options={options} value={current} onChange={v => autosave('schedulerQuickCron', v)} ariaLabelledBy={labelId} />
+                        </div>
+                      )
+                    }}
+                  </Row>
+                </div>
+              </Block>
 
               <Block
                 title="Title matching"
@@ -858,21 +835,7 @@ export default function SettingsPage() {
               <Block title="Window" anchor="general">
                 <Row label="Navigation dock" description="Where the page buttons sit. Automatic moves them into the status bar on small windows.">
                   {({ labelId }) => (
-                    <div className={styles.segmented} role="radiogroup" aria-labelledby={labelId} onKeyDown={onDockKey}>
-                      {NAV_DOCK_OPTIONS.map(o => (
-                        <button
-                          key={o.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={navDock === o.value}
-                          tabIndex={navDock === o.value ? 0 : -1}
-                          className={`${styles.segment} ${navDock === o.value ? styles.segmentActive : ''}`}
-                          onClick={() => setNavDock(o.value)}
-                        >
-                          {o.label}
-                        </button>
-                      ))}
-                    </div>
+                    <Segmented options={NAV_DOCK_OPTIONS} value={navDock} onChange={setNavDock} ariaLabelledBy={labelId} />
                   )}
                 </Row>
                 {!isWeb && (
@@ -889,6 +852,17 @@ export default function SettingsPage() {
                     )}
                   </Row>
                 )}
+              </Block>
+
+              <Block title="Legacy tools" anchor="legacy">
+                <Row
+                  label="Show legacy tools"
+                  description="Adds two older pages back to the navigation: Manual Import, for pasting MediUX and ThePosterDB links or running bulk files, and Title Mappings, for pointing a Plex title at a different name on the poster sites. The Library Browser, the Scheduler, and a TMDB key now cover what they did."
+                >
+                  {({ labelId, descId }) => (
+                    <Switch checked={showLegacyTools} onChange={setShowLegacyTools} ariaLabelledBy={labelId} ariaDescribedBy={descId} />
+                  )}
+                </Row>
               </Block>
 
               <AboutBlock env={env} announce={announce} />

@@ -187,6 +187,8 @@ export interface AppConfig {
   librarySortDir?: SortDir
   /** Where the navigation dock sits (default 'auto'). */
   navDock?: NavDockMode
+  /** Show the older Manual Import and Title Mappings pages in the navigation (default false). */
+  showLegacyTools?: boolean
   /** Chromium executable to use instead of the managed or bundled one. */
   browserExecutablePath?: string
   /** Signature of the browser executable that last passed a launch check. */

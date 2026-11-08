@@ -38,6 +38,7 @@ const DEFAULTS: AppConfig = {
   librarySort: 'recentlyAdded',
   librarySortDir: 'desc',
   navDock: 'auto',
+  showLegacyTools: false,
 }
 
 /** Web/Docker store tokens in plain JSON; desktop encrypts with OS keychain when available. */

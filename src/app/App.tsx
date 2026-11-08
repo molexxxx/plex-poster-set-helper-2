@@ -72,6 +72,7 @@ export default function App() {
   const [isWeb, setIsWeb] = useState<boolean | null>(null)
   const [authReady, setAuthReady] = useState(false)
   const [navDock, setNavDockState] = useState<NavDockMode>('auto')
+  const [showLegacyTools, setShowLegacyState] = useState(false)
   const compactWindow = useMediaQuery(COMPACT_WINDOW_QUERY)
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   // Docked, the dock is a row of the status bar and covers nothing.
@@ -88,8 +89,16 @@ export default function App() {
     void window.api.config.set({ navDock: mode })
   }
 
+  function setShowLegacyTools(show: boolean) {
+    setShowLegacyState(show)
+    void window.api.config.set({ showLegacyTools: show })
+  }
+
   useEffect(() => {
-    window.api.config.get().then(c => setNavDockState(c.navDock ?? 'auto')).catch(() => { /* keep the default */ })
+    window.api.config.get().then(c => {
+      setNavDockState(c.navDock ?? 'auto')
+      setShowLegacyState(c.showLegacyTools === true)
+    }).catch(() => { /* keep the defaults */ })
   }, [authReady])
 
   // Pages size their bottom clearance from this (see tokens.css).
@@ -171,7 +180,7 @@ export default function App() {
   }
 
   return (
-    <AppContext.Provider value={{ navigate, plexConnected, navDock, setNavDock, smoothScroll }}>
+    <AppContext.Provider value={{ navigate, plexConnected, navDock, setNavDock, smoothScroll, showLegacyTools, setShowLegacyTools }}>
     <UpdaterProvider>
     <ResetProvider>
     {/* Setup gate - shown on first launch until Chromium is installed */}
