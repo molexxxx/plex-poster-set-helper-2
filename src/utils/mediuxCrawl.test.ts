@@ -15,7 +15,7 @@ vi.mock('../../electron/services/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn(), session: vi.fn(), scrape: vi.fn(), debug: vi.fn() },
 }))
 
-const { MediuxScraper } = await import('../../electron/scrapers/mediuxScraper')
+const { MediuxScraper, mediuxPageUrl } = await import('../../electron/scrapers/mediuxScraper')
 
 /** A creator page as MediUX serves it: the sets live in an RSC flight payload script. */
 function pageHtml(sets: Array<{ id: number; name: string }>): string
@@ -149,5 +149,45 @@ describe('MediuxScraper.browseAllUserSets', () =>
     expect(result.sets).toEqual([])
     expect(result.capped).toBe(false)
     expect(vi.mocked(scraper.browseUserSets).mock.calls.map(c => c[1])).toEqual([3, 4, 5, 6])
+  })
+})
+
+describe('MediUX URL checks', () =>
+{
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('rebuilds MediUX page links on the site origin', () =>
+  {
+    expect(mediuxPageUrl('https://mediux.pro/sets/1234')).toBe('https://mediux.pro/sets/1234')
+    expect(mediuxPageUrl('http://www.mediux.pro/user/alice/sets?page=2')).toBe('https://mediux.pro/user/alice/sets?page=2')
+    expect(mediuxPageUrl('mediux.pro/boxsets/77')).toBe('https://mediux.pro/boxsets/77')
+  })
+
+  it('refuses links to any other host', () =>
+  {
+    for (const url of [
+      'https://evil.example/?mediux.pro/sets/1',
+      'https://mediux.pro.evil.example/sets/1',
+      'https://mediux.pro@169.254.169.254/latest/meta-data',
+      'http://127.0.0.1:3939/api/config#mediux.pro/sets/1',
+      'https://api.mediux.pro/sets/1',
+      'https://mediux.pro:8443/sets/1',
+    ]) {
+      expect(mediuxPageUrl(url), url).toBeNull()
+    }
+  })
+
+  it('never fetches or browses a crafted link', async () =>
+  {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const scraper = new MediuxScraper()
+    const newContext = vi.fn()
+    ;(scraper as unknown as { newContext: () => Promise<unknown> }).newContext = newContext
+
+    expect(await scraper.scrape('http://10.0.0.5/?mediux.pro/sets/1')).toEqual([])
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(newContext).not.toHaveBeenCalled()
   })
 })

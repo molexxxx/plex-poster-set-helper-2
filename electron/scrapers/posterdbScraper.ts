@@ -47,16 +47,41 @@ const FETCH_TIMEOUT_MS = 15_000
 const HEAVY_RESOURCES = new Set(['image', 'media', 'font', 'stylesheet'])
 
 /**
+ * Rebuilds a ThePosterDB page URL on the site's own https origin, so a link
+ * from a user or a stored job can never point a fetch or the headless browser
+ * at another host.
+ *
+ * @param url - Page URL to check; a missing scheme is treated as https.
+ * @returns The same path and query on https://theposterdb.com, or null for any
+ *   other host, credentials in the URL, or a non-default port.
+ */
+export function posterdbPageUrl(url: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`)
+  } catch {
+    return null
+  }
+  const host = parsed.hostname.toLowerCase()
+  if (host !== 'theposterdb.com' && host !== 'www.theposterdb.com') return null
+  if (parsed.username || parsed.password || parsed.port) return null
+  return 'https://theposterdb.com/' + parsed.pathname.replace(/^\/+/, '') + parsed.search
+}
+
+/**
  * Classifies a ThePosterDB URL.
  *
  * @param url - URL to inspect.
- * @returns set, poster, user, or unknown.
+ * @returns set, poster, user, or unknown; unknown for any other host.
  */
 export function posterdbUrlType(url: string): 'set' | 'poster' | 'media' | 'user' | 'unknown' {
-  if (/theposterdb\.com\/set\/\d+/.test(url)) return 'set'
-  if (/theposterdb\.com\/poster\/\d+/.test(url)) return 'poster'
-  if (/theposterdb\.com\/posters\/\d+/.test(url)) return 'media'
-  if (/theposterdb\.com\/user\//.test(url)) return 'user'
+  const page = posterdbPageUrl(url)
+  if (!page) return 'unknown'
+  const path = new URL(page).pathname
+  if (/^\/set\/\d+/.test(path)) return 'set'
+  if (/^\/poster\/\d+/.test(path)) return 'poster'
+  if (/^\/posters\/\d+/.test(path)) return 'media'
+  if (/^\/user\//.test(path)) return 'user'
   return 'unknown'
 }
 
@@ -494,11 +519,16 @@ export function guessedAvatarUrl(username: string): string {
  * the browser when this returns null.
  *
  * @param url - Page to fetch.
- * @returns The HTML, or null on a transport failure or non-2xx status.
+ * @returns The HTML, or null for a URL off ThePosterDB, a transport failure, or a non-2xx status.
  */
 async function fetchHtml(url: string): Promise<string | null> {
+  const page = posterdbPageUrl(url)
+  if (!page) {
+    Logger.warn('PosterDB', `Refused to fetch a URL outside theposterdb.com: ${url}`)
+    return null
+  }
   try {
-    const res = await fetch(url, {
+    const res = await fetch(page, {
       headers: {
         'User-Agent': USER_AGENTS[0],
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -701,9 +731,14 @@ export class PosterdbScraper extends BaseScraper {
    * @returns Posters found, empty on failure.
    */
   async scrapeSet(url: string): Promise<PosterInfo[]> {
+    const setUrl = posterdbPageUrl(url)
+    if (!setUrl) {
+      Logger.warn('PosterDB', `Refused to load a URL outside theposterdb.com: ${url}`)
+      return []
+    }
     const { context, page } = await this.newContext()
     try {
-      await this.navigate(page, url, 'div.overlay[data-poster-id]')
+      await this.navigate(page, setUrl, 'div.overlay[data-poster-id]')
       const html = await page.content()
       const $ = cheerio.load(html)
       const cards = parseCards($)
@@ -726,9 +761,14 @@ export class PosterdbScraper extends BaseScraper {
    * @returns The parent set's posters, or just this poster.
    */
   async scrapeSinglePoster(url: string): Promise<PosterInfo[]> {
+    const posterUrl = posterdbPageUrl(url)
+    if (!posterUrl) {
+      Logger.warn('PosterDB', `Refused to load a URL outside theposterdb.com: ${url}`)
+      return []
+    }
     const { context, page } = await this.newContext()
     try {
-      await this.navigate(page, url, 'div.overlay[data-poster-id], a[title="View Set Page"]')
+      await this.navigate(page, posterUrl, 'div.overlay[data-poster-id], a[title="View Set Page"]')
       const html = await page.content()
       const $ = cheerio.load(html)
 
@@ -761,11 +801,16 @@ export class PosterdbScraper extends BaseScraper {
    * @returns All posters across the paginated upload pages.
    */
   async scrapeUserUploads(url: string): Promise<PosterInfo[]> {
+    const profileUrl = posterdbPageUrl(url)
+    if (!profileUrl) {
+      Logger.warn('PosterDB', `Refused to load a URL outside theposterdb.com: ${url}`)
+      return []
+    }
     const allPosters: PosterInfo[] = []
     let page = 1
     let hasMore = true
 
-    const baseUrl = url.split('?')[0]
+    const baseUrl = profileUrl.split('?')[0]
     while (hasMore && !this._aborted) {
       const pageUrl = `${baseUrl}?section=uploads&page=${page}`
       const { context, ctx: pageCtx } = await this._newUserPage()
@@ -845,14 +890,20 @@ export class PosterdbScraper extends BaseScraper {
    * @param url - Page to load.
    * @param waitFor - Selector that proves the content is there.
    * @param parse - Receives the loaded HTML; may return null to reject the page.
-   * @returns The parser's result, or null when neither path produced a usable page.
+   * @returns The parser's result, or null when neither path produced a usable page
+   *   or the URL is not a ThePosterDB page.
    */
   private async _loadPage<T>(
     url: string,
     waitFor: string,
     parse: ($: cheerio.CheerioAPI) => T | null,
   ): Promise<T | null> {
-    const html = await fetchHtml(url)
+    const page = posterdbPageUrl(url)
+    if (!page) {
+      Logger.warn('PosterDB', `Refused to load a URL outside theposterdb.com: ${url}`)
+      return null
+    }
+    const html = await fetchHtml(page)
     if (html !== null) {
       const $ = cheerio.load(html)
       if ($(waitFor).length) {
@@ -861,7 +912,7 @@ export class PosterdbScraper extends BaseScraper {
       }
     }
     if (this._aborted) return null
-    return this._withPage(url, waitFor, parse)
+    return this._withPage(page, waitFor, parse)
   }
 
   /**

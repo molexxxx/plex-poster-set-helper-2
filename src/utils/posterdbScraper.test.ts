@@ -713,6 +713,50 @@ describe('page markers and link types', () =>
   })
 })
 
+describe('ThePosterDB URL checks', () =>
+{
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('rebuilds ThePosterDB page links on the site origin', () =>
+  {
+    expect(mod.posterdbPageUrl('https://theposterdb.com/set/4475')).toBe('https://theposterdb.com/set/4475')
+    expect(mod.posterdbPageUrl('http://www.theposterdb.com/poster/9772?page=2')).toBe('https://theposterdb.com/poster/9772?page=2')
+    expect(mod.posterdbPageUrl('theposterdb.com/user/alice')).toBe('https://theposterdb.com/user/alice')
+  })
+
+  it('refuses links to any other host', () =>
+  {
+    for (const url of [
+      'https://evil.example/?theposterdb.com/set/1',
+      'https://theposterdb.com.evil.example/set/1',
+      'https://theposterdb.com@169.254.169.254/latest/meta-data',
+      'http://127.0.0.1:3939/api/config#theposterdb.com/set/1',
+      'https://images.theposterdb.com/set/1',
+      'https://user:pass@theposterdb.com/set/1',
+      'https://theposterdb.com:8443/set/1',
+      'not a url',
+    ]) {
+      expect(mod.posterdbPageUrl(url), url).toBeNull()
+      expect(mod.posterdbUrlType(url), url).toBe('unknown')
+    }
+  })
+
+  it('never fetches or browses a crafted link', async () =>
+  {
+    const fetchMock = serve({})
+    const scraper = new PosterdbScraper()
+    const browser = fakeBrowser(scraper, () => '')
+
+    expect(await scraper.scrape('http://10.0.0.5/?theposterdb.com/set/1')).toEqual([])
+    expect(await scraper.scrapeSet('http://10.0.0.5/set/1')).toEqual([])
+    expect(await scraper.scrapeSinglePoster('https://theposterdb.com.evil.example/poster/1')).toEqual([])
+    expect(await scraper.scrapeUserUploads('http://192.168.1.1/user/alice')).toEqual([])
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(browser).not.toHaveBeenCalled()
+  })
+})
+
 describe('PosterdbScraper.browseSets across duplicate entries', () =>
 {
   const SEARCH = searchUrl('Marvel Cinematic Universe', 'collections')

@@ -28,6 +28,28 @@ const USER_CRAWL_BATCH = 4
  */
 const RESUME_SLACK_PAGES = 12
 
+/**
+ * Rebuilds a MediUX page URL on the site's own https origin, so a link from a
+ * user or a stored job can never point a fetch or the headless browser at
+ * another host.
+ *
+ * @param url - Page URL to check; a missing scheme is treated as https.
+ * @returns The same path and query on https://mediux.pro, or null for any
+ *   other host, credentials in the URL, or a non-default port.
+ */
+export function mediuxPageUrl(url: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`)
+  } catch {
+    return null
+  }
+  const host = parsed.hostname.toLowerCase()
+  if (host !== 'mediux.pro' && host !== 'www.mediux.pro') return null
+  if (parsed.username || parsed.password || parsed.port) return null
+  return 'https://mediux.pro/' + parsed.pathname.replace(/^\/+/, '') + parsed.search
+}
+
 interface SeasonEntry { id?: string | number; season_number?: number }
 
 interface Show {
@@ -1054,15 +1076,22 @@ export class MediuxScraper extends BaseScraper {
    * @param strict - Throw on a transport failure or empty body instead of
    *   returning null, for callers that must tell a failed page from one with
    *   no sets.
-   * @returns The sets plus an og:title fallback, or null when none were found.
+   * @returns The sets plus an og:title fallback, or null when none were found
+   *   or the URL is not a MediUX page.
    */
   private async _fetchSets(
     url: string,
     timeoutMs = 25_000,
     strict = false,
   ): Promise<{ sets: MediuxSet[]; fallback: Fallback } | null> {
+    const page = mediuxPageUrl(url)
+    if (!page) {
+      Logger.warn('MediUX', `Refused to fetch a URL outside mediux.pro: ${url}`)
+      if (strict) throw new Error(`Not a MediUX page: ${url}`)
+      return null
+    }
     try {
-      const res = await fetch(url, {
+      const res = await fetch(page, {
         headers: {
           'User-Agent':      pick(USER_AGENTS),
           'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -1107,12 +1136,17 @@ export class MediuxScraper extends BaseScraper {
    * @returns Posters found, empty on failure.
    */
   private async _scrapeViaBrowser(url: string, allowed: Set<string>): Promise<PosterInfo[]> {
-    Logger.scrape('MediUX', `Browser: ${url}`)
+    const pageUrl = mediuxPageUrl(url)
+    if (!pageUrl) {
+      Logger.warn('MediUX', `Refused to load a URL outside mediux.pro: ${url}`)
+      return []
+    }
+    Logger.scrape('MediUX', `Browser: ${pageUrl}`)
     const { context, page } = await this.newContext()
 
     try {
       await sleepConfig('initial')
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 })
+      await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 })
       await page.waitForSelector('script', { timeout: 5_000 }).catch(() => {})
       await page.waitForTimeout(1500)
 
