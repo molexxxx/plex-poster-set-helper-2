@@ -221,7 +221,7 @@ export default function CommandPalette({ open, onClose, onNavigate, onToggleLogs
     for (const j of jobs) {
       list.push({
         id: `job:${j.id}`, group: 'Schedules', label: j.name,
-        sub: `${j.urls.length} URL${j.urls.length !== 1 ? 's' : ''} · ${j.enabled ? 'enabled' : 'disabled'}`,
+        sub: `${j.urls.length} link${j.urls.length !== 1 ? 's' : ''} · ${j.enabled ? 'runs on schedule' : 'paused'}`,
         keywords: `schedule job cron ${j.name}`, icon: <CalendarClock size={16} />,
         run: () => { useNavStore.getState().goScheduler(j.id); onNavigate('scheduler'); onClose() },
       })
