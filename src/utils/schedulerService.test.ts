@@ -331,7 +331,7 @@ describe('creator sync', () =>
 {
   const CREATOR_URL = creatorSyncUrl('willtong93')
 
-  it('reads the whole catalog through the creator cache and applies every matching set', async () =>
+  it('reads the whole catalog through the creator cache and applies every matching set, oldest listing first', async () =>
   {
     const creatorJob = job({ urls: [CREATOR_URL], creator: 'willtong93' })
     state.config.scheduledJobs = [creatorJob]
@@ -349,11 +349,29 @@ describe('creator sync', () =>
     expect(CreatorSetsService.catalog).toHaveBeenCalledWith('willtong93', 60_000)
     expect(ScraperFactory.scrapeUrl).not.toHaveBeenCalled()
     expect(vi.mocked(PlexService.uploadPoster).mock.calls.map(c => c[0].imageUrl)).toEqual(['main', 'e1'])
-    expect(vi.mocked(PlexService.findInLibrary).mock.calls.map(c => [c[0].title, c[0].type])).toEqual([['Show', 'show'], ['Missing', 'show']])
+    expect(vi.mocked(PlexService.findInLibrary).mock.calls.map(c => [c[0].title, c[0].type])).toEqual([['Missing', 'show'], ['Show', 'show']])
     expect(state.config.appliedPosters![0]).toMatchObject({ itemKey: '10', setId: '20066', uploader: 'willtong93', slots: ['poster', 's1e1'] })
     const run = storedJob().history![0]
     expect(run).toMatchObject({ status: 'success', uploaded: 2, unmatched: 1 })
     expect(run.details).toEqual({ applied: ['Show (2020) · 2 posters'], unmatched: ['Missing (2020)'], failed: [] })
+  })
+
+  it('applies only sets added or updated after the job\'s start time', async () =>
+  {
+    const creatorJob = job({ urls: [CREATOR_URL], creator: 'willtong93', since: '2026-11-08T00:00:00.000Z' })
+    state.config.scheduledJobs = [creatorJob]
+    state.config.mediuxFilters = ['poster']
+    vi.mocked(CreatorSetsService.catalog).mockResolvedValue({
+      capped: false,
+      sets: [
+        userSet('new', 'Show', [poster('fresh')], { dateUpdated: '2026-11-09T10:00:00Z' }),
+        userSet('old', 'Show', [poster('stale')], { dateUpdated: '2026-10-01T10:00:00Z' }),
+      ],
+    })
+
+    await SchedulerService._execute(creatorJob, 'schedule')
+
+    expect(vi.mocked(PlexService.uploadPoster).mock.calls.map(c => c[0].imageUrl)).toEqual(['fresh'])
   })
 
   it('reports the position within a set while it applies', async () =>

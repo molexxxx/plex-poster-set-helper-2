@@ -13,7 +13,7 @@ import { getUserDataPath } from '../runtime/paths'
 import { appEvents } from '../runtime/events'
 import { isWebMode } from '../runtime/runtime'
 import {
-  addSlotCoverage, appliedUrlIndex, coverageKey, creatorOfUrl, describeRun, emptyTally, failedRun, finishRun, isSlotCovered,
+  addSlotCoverage, appliedUrlIndex, coverageKey, creatorOfUrl, creatorSyncOrder, describeRun, emptyTally, failedRun, finishRun, isSlotCovered,
   mergeAppliedRecords, normalizeJob, posterKind, posterSlot, previewCron, recordRun, recoverInterrupted, setRefOfUrl,
   reorderJobs, slotCoverage, titleLabel, withNextRun, type RunTally, type SlotCoverage,
 } from './scheduleUtils'
@@ -552,7 +552,11 @@ export const SchedulerService = {
       stopWaiters.delete(job.id)
     }
 
-    Logger.info('Scheduler', `@${creator}: ${sets.length} set(s) to check for "${job.name}"`)
+    const catalogSize = sets.length
+    sets = creatorSyncOrder(sets, job.since)
+    Logger.info('Scheduler', job.since
+      ? `@${creator}: ${sets.length} of ${catalogSize} set(s) added or updated since ${job.since} for "${job.name}"`
+      : `@${creator}: ${sets.length} set(s) to check for "${job.name}"`)
     for (let i = 0; i < sets.length; i++) {
       const set = sets[i]
       const current = titleLabel(set.title, set.year)

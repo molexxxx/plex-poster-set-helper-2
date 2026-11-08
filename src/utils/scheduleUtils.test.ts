@@ -10,6 +10,7 @@ import {
   appliedUrlIndex,
   artFilterMatches,
   creatorOfUrl,
+  creatorSyncOrder,
   creatorSyncUrl,
   cronExpressionError,
   cronToForm,
@@ -630,5 +631,71 @@ describe('relativeTime', () =>
     vi.useFakeTimers()
     vi.setSystemTime(FRI_NOON)
     expect(relativeTime(new Date(FRI_NOON.getTime() + 60 * 60_000))).toBe('in 1h')
+  })
+})
+
+describe('planQuickSync dialog settings', () =>
+{
+  it('applies the chosen schedule, gaps, and start to a new creator sync', () =>
+  {
+    const plan = planQuickSync([], {
+      urls: [creatorSyncUrl('Alice')], name: 'Sync @Alice', cronExpr: '0 3 * * 0', creator: 'Alice', groupByCreator: true,
+      overrides: { cronExpr: '0 3 * * *', fillGaps: true, since: '2026-11-08T00:00:00.000Z' },
+    }, () => 'id-1')
+    expect(plan.kind).toBe('create')
+    expect(plan.job).toMatchObject({ cronExpr: '0 3 * * *', fillGaps: true, since: '2026-11-08T00:00:00.000Z', creator: 'Alice' })
+  })
+
+  it('turns an existing creator sync into an update when the settings change', () =>
+  {
+    const wide = job({ urls: [creatorSyncUrl('Alice')], creator: 'Alice', cronExpr: '0 3 * * 0', fillGaps: true, since: '2026-01-01T00:00:00.000Z' })
+    const same = planQuickSync([wide], {
+      urls: [creatorSyncUrl('Alice')], name: 'x', cronExpr: '0 3 * * 0', creator: 'Alice', groupByCreator: true,
+      overrides: { cronExpr: '0 3 * * 0', fillGaps: true, since: '2026-01-01T00:00:00.000Z' },
+    }, makeId)
+    expect(same.kind).toBe('exists')
+
+    const everything = planQuickSync([wide], {
+      urls: [creatorSyncUrl('Alice')], name: 'x', cronExpr: '0 3 * * 0', creator: 'Alice', groupByCreator: true,
+      overrides: { cronExpr: '0 9 * * 1', fillGaps: false, since: undefined },
+    }, makeId)
+    expect(everything.kind).toBe('update')
+    expect(everything.job.cronExpr).toBe('0 9 * * 1')
+    expect(everything.job.fillGaps).toBeUndefined()
+    expect(everything.job.since).toBeUndefined()
+  })
+})
+
+describe('creatorSyncOrder', () =>
+{
+  const s = (id: string, dateUpdated?: string) => ({ id, dateUpdated })
+
+  it('applies oldest to newest so the newest set ends up on top', () =>
+  {
+    const catalog = [s('c', '2026-03-01T00:00:00Z'), s('b', '2026-02-01T00:00:00Z'), s('a', '2026-01-01T00:00:00Z')]
+    expect(creatorSyncOrder(catalog).map(x => x.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('puts undated sets first, oldest listing first', () =>
+  {
+    const catalog = [s('new', '2026-03-01T00:00:00Z'), s('undated-newer'), s('undated-older')]
+    expect(creatorSyncOrder(catalog).map(x => x.id)).toEqual(['undated-older', 'undated-newer', 'new'])
+  })
+
+  it('keeps only sets added or updated after the start time', () =>
+  {
+    const catalog = [s('after', '2026-11-09T00:00:00Z'), s('before', '2026-11-01T00:00:00Z'), s('undated')]
+    expect(creatorSyncOrder(catalog, '2026-11-08T00:00:00.000Z').map(x => x.id)).toEqual(['after'])
+  })
+})
+
+describe('normalizeJob since', () =>
+{
+  const base = { name: 'A', urls: ['https://mediux.pro/user/alice/sets'], cronExpr: '0 3 * * *' }
+
+  it('keeps a valid start time as ISO and drops an invalid one', () =>
+  {
+    expect(normalizeJob({ ...base, since: '2026-11-08T12:00:00Z' }, undefined, { makeId: () => 'id' }).since).toBe('2026-11-08T12:00:00.000Z')
+    expect(normalizeJob({ ...base, since: 'soon' }, undefined, { makeId: () => 'id' }).since).toBeUndefined()
   })
 })

@@ -725,11 +725,37 @@ export function normalizeJob(input: unknown, existing: ScheduledJob | undefined,
   }
   if (raw.fillGaps === true) job.fillGaps = true
   if (creator) job.creator = creator
+  if (typeof raw.since === 'string' && !Number.isNaN(Date.parse(raw.since))) job.since = new Date(raw.since).toISOString()
   if (existing?.lastRun) job.lastRun = existing.lastRun
   if (existing?.lastStatus) job.lastStatus = existing.lastStatus
   if (existing?.lastError) job.lastError = existing.lastError
   if (existing?.history?.length) job.history = existing.history
   return job
+}
+
+/**
+ * The order a creator sync applies a catalog in: oldest to newest, so where a
+ * title has several sets the newest one ends up on top. With `since`, only sets
+ * added or updated after it are kept.
+ *
+ * @param sets - The creator's catalog, newest first as MediUX lists it.
+ * @param since - ISO time from the job, when it syncs only new uploads.
+ * @returns The sets to apply, oldest first.
+ */
+export function creatorSyncOrder<T extends { dateUpdated?: string }>(sets: T[], since?: string): T[]
+{
+  const time = (s: T) => (s.dateUpdated ? Date.parse(s.dateUpdated) : Number.NaN)
+  const floor = since ? Date.parse(since) : Number.NaN
+  const kept = Number.isNaN(floor) ? sets : sets.filter(s => time(s) > floor)
+  return kept
+    .map((set, i) => ({ set, i, t: time(set) }))
+    .sort((a, b) =>
+    {
+      const at = Number.isNaN(a.t) ? -Infinity : a.t
+      const bt = Number.isNaN(b.t) ? -Infinity : b.t
+      return at - bt || b.i - a.i
+    })
+    .map(e => e.set)
 }
 
 /**
@@ -859,6 +885,8 @@ export interface QuickSyncRequest
   creator?: string
   /** Merge into the creator's existing sync job instead of creating another. */
   groupByCreator?: boolean
+  /** Settings chosen in the sync dialog; they apply to the new or existing job alike. */
+  overrides?: Partial<Pick<ScheduledJob, 'cronExpr' | 'fillGaps' | 'since'>>
 }
 
 export type QuickSyncPlan =
@@ -876,12 +904,28 @@ export type QuickSyncPlan =
  * syncing the whole creator replaces its individual set URLs. Otherwise a new
  * job is created.
  *
+ * Settings from the sync dialog (`overrides`) are applied to whichever job the
+ * plan lands on, and an already-covering job that they change becomes an update.
+ *
  * @param jobs - Current jobs.
  * @param req - The action's URLs, defaults, and creator.
  * @param makeId - Generates an id for a new job.
  * @returns The job to save (or the existing job when nothing changes).
  */
 export function planQuickSync(jobs: ScheduledJob[], req: QuickSyncRequest, makeId: () => string): QuickSyncPlan
+{
+  const plan = planQuickSyncJob(jobs, req, makeId)
+  const overrides = req.overrides
+  if (!overrides) return plan
+  const job: ScheduledJob = { ...plan.job, ...overrides }
+  if ('since' in overrides && !overrides.since) delete job.since
+  if (!overrides.fillGaps && 'fillGaps' in overrides) delete job.fillGaps
+  const changed = job.cronExpr !== plan.job.cronExpr || !!job.fillGaps !== !!plan.job.fillGaps || job.since !== plan.job.since
+  if (plan.kind === 'exists') return changed ? { kind: 'update', job, added: 0, reenabled: false } : plan
+  return { ...plan, job }
+}
+
+function planQuickSyncJob(jobs: ScheduledJob[], req: QuickSyncRequest, makeId: () => string): QuickSyncPlan
 {
   const urls = analyzeUrls(req.urls).urls
   const covering = urls.length ? jobs.find(j => urls.every(u => coversUrl(j, u, req.creator))) : undefined

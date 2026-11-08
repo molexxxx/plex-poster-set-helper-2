@@ -428,6 +428,8 @@ export interface ScheduledJob {
   fillGaps?: boolean
   /** MediUX creator this job syncs, set for jobs created from the Creators view. */
   creator?: string
+  /** ISO time; a creator sync applies only sets added or updated after it. Unset applies the whole catalog. */
+  since?: string
   lastRun?: string
   lastStatus?: JobRunStatus | 'running'
   lastError?: string
