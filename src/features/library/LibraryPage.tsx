@@ -129,8 +129,10 @@ function browseCacheKey(item: LibraryItem): string {
   return item.type === 'collection' ? `collection:${item.key}` : `sets:${item.type}:${item.key}`
 }
 
-function invalidateCurrentArt(...keys: string[]) {
-  for (const k of keys) currentArtCache.delete(k)
+/** Marks an item's cached art stale, so it refetches while the strip keeps showing the cached art. */
+function staleCurrentArt(key: string) {
+  const cached = currentArtCache.get(key)
+  if (cached) currentArtCache.set(key, { ...cached, fetchedAt: 0 })
 }
 
 function clampPanelWidth(w: number): number {
@@ -1083,7 +1085,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
       currentArtCache.set(cacheKey, { slots: res.slots, fetchedAt: Date.now() })
       setArtSlots(res.slots)
     }).catch(() => {
-      if (!cancelled) setArtSlots([])
+      if (!cancelled && !cached) setArtSlots([])
     }).finally(() => {
       if (!cancelled) setArtLoading(false)
     })
@@ -1248,7 +1250,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
   const allSets = useMemo(() => mergeLinkedSets(linked, sets), [linked, sets])
 
   function bumpArtReload() {
-    invalidateCurrentArt(item.key)
+    staleCurrentArt(item.key)
     setArtReloadKey(k => k + 1)
   }
 
