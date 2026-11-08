@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import TitleBar from '../components/shell/TitleBar'
 import FloatingDock from '../components/shell/FloatingDock'
 import CommandPalette from '../components/shell/CommandPalette'
 import StatusBar from '../components/shell/StatusBar'
-import ParticleField from '../components/shell/ParticleField'
+import AmbientBackground from '../components/shell/AmbientBackground'
 import LogDrawer from '../features/logs/LogDrawer'
 import LibraryPage from '../features/library/LibraryPage'
 import ManualPage from '../features/manual/ManualPage'
@@ -18,11 +18,10 @@ import { UpdaterProvider } from '../features/updater/UpdaterContext'
 import { ResetProvider } from '../features/reset/ResetContext'
 import UpdateToast from '../features/updater/UpdateToast'
 import { AppContext } from './AppContext'
+import styles from './App.module.css'
 import type { NavDockMode } from '../../electron/ipc/types'
 
 export type NavTab = 'library' | 'scheduler' | 'mappings' | 'manual' | 'reset' | 'settings'
-
-const NAV_ORDER: NavTab[] = ['library', 'scheduler', 'manual', 'mappings', 'reset', 'settings']
 
 const IS_MAC = /mac/i.test(navigator.platform)
 
@@ -64,7 +63,6 @@ const PAGE_MAP: Record<NavTab, React.ReactNode> = {
 /** Root component: gates on first-run browser setup, then renders the app shell. */
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('library')
-  const [prevTab, setPrevTab] = useState<NavTab>('library')
   const [logOpen, setLogOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [plexConnected, setPlexConnected] = useState(false)
@@ -73,17 +71,15 @@ export default function App() {
   // Web mode: null = checking env, then SSO gate until Plex authorizes
   const [isWeb, setIsWeb] = useState<boolean | null>(null)
   const [authReady, setAuthReady] = useState(false)
-  // In Docker/VNC, skip the animated background to keep idle CPU low.
-  const [reduceMotion, setReduceMotion] = useState(false)
   const [navDock, setNavDockState] = useState<NavDockMode>('auto')
   const compactWindow = useMediaQuery(COMPACT_WINDOW_QUERY)
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   // Docked, the dock is a row of the status bar and covers nothing.
   const docked = navDock === 'bar' || (navDock === 'auto' && compactWindow)
-
-  const direction = NAV_ORDER.indexOf(activeTab) > NAV_ORDER.indexOf(prevTab) ? 1 : -1
+  // The web UI runs in the visitor's own browser, which keeps its native scrolling.
+  const smoothScroll = isWeb === false && !reducedMotion
 
   function navigate(tab: NavTab) {
-    setPrevTab(activeTab)
     setActiveTab(tab)
   }
 
@@ -112,7 +108,6 @@ export default function App() {
     window.api.app.getEnv().then(e => {
       const web = !!e.web
       setIsWeb(web)
-      setReduceMotion(e.container || web)
       if (!web) {
         setAuthReady(true)
         return
@@ -176,7 +171,7 @@ export default function App() {
   }
 
   return (
-    <AppContext.Provider value={{ navigate, plexConnected, navDock, setNavDock }}>
+    <AppContext.Provider value={{ navigate, plexConnected, navDock, setNavDock, smoothScroll }}>
     <UpdaterProvider>
     <ResetProvider>
     {/* Setup gate - shown on first launch until Chromium is installed */}
@@ -195,7 +190,7 @@ export default function App() {
         position: 'relative',
       }}
     >
-      <ParticleField animate={!reduceMotion} />
+      <AmbientBackground />
 
       <TitleBar />
 
@@ -207,21 +202,12 @@ export default function App() {
             position: 'relative',
           }}
         >
-          <AnimatePresence mode="wait" initial={false} custom={direction}>
-            <motion.div
-              key={activeTab}
-              custom={direction}
-              initial={{ opacity: 0, x: direction * 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: direction * -24 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              // A floating dock overlays content; pages fill the full height and add their
-              // own bottom clearance (--dock-clearance) inside their scrollers.
-              style={{ height: '100%', overflow: 'auto', padding: 'var(--content-padding)' }}
-            >
-              {PAGE_MAP[activeTab]}
-            </motion.div>
-          </AnimatePresence>
+          {/* Keyed so the incoming page mounts at once; a floating dock overlays content,
+              so pages fill the full height and add their own bottom clearance
+              (--dock-clearance) inside their scrollers. */}
+          <div key={activeTab} className={styles.page}>
+            {PAGE_MAP[activeTab]}
+          </div>
         </main>
 
         {!docked && (

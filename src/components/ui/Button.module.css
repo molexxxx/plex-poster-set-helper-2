@@ -18,7 +18,12 @@
     border-color var(--duration-fast) var(--ease-in-out),
     color var(--duration-fast) var(--ease-in-out),
     box-shadow var(--duration-base) var(--ease-in-out),
-    opacity var(--duration-fast);
+    opacity var(--duration-fast),
+    transform 100ms var(--ease-out-expo);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 /* Shimmer layer - sweeps on hover for primary */

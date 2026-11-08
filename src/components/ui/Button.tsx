@@ -1,5 +1,4 @@
 import { forwardRef } from 'react'
-import { motion } from 'framer-motion'
 import Spinner from './Spinner'
 import styles from './Button.module.css'
 
@@ -28,14 +27,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   const isDisabled = disabled || loading
 
   return (
-    <motion.button
+    <button
       ref={ref}
       className={[styles.btn, styles[variant], styles[size], className].filter(Boolean).join(' ')}
       disabled={isDisabled}
       aria-busy={loading}
-      whileTap={{ scale: isDisabled ? 1 : 0.97 }}
-      transition={{ duration: 0.1 }}
-      {...props as React.ComponentProps<typeof motion.button>}
+      {...props}
     >
       {loading ? (
         <>
@@ -49,7 +46,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
           {icon && iconPosition === 'right' && <span className={styles.icon}>{icon}</span>}
         </>
       )}
-    </motion.button>
+    </button>
   )
 })
 

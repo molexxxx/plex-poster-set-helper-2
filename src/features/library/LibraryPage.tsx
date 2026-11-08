@@ -22,6 +22,7 @@ import {
 } from '../../../electron/services/scheduleUtils'
 import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
+import { useSmoothScroll } from '../../app/useSmoothScroll'
 import type {
   LibrarySection, LibraryItem, PosterSetSummary, BrowseSetsRes, PosterInfo, MediuxUserSet, AppliedRecord,
   PlexArtSlot, LibrarySort, SortDir, LibraryArtFilter, LibraryStatusFilter, LinkedItemRef,
@@ -253,6 +254,7 @@ function MyLibraryView({ targetSection, targetItem }: { targetSection: string | 
 
   const offsetRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
+  useSmoothScroll(scrollRef)
 
   // The floating dock centers itself beside an open sets panel instead of over it.
   const panelOpen = selected != null
@@ -971,6 +973,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
   const panelWidthRef = useRef(PANEL_WIDTH_DEFAULT)
   const [resizing, setResizing] = useState(false)
   const panelBodyRef = useRef<HTMLDivElement>(null)
+  useSmoothScroll(panelBodyRef)
 
   // The panel chrome no longer remounts per item (see the parent's stable
   // "sets-panel" key), so per-item UI state that used to reset for free via

@@ -9,6 +9,8 @@ interface AppContextValue {
   navDock: NavDockMode
   /** Moves the navigation dock and saves the choice. */
   setNavDock: (mode: NavDockMode) => void
+  /** Whether scrollers may opt in to smoothed wheel scrolling (desktop app only). */
+  smoothScroll: boolean
 }
 
 export const AppContext = createContext<AppContextValue>({
@@ -16,6 +18,7 @@ export const AppContext = createContext<AppContextValue>({
   plexConnected: false,
   navDock: 'auto',
   setNavDock: () => {},
+  smoothScroll: false,
 })
 
 /** Accesses the shared app context. */

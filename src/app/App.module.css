@@ -1,0 +1,15 @@
+.page {
+  height: 100%;
+  overflow: auto;
+  padding: var(--content-padding);
+  animation: pageIn 120ms var(--ease-out-expo);
+}
+
+@keyframes pageIn {
+  from { opacity: 0.4; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page { animation: none; }
+}

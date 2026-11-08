@@ -50,9 +50,10 @@
   animation: slide 1.4s ease-in-out infinite;
 }
 
+/* Transform keeps the sweep on the compositor; 250% of the bar's own 40% width is the full track. */
 @keyframes slide {
-  0%   { left: -40%; }
-  100% { left: 100%; }
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
 }
 
 /* Segmented */
