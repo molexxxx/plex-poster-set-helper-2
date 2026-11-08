@@ -3,7 +3,7 @@ import { Logger } from './logger'
 import { ConfigService } from './config'
 import { AnimeMappingService } from './animeMappingService'
 import { appliedByItem, scheduleCoverage } from './scheduleUtils'
-import { normTitle, pickLibraryMatch } from './libraryMatch'
+import { mappedPlexTitle, normTitle, pickLibraryMatch, pickMappedItem } from './libraryMatch'
 import { applyGridQuery, historyKeysFor, needsHistoryOnly, toLightItem, type LightItem } from './libraryGrid'
 import { ShowStatusService, type ShowStatus } from './showStatusService'
 import type {
@@ -448,8 +448,9 @@ export const PlexService = {
   },
 
   /**
-   * Finds a library item by title (and optional year), preferring exact
-   * matches and falling back to a fuzzy search.
+   * Finds a library item by title (and optional year). A Title Mappings entry
+   * naming the title wins, since it is the user's explicit choice; otherwise
+   * exact matches are preferred, falling back to a fuzzy search.
    *
    * @param req - Title, optional year, library include-list, and media type.
    * @returns The best match, or null when nothing qualifies.
@@ -489,6 +490,12 @@ export const PlexService = {
         }
       }
       return found
+    }
+
+    const mappedTitle = mappedPlexTitle(ConfigService.get().titleMappings, title)
+    if (mappedTitle) {
+      const mapped = pickMappedItem(await gather(mappedTitle), mappedTitle, year)
+      if (mapped) return mapped
     }
 
     const candidates = await gather(title)

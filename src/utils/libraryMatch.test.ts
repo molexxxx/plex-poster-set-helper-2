@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normTitle, pickLibraryMatch } from '../../electron/services/libraryMatch'
+import { mappedPlexTitle, normTitle, pickLibraryMatch, pickMappedItem } from '../../electron/services/libraryMatch'
 
 const c = (title: string, year?: number, tmdbId?: string) => ({ title, year, tmdbId })
 
@@ -63,5 +63,28 @@ describe('pickLibraryMatch', () =>
   it('never fuzzy-matches a sequel years away', () =>
   {
     expect(pickLibraryMatch([c('Toy Story 2', 1999)], { title: 'Toy Story', year: 1995 })).toBeNull()
+  })
+})
+
+describe('title mappings', () =>
+{
+  const mappings = { 'Avengers: Endgame': 'Avengers Endgame', 'Shōgun': 'Shogun (2024)' }
+
+  it('finds the Plex title for a poster-site title, with or without a year', () =>
+  {
+    expect(mappedPlexTitle(mappings, 'Avengers Endgame')).toBe('Avengers: Endgame')
+    expect(mappedPlexTitle(mappings, 'avengers - endgame (2019)')).toBe('Avengers: Endgame')
+    expect(mappedPlexTitle(mappings, 'Shogun')).toBe('Shōgun')
+    expect(mappedPlexTitle(mappings, 'Avengers')).toBeNull()
+    expect(mappedPlexTitle(undefined, 'Avengers Endgame')).toBeNull()
+  })
+
+  it('picks only an exact title, preferring the poster year', () =>
+  {
+    const pool = [c('Shōgun', 1980), c('Shōgun', 2024), c('Shogun Assassin', 1980)]
+    expect(pickMappedItem(pool, 'Shōgun', 2024)).toBe(pool[1])
+    expect(pickMappedItem(pool, 'Shōgun')).toBe(pool[0])
+    expect(pickMappedItem(pool, 'Shōgun', 1999)).toBe(pool[0])
+    expect(pickMappedItem([c('Shogun Assassin', 1980)], 'Shōgun')).toBeNull()
   })
 })

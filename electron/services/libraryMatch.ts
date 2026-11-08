@@ -119,3 +119,40 @@ export function pickLibraryMatch<T extends MatchCandidate>(candidates: T[], want
   }
   return best?.item ?? null
 }
+
+/**
+ * Finds the Plex title a user mapped a poster-site title to on the Title
+ * Mappings page. A year on either side is optional, so "Avengers Endgame"
+ * and "Avengers Endgame (2019)" name the same mapping.
+ *
+ * @param mappings - Saved mappings, keyed by Plex title.
+ * @param siteTitle - The title as the poster site shows it.
+ * @returns The mapped Plex title, or null when no mapping names it.
+ */
+export function mappedPlexTitle(mappings: Record<string, string> | undefined, siteTitle: string): string | null
+{
+  const wanted = normTitle(stripTitleYear(siteTitle))
+  if (!wanted) return null
+  for (const [plexTitle, mapped] of Object.entries(mappings ?? {}))
+  {
+    if (normTitle(stripTitleYear(mapped)) === wanted) return plexTitle
+  }
+  return null
+}
+
+/**
+ * Picks the library item a title mapping points at. A mapping is an exact
+ * instruction, so only exact titles qualify; the poster's year breaks a tie
+ * between namesakes.
+ *
+ * @param candidates - Search results for the mapped Plex title.
+ * @param plexTitle - The Plex title the mapping names.
+ * @param year - The poster's year, when known.
+ * @returns The mapped item, or null when the library has no such title.
+ */
+export function pickMappedItem<T extends MatchCandidate>(candidates: T[], plexTitle: string, year?: number): T | null
+{
+  const wanted = normTitle(plexTitle)
+  const exact = candidates.filter(c => normTitle(c.title) === wanted)
+  return exact.find(c => year == null || c.year === year) ?? exact[0] ?? null
+}
