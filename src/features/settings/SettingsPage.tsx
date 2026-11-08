@@ -857,7 +857,7 @@ export default function SettingsPage() {
               <Block title="Legacy tools" anchor="legacy">
                 <Row
                   label="Show legacy tools"
-                  description="Adds two older pages back to the navigation: Manual Import, for pasting MediUX and ThePosterDB links or running bulk files, and Title Mappings, for pointing a Plex title at a different name on the poster sites. The Library Browser, the Scheduler, and a TMDB key now cover what they did."
+                  description="Adds two older pages to the navigation: Manual Import, for pasting MediUX and ThePosterDB links or running bulk files, and Title Mappings, for pointing a Plex title at a different name on the poster sites. Saved mappings keep applying while the page is hidden. Starts on when either page holds saved work."
                 >
                   {({ labelId, descId }) => (
                     <Switch checked={showLegacyTools} onChange={setShowLegacyTools} ariaLabelledBy={labelId} ariaDescribedBy={descId} />

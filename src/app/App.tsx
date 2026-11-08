@@ -19,7 +19,7 @@ import { ResetProvider } from '../features/reset/ResetContext'
 import UpdateToast from '../features/updater/UpdateToast'
 import { AppContext } from './AppContext'
 import styles from './App.module.css'
-import type { NavDockMode } from '../../electron/ipc/types'
+import type { AppConfig, NavDockMode } from '../../electron/ipc/types'
 
 export type NavTab = 'library' | 'scheduler' | 'mappings' | 'manual' | 'reset' | 'settings'
 
@@ -49,6 +49,21 @@ function useMediaQuery(query: string): boolean {
     return () => mq.removeEventListener('change', onChange)
   }, [query])
   return matches
+}
+
+/**
+ * Whether this install has saved work on the legacy pages, so they stay in
+ * the navigation until the user hides them.
+ *
+ * @param config - The loaded config.
+ * @returns True when there are title mappings or a bulk file with links in it.
+ */
+async function hasLegacyData(config: AppConfig): Promise<boolean> {
+  if (Object.keys(config.titleMappings ?? {}).length > 0) return true
+  for (const file of await window.api.bulk.listFiles()) {
+    if ((await window.api.bulk.readFile(file)).length > 0) return true
+  }
+  return false
 }
 
 const PAGE_MAP: Record<NavTab, React.ReactNode> = {
@@ -95,9 +110,9 @@ export default function App() {
   }
 
   useEffect(() => {
-    window.api.config.get().then(c => {
+    window.api.config.get().then(async c => {
       setNavDockState(c.navDock ?? 'auto')
-      setShowLegacyState(c.showLegacyTools === true)
+      setShowLegacyState(c.showLegacyTools ?? await hasLegacyData(c).catch(() => false))
     }).catch(() => { /* keep the defaults */ })
   }, [authReady])
 
