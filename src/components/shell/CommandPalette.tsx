@@ -62,15 +62,17 @@ function loadRecents(): string[] {
 }
 
 const SETTINGS_ITEMS: Array<{ anchor: string; label: string; keywords: string; icon: ReactNode }> = [
-  { anchor: 'plex-account',   label: 'Plex Account',                keywords: 'sign in account disconnect auth plex token', icon: <User size={16} /> },
-  { anchor: 'plex-server',    label: 'Plex Server URL',             keywords: 'server url address connect baseurl', icon: <Server size={16} /> },
-  { anchor: 'libraries',      label: 'Libraries (include / exclude)', keywords: 'libraries movies tv exclude include sections', icon: <SlidersHorizontal size={16} /> },
-  { anchor: 'tmdb',           label: 'TMDB Matching - API Key',     keywords: 'tmdb api key matching hama tvdb imdb agent', icon: <Film size={16} /> },
-  { anchor: 'mediux-filters', label: 'MediUX Asset Types',          keywords: 'posters backdrops title cards filters asset types', icon: <Filter size={16} /> },
-  { anchor: 'scraper',        label: 'Scraper - Max Workers',       keywords: 'scraper workers parallel speed concurrency', icon: <Sliders size={16} /> },
-  { anchor: 'browser',        label: 'Browser Engine (Chromium)',   keywords: 'browser chromium playwright install engine', icon: <Globe size={16} /> },
-  { anchor: 'general',        label: 'General - Dock, Tray & Logs', keywords: 'navigation dock status bar floating small screen tray notification append logs general', icon: <Wrench size={16} /> },
-  { anchor: 'application',    label: 'Application & Updates',       keywords: 'version update logs application about', icon: <Package size={16} /> },
+  { anchor: 'plex-account',   label: 'Plex account',                   keywords: 'sign in sign out account disconnect auth plex token', icon: <User size={16} /> },
+  { anchor: 'plex-server',    label: 'Plex server address',            keywords: 'server url address connect baseurl', icon: <Server size={16} /> },
+  { anchor: 'libraries',      label: 'Libraries (turn on or off)',     keywords: 'libraries movies tv exclude include sections', icon: <SlidersHorizontal size={16} /> },
+  { anchor: 'tmdb',           label: 'Title matching - TMDB API key',  keywords: 'tmdb api key matching hama tvdb imdb agent', icon: <Film size={16} /> },
+  { anchor: 'mediux-filters', label: 'MediUX asset types',             keywords: 'posters backdrops title cards filters asset types', icon: <Filter size={16} /> },
+  { anchor: 'collections',    label: 'Show collections in the Library Browser', keywords: 'collections library browser show hide', icon: <Film size={16} /> },
+  { anchor: 'scraper',        label: 'Sets fetched at once',           keywords: 'scraper workers parallel speed concurrency downloads', icon: <Sliders size={16} /> },
+  { anchor: 'browser',        label: 'Browser engine (Chromium)',      keywords: 'browser chromium playwright install engine chrome edge', icon: <Globe size={16} /> },
+  { anchor: 'general',        label: 'Window - dock, tray, launch at login', keywords: 'navigation dock status bar floating small screen tray notification launch login startup general', icon: <Wrench size={16} /> },
+  { anchor: 'application',    label: 'Version and updates',            keywords: 'version update application about', icon: <Package size={16} /> },
+  { anchor: 'logs',           label: 'Logs and cached data',           keywords: 'logs clear cache cached data folder', icon: <FolderOpen size={16} /> },
 ]
 
 interface Props {
