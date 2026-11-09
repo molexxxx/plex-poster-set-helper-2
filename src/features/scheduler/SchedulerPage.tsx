@@ -720,6 +720,18 @@ function JobDetail({ job, now, starting, canMoveUp, canMoveDown, canStop, onEdit
       </DetailBlock>
 
       <DetailBlock title="How it applies">
+        {job.creator && (
+          <div className={styles.detailRow}>
+            <div className={styles.detailRowText}>
+              <span className={styles.detailRowLabel}>Where it starts</span>
+              <span className={styles.detailRowValue}>
+                {job.since
+                  ? `Sets @${job.creator} added or updated since ${new Date(job.since).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+                  : `Every set in @${job.creator}'s catalog`}
+              </span>
+            </div>
+          </div>
+        )}
         <div className={styles.detailRow}>
           <div className={styles.detailRowText}>
             <span className={styles.detailRowLabel}>Only apply new artwork</span>
