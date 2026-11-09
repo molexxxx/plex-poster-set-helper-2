@@ -35,7 +35,7 @@ interface TitleGroup { key: string; title: string; year?: number; matchedKey?: s
 
 /** Catalogs this window already holds: a revisit paints from here, then asks only whether anything changed. */
 const catalogCache = new Map<string, CachedCatalog>()
-const CATALOG_CACHE_LIMIT = 8
+const CATALOG_CACHE_LIMIT = 3
 /** Where the user was in each creator's catalog, kept while they visit other pages. */
 const viewStates = new Map<string, ViewState>()
 let lastCreator: string | null = null

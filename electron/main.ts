@@ -206,6 +206,7 @@ function createWindow(appIconPath: string) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      spellcheck: false,
     },
     titleBarStyle: 'hidden',
     icon: appIconPath,

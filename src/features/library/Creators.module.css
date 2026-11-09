@@ -627,9 +627,8 @@
   font-weight: var(--font-semibold);
   white-space: nowrap;
   color: var(--color-text-primary);
-  background: rgba(13, 15, 20, 0.82);
+  background: rgba(13, 15, 20, 0.88);
   border-radius: var(--radius-full);
-  backdrop-filter: blur(6px);
 }
 
 .pillSuccess { color: var(--color-accent-success); }
