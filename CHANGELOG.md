@@ -4,6 +4,22 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.15.1
+
+### Anime list updates in Settings
+Anime in HAMA libraries is matched through the Fribb anime-lists dataset, which maps AniDB IDs to TMDB. The app read its copy once per session and fetched a new one only if that copy was over a week old at the time, so a Docker container or an app left in the tray kept an old list indefinitely, and a stale copy held up the first anime match until the new one downloaded.
+
+- **Settings → Artwork → Title matching** shows when the list was downloaded and how many titles it maps (about 16,000), with **Update now** to fetch the newest list at any time.
+- The desktop app and the Docker server now update a downloaded list once a week, the same pace it is published. **Update the anime list automatically** turns this off.
+- Matching keeps using the current copy while an update downloads. If an update fails, the current copy stays in use and Settings says why.
+- The list is still downloaded only the first time a HAMA title needs it, so servers without anime never fetch it.
+
+### Buttons that did nothing in Docker
+In the Docker web page, actions that send no data to the server were rejected before they reached the app: deleting a scheduled job, deleting a bulk file in Manual Import, canceling a Manual Import run, **Sign out**, **Clear logs**, **Clear cached data**, and **Clean Bundles** on the Reset Posters page. They now work.
+
+### Smaller fixes
+- Menus size to their longest item, so **Re-read the whole catalog…** on the Creators page no longer wraps onto two lines inside a one-line row.
+
 ## What's new in v2.15.0
 
 ### Creators, rebuilt around the art
