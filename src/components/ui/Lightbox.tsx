@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -46,8 +46,16 @@ function LightboxSlide({ image, dir }: { image: LightboxImage; dir: number }) {
 export default function Lightbox({ images, index, onClose }: LightboxProps) {
   const [i, setI] = useState(index)
   const [dir, setDir] = useState(0)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => setI(index), [index])
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    closeRef.current?.focus()
+    return () => opener?.focus?.()
+  }, [])
 
   const go = useCallback((delta: number) => {
     setDir(delta)
@@ -59,6 +67,14 @@ export default function Lightbox({ images, index, onClose }: LightboxProps) {
       if (e.key === 'Escape') onClose()
       else if (e.key === 'ArrowRight') go(1)
       else if (e.key === 'ArrowLeft') go(-1)
+      else if (e.key === 'Tab') {
+        const buttons = [...(dialogRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? [])]
+        if (!buttons.length) return
+        const at = buttons.indexOf(document.activeElement as HTMLButtonElement)
+        const next = e.shiftKey ? (at <= 0 ? buttons.length - 1 : at - 1) : (at + 1) % buttons.length
+        e.preventDefault()
+        buttons[next].focus()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -78,15 +94,19 @@ export default function Lightbox({ images, index, onClose }: LightboxProps) {
 
   return createPortal(
     <motion.div
+      ref={dialogRef}
       className={styles.backdrop}
+      role="dialog"
+      aria-modal="true"
+      aria-label={cur.label ? `${cur.label}${cur.caption ? `, ${cur.caption}` : ''}` : 'Image viewer'}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
       onClick={onClose}
     >
-      <button className={styles.close} onClick={onClose} title="Close (Esc)"><X size={20} /></button>
+      <button ref={closeRef} className={styles.close} onClick={onClose} title="Close (Esc)" aria-label="Close"><X size={20} /></button>
 
       {many && (
-        <button className={`${styles.nav} ${styles.navLeft}`} onClick={e => { e.stopPropagation(); go(-1) }} title="Previous (←)">
+        <button className={`${styles.nav} ${styles.navLeft}`} onClick={e => { e.stopPropagation(); go(-1) }} title="Previous (←)" aria-label="Previous image">
           <ChevronLeft size={26} />
         </button>
       )}
@@ -109,7 +129,7 @@ export default function Lightbox({ images, index, onClose }: LightboxProps) {
       </div>
 
       {many && (
-        <button className={`${styles.nav} ${styles.navRight}`} onClick={e => { e.stopPropagation(); go(1) }} title="Next (→)">
+        <button className={`${styles.nav} ${styles.navRight}`} onClick={e => { e.stopPropagation(); go(1) }} title="Next (→)" aria-label="Next image">
           <ChevronRight size={26} />
         </button>
       )}

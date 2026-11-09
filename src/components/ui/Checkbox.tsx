@@ -8,10 +8,12 @@ interface CheckboxProps {
   indeterminate?: boolean
   label?: string
   disabled?: boolean
+  /** Accessible name when there is no visible label. */
+  ariaLabel?: string
 }
 
 /** Styled checkbox with optional label and indeterminate state. */
-export default function Checkbox({ checked, onChange, indeterminate, label, disabled }: CheckboxProps) {
+export default function Checkbox({ checked, onChange, indeterminate, label, disabled, ariaLabel }: CheckboxProps) {
   const id = useId()
 
   return (
@@ -38,6 +40,7 @@ export default function Checkbox({ checked, onChange, indeterminate, label, disa
           checked={checked}
           onChange={e => onChange(e.target.checked)}
           disabled={disabled}
+          aria-label={label ? undefined : ariaLabel}
           className={styles.input}
           ref={el => { if (el) el.indeterminate = !!indeterminate }}
         />
