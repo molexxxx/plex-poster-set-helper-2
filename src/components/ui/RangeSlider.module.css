@@ -53,7 +53,7 @@
 .fill {
   position: absolute;
   height: 100%;
-  background: linear-gradient(90deg, #c98a0a, var(--color-accent-interactive));
+  background: var(--color-accent-interactive);
   border-radius: var(--radius-full);
   opacity: 0.9;
 }

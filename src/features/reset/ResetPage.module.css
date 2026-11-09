@@ -93,9 +93,7 @@
 /* Armed = the delete toggle is on; warm the row so the destructive intent reads. */
 .spaceRowArmed {
   border-color: var(--color-accent-border);
-  background:
-    linear-gradient(90deg, var(--color-accent-soft), transparent 60%),
-    var(--color-bg-surface);
+  background: var(--color-accent-soft);
 }
 
 .spaceActions {

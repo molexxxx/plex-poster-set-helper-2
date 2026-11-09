@@ -99,7 +99,7 @@
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #e5a00d, #f0bb3a);
+  background: var(--color-accent);
   border-radius: var(--radius-full);
   box-shadow: 0 0 8px rgba(229, 160, 13, 0.4);
   min-width: 4px;

@@ -1,14 +1,7 @@
-/* Warm gold and amber blooms over cold indigo anchors, then a vignette. Sizes
-   are in vmax so the composition scales with the window. Listed top layer first. */
+/* The app's solid ground; panels and borders carry the structure, the posters the texture. */
 .backdrop {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    radial-gradient(circle 75vmax at 50% 50%, rgb(0 0 0 / 0) 20vh, rgb(0 0 0 / 0.38) 75vmax),
-    radial-gradient(circle 34vmax at 91.1% -14.9%, rgb(8 14 70 / 0.18), rgb(8 14 70 / 0.108) 30%, rgb(8 14 70 / 0.036) 60%, rgb(8 14 70 / 0.009) 85%, rgb(8 14 70 / 0)),
-    radial-gradient(circle 22vmax at 59% 34.8%, rgb(212 170 64 / 0.06), rgb(212 170 64 / 0.036) 30%, rgb(212 170 64 / 0.012) 60%, rgb(212 170 64 / 0.003) 85%, rgb(212 170 64 / 0)),
-    radial-gradient(circle 62vmax at 28.7% 104.2%, rgb(20 28 100 / 0.22), rgb(20 28 100 / 0.132) 30%, rgb(20 28 100 / 0.044) 60%, rgb(20 28 100 / 0.011) 85%, rgb(20 28 100 / 0)),
-    radial-gradient(circle 38vmax at 110.8% 33%, rgb(226 150 40 / 0.07), rgb(226 150 40 / 0.042) 30%, rgb(226 150 40 / 0.014) 60%, rgb(226 150 40 / 0.0035) 85%, rgb(226 150 40 / 0)),
-    radial-gradient(circle 55vmax at -5% -5%, rgb(212 170 64 / 0.1), rgb(212 170 64 / 0.06) 30%, rgb(212 170 64 / 0.02) 60%, rgb(212 170 64 / 0.005) 85%, rgb(212 170 64 / 0));
+  background: var(--color-bg-base);
 }
