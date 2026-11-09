@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from 'react'
+import { Info } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import Select from '../../components/ui/Select'
@@ -51,6 +52,7 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
   const gapsLabelId = useId()
   const gapsDescId = useId()
   const startName = useId()
+  const startLabelId = useId()
   const isCreator = scope.kind === 'creator'
 
   const request = useMemo<QuickSyncRequest>(() => {
@@ -131,32 +133,31 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
         </div>
 
         {isCreator && (
-          <fieldset className={styles.syncField}>
-            <legend className={styles.syncLabel}>Where it starts</legend>
-            <label className={`${styles.syncChoice} ${start === 'new' ? styles.syncChoiceOn : ''}`}>
-              <input type="radio" name={startName} checked={start === 'new'} onChange={() => setStart('new')} />
-              <span className={styles.syncChoiceText}>
-                <span className={styles.syncChoiceTitle}>{since ? `New uploads since ${formatDate(since)}` : 'New uploads from today on'}</span>
-                <span className={styles.syncChoiceDesc}>
-                  Nothing in your library changes now. Sets @{username} adds or updates {since ? 'after that date' : 'from today'} apply on the schedule.
-                </span>
-              </span>
-            </label>
-            <label className={`${styles.syncChoice} ${start === 'everything' ? styles.syncChoiceOn : ''}`}>
-              <input type="radio" name={startName} checked={start === 'everything'} onChange={() => setStart('everything')} />
-              <span className={styles.syncChoiceText}>
-                <span className={styles.syncChoiceTitle}>Everything now</span>
-                <span className={styles.syncChoiceDesc}>
-                  The next run applies @{username}&apos;s art to the {matchedTitles.toLocaleString('en-US')} {matchedTitles === 1 ? 'title' : 'titles'} in your library they cover, then keeps them current.
-                </span>
-              </span>
-            </label>
-          </fieldset>
+          <div className={styles.syncField}>
+            <span id={startLabelId} className={styles.syncLabel}>Where it starts</span>
+            <div role="radiogroup" aria-labelledby={startLabelId} className={styles.syncChoices}>
+              {([
+                ['new', since ? `New uploads since ${formatDate(since)}` : 'New uploads from today on',
+                  `Nothing in your library changes now. Sets @${username} adds or updates ${since ? 'after that date' : 'from today'} apply on the schedule.`],
+                ['everything', 'Everything now',
+                  `The next run applies @${username}'s art to the ${matchedTitles.toLocaleString('en-US')} ${matchedTitles === 1 ? 'title' : 'titles'} in your library they cover, then keeps them current.`],
+              ] as const).map(([value, title, desc]) => (
+                <label key={value} className={`${styles.syncChoice} ${start === value ? styles.syncChoiceOn : ''}`}>
+                  <input type="radio" className={styles.syncRadioInput} name={startName} checked={start === value} onChange={() => setStart(value)} />
+                  <span className={styles.syncRadio} aria-hidden />
+                  <span className={styles.syncChoiceText}>
+                    <span className={styles.syncChoiceTitle}>{title}</span>
+                    <span className={styles.syncChoiceDesc}>{desc}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
         )}
 
         <div className={styles.syncRow}>
           <span className={styles.syncRowText}>
-            <span id={gapsLabelId} className={styles.syncChoiceTitle}>Only fill gaps</span>
+            <span id={gapsLabelId} className={styles.syncLabel}>Only fill gaps</span>
             <span id={gapsDescId} className={styles.syncChoiceDesc}>
               Leaves any slot that other art already fills. Without it, this creator&apos;s art replaces what is there.
             </span>
@@ -164,11 +165,13 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
           <Switch checked={fillGaps} onChange={setFillGaps} ariaLabelledBy={gapsLabelId} ariaDescribedBy={gapsDescId} />
         </div>
 
-        <ul className={styles.syncNotes}>
-          <li>Applies the art types picked in Settings: {types || 'none are switched on'}.</li>
-          <li>When a title has several sets, they apply oldest to newest, so the newest ends up on top.</li>
-          {existing?.skipApplied !== false && <li>Art this app already applied is skipped on later runs.</li>}
-        </ul>
+        <div className={styles.syncNotes}>
+          <Info size={14} className={styles.syncNotesIcon} aria-hidden />
+          <ul className={styles.syncNotesList}>
+            <li>Applies {types || 'no art: every type is switched off in Settings'}{types ? ', the types picked in Settings' : ''}.</li>
+            <li>A title&apos;s sets apply oldest first, so its newest set ends up on top{existing?.skipApplied !== false ? '; art already applied is skipped' : ''}.</li>
+          </ul>
+        </div>
 
         {error && <p className={styles.syncError} role="alert">Could not save the sync: {error}</p>}
       </div>

@@ -1090,24 +1090,29 @@
 .syncField {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  border: none;
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .syncLabel {
-  padding: 0;
   font-size: 13px;
-  font-weight: var(--font-medium);
+  font-weight: var(--font-semibold);
+  line-height: 1.4;
   color: var(--color-text-primary);
 }
 
-.syncChoice {
+.syncChoices {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.syncChoice {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  column-gap: var(--space-3);
+  align-items: start;
   padding: 10px var(--space-3);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-sm);
@@ -1123,24 +1128,42 @@
   background: var(--color-accent-soft);
 }
 
-.syncChoice input {
-  margin-top: 3px;
-  accent-color: var(--color-accent);
+.syncChoice:has(.syncRadioInput:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.syncRadioInput {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
 }
 
-.syncChoice:focus-within { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.syncRadio {
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.syncChoiceOn .syncRadio {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 3.5px var(--color-bg-elevated), inset 0 0 0 8px var(--color-accent);
+}
 
 .syncChoiceText,
 .syncRowText {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 
 .syncChoiceTitle {
   font-size: 13px;
   font-weight: var(--font-medium);
+  line-height: 1.4;
   color: var(--color-text-primary);
 }
 
@@ -1148,23 +1171,39 @@
   font-size: var(--text-xs);
   line-height: 1.5;
   color: var(--color-text-secondary);
+  text-wrap: pretty;
 }
 
 .syncRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-6);
 }
 
 .syncNotes {
   display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--color-bg-base);
+  border-radius: var(--radius-sm);
+}
+
+.syncNotesIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+}
+
+.syncNotesList {
+  display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 0 0 0 16px;
+  list-style: none;
   font-size: var(--text-xs);
   line-height: 1.5;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .syncError {
