@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, useCallback, useMemo, createContext, useContext } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo, useContext } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, UserPlus, Trash2, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users, Film, Tv, Layers, ArrowUp, ArrowDown, Eye, EyeOff, ExternalLink, Link2, Link2Off, Circle } from 'lucide-react'
+import { Search, X, Upload, Check, AlertCircle, Loader2, User, Image as ImageIcon, ChevronDown, ChevronUp, Plus, CalendarClock, CheckCircle2, RefreshCw, Star, Library, Download, LayoutGrid, Users, Film, Tv, Layers, ArrowUp, ArrowDown, Eye, EyeOff, ExternalLink, Link2, Link2Off } from 'lucide-react'
 import type { ScheduledJob } from '../../../electron/ipc/types'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -8,25 +8,26 @@ import Select, { type SelectOption } from '../../components/ui/Select'
 import Checkbox from '../../components/ui/Checkbox'
 import Spinner from '../../components/ui/Spinner'
 import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
-import Pager from '../../components/ui/Pager'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
 import { groupPosters, posterFileType, setKey, ALL_TYPES, SOURCE_LABEL, SOURCE_SHORT, defaultSetApplyScope, collectionName, variantKey, variantClusters, defaultVariant, resolveVariants, memberKey, moviesInLibrary, posterPageUrl, type ApplyContext, type FileType, type SetApplyScope, type SetSource } from '../../utils/posterGroups'
-import { useCreatorPrefs, parseCreatorInput, type CreatorState } from '../../utils/creatorPrefs'
+import { useCreatorPrefs, type CreatorState } from '../../utils/creatorPrefs'
 import { arrangeSets, byPopularity, mergeLinkedSets, uploaderValue } from '../../utils/librarySets'
-import { recordApplied, recordAppliedBatch, recordAppliedQuietly, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
+import { recordAppliedBatch, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
 import { uuid } from '../../utils/uuid'
 import { errorMessage } from '../../utils/errorMessage'
 import {
-  DEFAULT_QUICK_CRON, appliedUploaders, coveringJob, creatorSyncUrl, describeCron, describeQuickSync, planQuickSync, posterSlot, scheduleCoverage,
+  DEFAULT_QUICK_CRON, appliedUploaders, coveringJob, describeCron, planQuickSync, scheduleCoverage,
   type AppliedUploader,
 } from '../../../electron/services/scheduleUtils'
 import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
 import { useSmoothScroll } from '../../app/useSmoothScroll'
 import type {
-  LibrarySection, LibraryItem, PosterSetSummary, BrowseSetsRes, PosterInfo, MediuxUserSet, AppliedRecord,
+  LibrarySection, LibraryItem, PosterSetSummary, BrowseSetsRes, PosterInfo, AppliedRecord,
   PlexArtSlot, LibrarySort, SortDir, LibraryArtFilter, LibraryStatusFilter, LinkedItemRef,
 } from '../../../electron/ipc/types'
+import { CreatorNav, ThumbButton, applyError, applyPosters, creatorUrl, type ApplyState } from './libraryShared'
+import CreatorsView from './Creators'
 import styles from './LibraryPage.module.css'
 
 const PAGE_SIZE = 60
@@ -140,13 +141,6 @@ function clampPanelWidth(w: number): number {
   return Math.max(PANEL_WIDTH_MIN, Math.min(max, w))
 }
 
-/** A creator's page on the site their set came from. */
-function creatorUrl(source: SetSource, uploader: string): string {
-  return source === 'posterdb'
-    ? `https://theposterdb.com/user/${encodeURIComponent(uploader)}`
-    : `https://mediux.pro/user/${encodeURIComponent(uploader)}`
-}
-
 /** Match a collection-member poster to a Plex collection child. */
 function matchCollectionChild(p: PosterInfo, children: LibraryItem[]): LibraryItem | undefined {
   if (p.tmdbId) {
@@ -159,74 +153,6 @@ function matchCollectionChild(p: PosterInfo, children: LibraryItem[]): LibraryIt
     && (p.year == null || c.year == null || p.year === c.year),
   )
 }
-
-/**
- * Compact relative time for the "last checked" stamp.
- *
- * @param ts - Epoch milliseconds of the check.
- * @returns A short label like "5m ago".
- */
-function timeAgo(ts: number): string {
-  const s = Math.floor((Date.now() - ts) / 1000)
-  if (s < 45) return 'just now'
-  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
-
-/** Apply progress for a single set. */
-interface ApplyState { status: 'idle' | 'applying' | 'done' | 'error'; done: number; total: number; error?: string }
-
-/**
- * Error text for a finished apply: upload failures first, then targets that
- * were skipped, then a failure to save the history that drives the Applied
- * badges and filters.
- *
- * @param failed - Posters that failed to upload.
- * @param historyError - Why the history write failed, if it did.
- * @param skipped - Why each skipped target was left alone.
- * @returns The text, or undefined when everything went through.
- */
-function applyError(failed: number, historyError?: string, skipped: string[] = []): string | undefined {
-  const parts: string[] = []
-  if (failed) parts.push(`${failed} failed`)
-  parts.push(...skipped)
-  if (historyError) parts.push(`history not saved: ${historyError}`)
-  return parts.length ? parts.join(' · ') : undefined
-}
-
-/**
- * Applies a set's posters to a Plex target, routing each by season/episode.
- *
- * @param targetKey - Plex ratingKey to apply onto.
- * @param posters - Candidate posters; filtered by the enabled types.
- * @param enabled - File types the user has switched on.
- * @param onProgress - Called after each poster with done/total counts.
- * @returns Done/failed counts, the URLs and slots actually applied, and the last error.
- */
-async function applyPosters(
-  targetKey: string,
-  posters: PosterInfo[],
-  enabled: Set<FileType>,
-  onProgress: (done: number, total: number) => void,
-): Promise<{ done: number; failed: number; total: number; appliedUrls: string[]; appliedSlots: string[]; lastError?: string }> {
-  const list = posters.filter(p => enabled.has(posterFileType(p)))
-  let done = 0, failed = 0
-  const appliedUrls: string[] = []
-  const appliedSlots: string[] = []
-  let lastError: string | undefined
-  for (const p of list) {
-    try {
-      const res = await window.api.plex.uploadPoster(targetKey, p.url, p.source, p.season, p.episode, p.isCollection) as { success: boolean; error?: string }
-      if (res.success) { done++; appliedUrls.push(p.url); appliedSlots.push(posterSlot(p)) } else { failed++; lastError = res.error }
-    } catch (err) { failed++; lastError = err instanceof Error ? err.message : String(err) }
-    onProgress(done, list.length)
-  }
-  return { done, failed, total: list.length, appliedUrls, appliedSlots, lastError }
-}
-
-/** Lets any nested set card jump to a creator in the Creators tab. */
-const CreatorNav = createContext<(username: string) => void>(() => {})
 
 /** Plex library grid with per-section tabs, cross-library search, and the poster-sets panel. */
 function MyLibraryView({ targetSection, targetItem }: { targetSection: string | null; targetItem: LibraryItem | null }) {
@@ -692,12 +618,11 @@ function MyLibraryView({ targetSection, targetItem }: { targetSection: string | 
   )
 }
 
-type Mode = 'library' | 'creators'
-
 /** Library Browser page: switches between the My Library grid and the Creators view. */
 export default function LibraryPage() {
   const { plexConnected } = useAppContext()
-  const [mode, setMode] = useState<Mode>('library')
+  const mode    = useNavStore(s => s.libraryMode)
+  const setMode = useNavStore(s => s.setLibraryMode)
   const [creatorTarget, setCreatorTarget] = useState<string | null>(null)
   const [sectionTarget, setSectionTarget] = useState<string | null>(null)
   const [itemTarget, setItemTarget] = useState<LibraryItem | null>(null)
@@ -709,7 +634,7 @@ export default function LibraryPage() {
   const openCreator = useCallback((username: string) => {
     setCreatorTarget(username)
     setMode('creators')
-  }, [])
+  }, [setMode])
 
   // Consume a deep-link intent from the command palette (creator, section, or item).
   useEffect(() => {
@@ -726,7 +651,7 @@ export default function LibraryPage() {
       setMode('library')
     }
     clearLibrary()
-  }, [libraryIntent, clearLibrary])
+  }, [libraryIntent, clearLibrary, setMode])
 
   return (
     <CreatorNav.Provider value={openCreator}>
@@ -737,13 +662,14 @@ export default function LibraryPage() {
             <p className="page-subtitle">
               {mode === 'library'
                 ? 'Browse your Plex library and apply MediUX and ThePosterDB poster sets.'
-                : 'Follow creators on MediUX and ThePosterDB and apply their newest art to your library.'}
+                : 'Browse a MediUX creator\'s whole catalog against your library and keep it in sync.'}
             </p>
           </div>
 
-          {/* Mode switch */}
-          <div className={styles.tabBar}>
+          <div className={styles.tabBar} role="tablist" aria-label="Library Browser view">
             <button
+              role="tab"
+              aria-selected={mode === 'library'}
               className={`${styles.tabBarBtn} ${mode === 'library' ? styles.tabBarBtnActive : ''}`}
               onClick={() => setMode('library')}
             >
@@ -754,6 +680,8 @@ export default function LibraryPage() {
               <span>My Library</span>
             </button>
             <button
+              role="tab"
+              aria-selected={mode === 'creators'}
               className={`${styles.tabBarBtn} ${mode === 'creators' ? styles.tabBarBtnActive : ''}`}
               onClick={() => setMode('creators')}
             >
@@ -763,7 +691,7 @@ export default function LibraryPage() {
               <Users size={14} />
               <span>Creators</span>
               {followCount > 0 && (
-                <span className={styles.tabBadge}>{followCount}</span>
+                <span className={styles.tabBadge} aria-label={`${followCount} followed`}>{followCount}</span>
               )}
             </button>
           </div>
@@ -1990,70 +1918,6 @@ function SetsPanel({ item, onClose, onItemPoster }: {
   )
 }
 
-/** Small skeleton-aware thumbnail button used in the SetCard expanded view. */
-function ThumbButton({ url, label, episode, onClick, selectable, selected, onSelect, pageUrl, site }: {
-  url: string
-  label: string
-  episode?: number
-  onClick: () => void
-  /** The poster competes with others in the set for one Plex slot, so it carries a pick control. */
-  selectable?: boolean
-  /** This is the poster that will be applied. */
-  selected?: boolean
-  onSelect?: () => void
-  /** Where the poster can be viewed on its site; shows an open link on hover. */
-  pageUrl?: string
-  /** The site's display name, for the link's label. */
-  site?: string
-}) {
-  const [loaded, setLoaded] = useState(false)
-  const thumb = (
-    <button
-      className={`${styles.groupThumb} ${!loaded ? styles.skeleton : ''}`}
-      title={`${episode != null ? `Episode ${episode}` : label} - click to enlarge`}
-      onClick={onClick}
-    >
-      <img
-        src={url}
-        alt={label}
-        loading="lazy"
-        draggable={false}
-        className={loaded ? '' : styles.imgPending}
-        onLoad={() => setLoaded(true)}
-      />
-      {episode != null && <span className={styles.epBadge}>E{episode}</span>}
-    </button>
-  )
-  const openLabel = `Open on ${site ?? 'its site'}`
-  const link = pageUrl && (
-    <button
-      className={styles.thumbLink}
-      onClick={() => window.api.app.openExternal(pageUrl)}
-      title={openLabel}
-      aria-label={openLabel}
-    >
-      <ExternalLink size={11} />
-    </button>
-  )
-  if (!selectable) return link ? <div className={styles.groupThumbWrap}>{thumb}{link}</div> : thumb
-  const pickLabel = selected ? 'This poster will be applied' : 'Apply this poster instead'
-  return (
-    <div className={`${styles.groupThumbWrap} ${selected ? styles.groupThumbSelected : styles.groupThumbPassed}`}>
-      {thumb}
-      {link}
-      <button
-        className={`${styles.pickBtn} ${selected ? styles.pickBtnOn : ''}`}
-        onClick={onSelect}
-        aria-pressed={selected}
-        title={pickLabel}
-        aria-label={pickLabel}
-      >
-        {selected ? <CheckCircle2 size={14} /> : <Circle size={14} />}
-      </button>
-    </div>
-  )
-}
-
 /** Expandable card for one poster set: preview, uploader, source, counts, apply state, and grouped posters. */
 function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, creator = 'none', onCreatorChange, showSource, selectable, checked, onToggleSelect, onSchedule, scheduledBy, onOpenSchedule, scheduleHint, scheduleError, scheduling, collectionMovies, collectionTotal, hasCollectionArt, collectionMissing, applyScope, scopeContext, onApplyScopeChange, linked, onUnlink, variantContext, itemTitle, picks, onPick }: {
   set: PosterSetSummary
@@ -2426,924 +2290,6 @@ function SetCard({ set, apply, onApply, enabledTypes, title, badge, disabled, cr
       <AnimatePresence>
         {lightbox !== null && (
           <Lightbox images={lightboxImages} index={lightbox} onClose={() => setLightbox(null)} />
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-/** Single-file tile for the Posters / Backdrops / Title Cards tabs in Creators. */
-function FileTile({ poster, set, st, done, error, onLightbox, onApply }: {
-  poster: PosterInfo
-  set: MediuxUserSet
-  st?: string
-  done: boolean
-  error?: string
-  onLightbox: () => void
-  onApply: () => void
-}) {
-  const [loaded, setLoaded] = useState(false)
-
-  function shortError(e: string): string {
-    if (/not connected/i.test(e)) return 'Not connected'
-    if (/403/.test(e))            return 'Auth error (403)'
-    if (/404/.test(e))            return 'Not found (404)'
-    if (/download failed/i.test(e)) return e.replace(/.*:\s*/, '').slice(0, 22)
-    return e.slice(0, 22)
-  }
-
-  return (
-    <div className={styles.fileTile}>
-      <button
-        className={`${styles.fileThumb} ${!loaded ? styles.skeleton : ''}`}
-        onClick={onLightbox}
-        title={set.title}
-      >
-        <img
-          src={poster.thumbUrl ?? poster.url}
-          alt={set.title}
-          loading="lazy"
-          draggable={false}
-          className={loaded ? '' : styles.imgPending}
-          onLoad={() => setLoaded(true)}
-        />
-      </button>
-      <div className={styles.fileMeta}>
-        <span className={styles.fileTitle} title={set.title}>
-          {set.year ? `${set.title} (${set.year})` : set.title}
-          {poster.episode != null && (
-            <span className={styles.fileEpBadge}>
-              {typeof poster.season === 'number' ? `S${poster.season} ` : ''}E{poster.episode}
-            </span>
-          )}
-        </span>
-        {!set.matchedKey
-          ? <span className={styles.fileNoMatch}>Not in library</span>
-          : done
-            ? <span className={styles.fileApplied}><Check size={11} /> Applied</span>
-            : st === 'applying'
-              ? <span className={styles.fileApplied}><Loader2 size={11} className={styles.spin} /></span>
-              : st === 'error'
-                ? <span className={styles.fileError} title={error}><AlertCircle size={11} /> {error ? shortError(error) : 'Failed'}</span>
-                : <button className={styles.fileApplyBtn} onClick={onApply}><Upload size={11} /> Apply</button>}
-      </div>
-    </div>
-  )
-}
-
-/** Creators view: followed and hidden creator rails plus the selected creator's sets. */
-function CreatorsView({ initialCreator }: { initialCreator: string | null }) {
-  const { prefs, stateOf, setState } = useCreatorPrefs()
-  const subs = prefs.mediuxFollows
-  const [appliedIdx, setAppliedIdx] = useState<AppliedIndex>({ setKeys: new Set(), titles: new Set(), posterUrls: new Set(), currentByItem: new Map(), currentPosterUrls: new Set() })
-  // The creator picked in the rail (or via a clicked badge); until one is,
-  // the first followed creator is shown.
-  const [picked, setActive]   = useState<string | null>(null)
-  const active = picked ?? subs[0] ?? null
-  const [adding, setAdding]   = useState('')
-  const [prefsError, setPrefsError] = useState<string | null>(null)
-
-  useEffect(() => { loadAppliedIndex().then(setAppliedIdx) }, [])
-
-  // A username arriving from a clicked badge (preview, may not be followed)
-  useEffect(() => {
-    if (initialCreator) setActive(initialCreator)
-  }, [initialCreator])
-
-  // The Creators tab browses MediUX catalogs; ThePosterDB creators open on
-  // their own site instead.
-  const openTpdb = (name: string) => window.api.app.openExternal(creatorUrl('posterdb', name))
-
-  const savePrefs = (run: Promise<unknown>) => {
-    setPrefsError(null)
-    run.catch((err: unknown) => setPrefsError(errorMessage(err)))
-  }
-
-  async function addCreator() {
-    const parsed = parseCreatorInput(adding)
-    if (!parsed) {
-      setPrefsError('Enter a username or a MediUX / ThePosterDB profile link.')
-      return
-    }
-    setPrefsError(null)
-    try {
-      if (stateOf(parsed.source, parsed.name) !== 'followed') await setState(parsed.source, parsed.name, 'followed')
-      if (parsed.source === 'mediux') setActive(parsed.name)
-      setAdding('')
-    } catch (err) {
-      setPrefsError(errorMessage(err))
-    }
-  }
-
-  async function removeCreator(name: string) {
-    try {
-      setPrefsError(null)
-      const next = await setState('mediux', name, 'none')
-      if (active?.toLowerCase() === name.toLowerCase()) setActive(next.mediuxFollows[0] ?? null)
-    } catch (err) {
-      setPrefsError(errorMessage(err))
-    }
-  }
-
-  const isActive = (name: string) => active?.toLowerCase() === name.toLowerCase()
-  const activeState = active ? stateOf('mediux', active) : 'none'
-
-  return (
-    <div className={styles.creators}>
-      {/* Subscriptions rail */}
-      <div className={styles.creatorRail}>
-        <div className={styles.railHeader}>Following</div>
-        <div className={styles.creatorList}>
-          {subs.length === 0 && prefs.posterdbFollows.length === 0 && <p className={styles.railEmpty}>No creators yet. Add one below.</p>}
-          {subs.map(name => (
-            <div
-              key={`mediux:${name}`}
-              className={`${styles.creatorItem} ${isActive(name) ? styles.creatorItemActive : ''}`}
-              onClick={() => setActive(name)}
-            >
-              <Star size={12} className={styles.creatorStar} />
-              <span className={styles.creatorName}>{name}</span>
-              <button className={styles.creatorRemove} onClick={e => { e.stopPropagation(); removeCreator(name) }} title="Unfollow">
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))}
-          {prefs.posterdbFollows.map(name => (
-            <div
-              key={`posterdb:${name}`}
-              className={styles.creatorItem}
-              onClick={() => openTpdb(name)}
-              title={`Open ${name} on ThePosterDB`}
-            >
-              <Star size={12} className={styles.creatorStar} />
-              <span className={styles.creatorName}>{name}</span>
-              <Badge variant="posterdb">{SOURCE_SHORT.posterdb}</Badge>
-              <ExternalLink size={11} className={styles.creatorExternal} aria-hidden />
-              <button className={styles.creatorRemove} onClick={e => { e.stopPropagation(); savePrefs(setState('posterdb', name, 'none')) }} title="Unfollow">
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {prefs.hidden.length > 0 && (
-          <>
-            <div className={styles.railHeader}>Hidden</div>
-            <div className={`${styles.creatorList} ${styles.creatorListHidden}`}>
-              {prefs.hidden.map(h => (
-                <div
-                  key={`${h.source}:${h.username}`}
-                  className={`${styles.creatorItem} ${h.source === 'mediux' && isActive(h.username) ? styles.creatorItemActive : ''}`}
-                  onClick={() => h.source === 'mediux' ? setActive(h.username) : openTpdb(h.username)}
-                  title={h.source === 'mediux' ? `Browse ${h.username}` : `Open ${h.username} on ThePosterDB`}
-                >
-                  <EyeOff size={12} className={styles.creatorStar} />
-                  <span className={styles.creatorName}>{h.username}</span>
-                  <Badge variant={h.source}>{SOURCE_SHORT[h.source]}</Badge>
-                  {h.source === 'posterdb' && <ExternalLink size={11} className={styles.creatorExternal} aria-hidden />}
-                  <button
-                    className={styles.creatorRemove}
-                    onClick={e => { e.stopPropagation(); savePrefs(setState(h.source, h.username, 'none')) }}
-                    title="Unhide"
-                  >
-                    <Eye size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        <div className={styles.addCreator}>
-          <span className={styles.addLabel}>Follow a creator</span>
-          <div className={styles.addField}>
-            <UserPlus size={14} className={styles.addIcon} />
-            <input
-              className={styles.addInput}
-              placeholder="username or profile link"
-              value={adding}
-              onChange={e => setAdding(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') addCreator() }}
-              spellCheck={false}
-            />
-            <button className={styles.addBtn} onClick={addCreator} disabled={!adding.trim()} title="Follow">
-              <Plus size={14} />
-            </button>
-          </div>
-          {prefsError && <p className={styles.addError}>{prefsError}</p>}
-        </div>
-      </div>
-
-      {/* Selected creator's recent sets */}
-      <div className={styles.creatorMain}>
-        {active ? (
-          <CreatorSets
-            key={active}
-            username={active}
-            creator={activeState}
-            appliedIdx={appliedIdx}
-            onCreatorChange={state => {
-              // Pin the selection first: once the creator leaves the followed
-              // list, the fallback would move the view to someone else.
-              setActive(active)
-              savePrefs(setState('mediux', active, state))
-            }}
-            onApplied={(sKey, itemKey, title, year, urls) => setAppliedIdx(prev => ({
-              setKeys: new Set(prev.setKeys).add(sKey),
-              titles: new Set(prev.titles).add(appliedKey(title, year)),
-              posterUrls: new Set([...prev.posterUrls, ...urls]),
-              currentByItem: new Map(prev.currentByItem).set(itemKey, sKey),
-              currentPosterUrls: new Set([...prev.currentPosterUrls, ...urls]),
-            }))}
-          />
-        ) : (
-          <div className={styles.creatorEmpty}>
-            <UserPlus size={32} />
-            <p>Follow a creator to browse their newest art.</p>
-            <p className={styles.creatorEmptySub}>e.g. <code>aloha_alona</code> or a profile link. MediUX creators are browsed here; ThePosterDB creators open on their site.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/**
- * Placeholder set card so the list keeps its shape while a creator's art loads,
- * instead of a layout-shifting centered spinner.
- */
-function SetCardSkeleton() {
-  return (
-    <div className={styles.setCardSkeleton} aria-hidden="true">
-      <div className={`${styles.skelPreview} ${styles.skeleton}`} />
-      <div className={styles.skelInfo}>
-        <div className={`${styles.skelLine} ${styles.skelTitle} ${styles.skeleton}`} />
-        <div className={`${styles.skelLine} ${styles.skelUploader} ${styles.skeleton}`} />
-        <div className={styles.skelChips}>
-          <span className={`${styles.skelChip} ${styles.skeleton}`} />
-          <span className={`${styles.skelChip} ${styles.skeleton}`} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/** Placeholder tabs row so the toolbar holds its place until the real tabs load. */
-function SkeletonTabs() {
-  return (
-    <div className={styles.creatorTabsRow} aria-hidden="true">
-      <div className={styles.creatorTabs}>
-        {[0, 1, 2, 3].map(i => <span key={i} className={`${styles.skelTab} ${styles.skeleton}`} />)}
-      </div>
-      <span className={`${styles.skelSearch} ${styles.skeleton}`} />
-    </div>
-  )
-}
-
-/** One creator poster/backdrop/title-card file, paired with its parent set. */
-/** How many sets / files render per page in the creator browser. */
-const CREATOR_SETS_PER_PAGE = 24
-const CREATOR_FILES_PER_PAGE = 60
-
-/** A creator's recent sets with tabs, deep search, selection, and weekly-sync scheduling. */
-function CreatorSets({ username, creator, appliedIdx, onCreatorChange, onApplied }: {
-  username: string
-  /** Whether this MediUX creator is followed or hidden. */
-  creator: CreatorState
-  appliedIdx: AppliedIndex
-  onCreatorChange: (state: CreatorState) => void
-  /** Reports an applied set by its source-qualified setKey(). */
-  onApplied: (sKey: string, itemKey: string, title: string, year: number | undefined, urls: string[]) => void
-}) {
-  const following = creator === 'followed'
-  const { navigate } = useAppContext()
-  const [sets, setSets]       = useState<MediuxUserSet[]>([])
-  // First paint (nothing buffered yet) shows skeletons; `crawling` means a
-  // background crawl is still streaming in more sets behind what's shown.
-  const [loading, setLoading] = useState(true)
-  const [crawling, setCrawling] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
-  const [applyMap, setApplyMap] = useState<Record<string, ApplyState>>({})
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [scheduledMsg, setScheduledMsg] = useState<string | null>(null)
-  const [tab, setTab]         = useState<'sets' | 'posters' | 'backdrops' | 'titlecards'>('sets')
-  const [query, setQuery]     = useState('')
-  const [fileLightbox, setFileLightbox] = useState<number | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
-  const [capped, setCapped]   = useState(false)
-  const [lastChecked, setLastChecked] = useState<number | null>(null)
-  const [refreshing, setRefreshing]   = useState(false)
-  const [, setNowTick] = useState(0)   // re-renders the "checked Xm ago" stamp
-  const [searchResults, setSearchResults] = useState<MediuxUserSet[]>([])
-  const [searching, setSearching] = useState(false)
-  const searchRef = useRef<HTMLInputElement>(null)
-  // Current page (0-based) of the active tab; only this page's items render.
-  const [page, setPage] = useState(0)
-  // Scroll container for the current page of sets / files.
-  const listRef = useRef<HTMLDivElement>(null)
-  // Latest sets, for reading inside the chunk subscription without stale closure.
-  const setsRef = useRef<MediuxUserSet[]>([])
-  useEffect(() => { setsRef.current = sets }, [sets])
-
-  // Saved jobs, kept live; a set is covered individually or by a whole-creator
-  // "/user/{name}/sets" sync job.
-  const [schedJobs, setSchedJobs] = useState<ScheduledJob[]>([])
-  const [quickCron, setQuickCron] = useState(DEFAULT_QUICK_CRON)
-  const [scheduling, setScheduling] = useState(false)
-  const [scheduledJobId, setScheduledJobId] = useState<string | null>(null)
-  const [scheduleError, setScheduleError] = useState<string | null>(null)
-  const goScheduler = useNavStore(s => s.goScheduler)
-  const coverage = useMemo(() => scheduleCoverage(schedJobs), [schedJobs])
-  const creatorJob = coverage.creators.get(username.toLowerCase())
-
-  const [allTypes, setAllTypes] = useState<Set<FileType>>(new Set(ALL_TYPES))
-  useEffect(() => {
-    window.api.config.get().then(c => {
-      if (c.mediuxFilters?.length) setAllTypes(new Set(c.mediuxFilters as FileType[]))
-      setQuickCron(c.schedulerQuickCron || DEFAULT_QUICK_CRON)
-    })
-  }, [])
-
-  const refresh = useCallback(() => { setRefreshing(true); setReloadKey(k => k + 1) }, [])
-
-  // Stream the creator's full catalog from the backend's per-creator buffer.
-  // start()/refresh() return whatever is buffered right now (instant when the
-  // crawl already ran), then `library:userSetsChunk` events append each batch as
-  // MediUX pages land. The crawl lives in the main process, so it keeps running
-  // when you navigate away - returning re-start()s and paints the grown buffer.
-  useEffect(() => {
-    let cancelled = false
-    const target = username.toLowerCase()
-    const forced = reloadKey > 0
-
-    setError(null)
-    setSelected(new Set())
-    setSets([])
-    setsRef.current = []
-    setCapped(false)
-    setLoading(true)
-    setCrawling(true)
-
-    const merge = (incoming: MediuxUserSet[]) => {
-      if (!incoming.length) return
-      setSets(prev => {
-        const seen = new Set(prev.map(s => s.id))
-        const out = prev.slice()
-        for (const s of incoming) if (!seen.has(s.id)) out.push(s)
-        return out
-      })
-    }
-
-    // Subscribe before start() so no batch emitted in between is missed.
-    const unsub = window.api.library.onUserSetsChunk(chunk => {
-      if (cancelled || chunk.username.toLowerCase() !== target) return
-      if (chunk.reset) {
-        // Incremental resync: replace the list with the merged result.
-        setSets(chunk.sets)
-        setsRef.current = chunk.sets
-      } else {
-        merge(chunk.sets)
-      }
-      setCapped(chunk.capped)
-      if (chunk.sets.length || chunk.reset) setLoading(false)
-      if (chunk.done) {
-        setCrawling(false); setLoading(false); setRefreshing(false)
-        setLastChecked(Date.now())
-        if (chunk.status === 'error' && setsRef.current.length === 0) {
-          setError(chunk.error ?? 'Could not load sets')
-        }
-      }
-    })
-
-    const load = forced
-      ? window.api.library.refreshUserSets({ username })
-      : window.api.library.startUserSets({ username })
-
-    load.then(snap => {
-      if (cancelled) return
-      merge(snap.sets)
-      setCapped(snap.capped)
-      if (snap.sets.length) setLoading(false)
-      if (snap.status === 'done' || snap.status === 'capped') {
-        setCrawling(false); setLoading(false); setRefreshing(false); setLastChecked(Date.now())
-      } else if (snap.status === 'error') {
-        setCrawling(false); setLoading(false); setRefreshing(false)
-        if (snap.sets.length === 0) setError(snap.error ?? 'Could not load sets')
-      }
-    }).catch(e => {
-      if (cancelled) return
-      setError(e instanceof Error ? e.message : String(e))
-      setLoading(false); setCrawling(false); setRefreshing(false)
-    })
-
-    return () => { cancelled = true; unsub() }
-  }, [username, reloadKey])
-
-  // Jump back to the first page whenever the view the user is paging changes.
-  useEffect(() => { setPage(0) }, [username, tab, query])
-
-  // Keep the "checked Xm ago" stamp honest while sitting on a creator
-  useEffect(() => {
-    if (!lastChecked) return
-    const id = setInterval(() => setNowTick(t => t + 1), 60_000)
-    return () => clearInterval(id)
-  }, [lastChecked])
-
-  useEffect(() => {
-    window.api.scheduler.list().then(setSchedJobs).catch(() => { /* scheduler unavailable */ })
-    return window.api.scheduler.onChange(setSchedJobs)
-  }, [])
-
-  // Deep search across the creator's whole catalog (beyond the browse cap): match
-  // the query to the user's library, then fetch this creator's sets for those titles
-  useEffect(() => {
-    const term = query.trim()
-    if (term.length < 2) { setSearchResults([]); setSearching(false); return }
-    let cancelled = false
-    setSearching(true)
-    const t = setTimeout(() => {
-      window.api.library.creatorSearch({ username, query: term })
-        .then(res => { if (!cancelled) setSearchResults(res.sets) })
-        .finally(() => { if (!cancelled) setSearching(false) })
-    }, 550)
-    return () => { cancelled = true; clearTimeout(t) }
-  }, [query, username])
-
-  // In-library matches first, then the rest (keeps newest order within each)
-  const q = query.trim().toLowerCase()
-  const matchFirst = (a: MediuxUserSet, b: MediuxUserSet) => (a.matchedKey ? 0 : 1) - (b.matchedKey ? 0 : 1)
-  const matchQuery = (s: MediuxUserSet) => !q || s.title.toLowerCase().includes(q) || s.setName.toLowerCase().includes(q)
-
-  // Merge deep-search results (creator's sets for matching library titles) with
-  // the browsed sets, deduped, so search finds art beyond MediUX's browse cap
-  const allSets = useMemo(() => {
-    if (!searchResults.length) return sets
-    const seen = new Set(sets.map(s => s.id))
-    return [...searchResults.filter(s => !seen.has(s.id)), ...sets]
-  }, [sets, searchResults])
-
-  // Tab data, filtered by the title search. While the crawl is streaming we keep
-  // MediUX arrival order (newest-first) so the list never visibly reshuffles as
-  // batches land; the matches-first sort is applied once, on settle. A creator's
-  // uploads on MediUX are always single-title sets; multi-title boxsets live on
-  // a separate URL space (/boxsets/N) and are handled by manual import, not here
-  const setsFiltered = useMemo(() => {
-    const list = allSets.filter(s => matchQuery(s))
-    return crawling ? list : list.sort(matchFirst)
-  }, [allSets, q, crawling])
-  const flatFiles = useMemo(() => allSets.flatMap(s => s.posters.map(poster => ({ set: s, poster }))), [allSets])
-  const sortFiles = (list: { set: MediuxUserSet; poster: PosterInfo }[]) =>
-    crawling ? list : list.sort((a, b) => matchFirst(a.set, b.set))
-  const posterItems = useMemo(
-    () => sortFiles(flatFiles.filter(f => posterFileType(f.poster) === 'poster' && matchQuery(f.set))),
-    [flatFiles, q, crawling],
-  )
-  const backdropItems = useMemo(
-    () => sortFiles(flatFiles.filter(f => posterFileType(f.poster) === 'backdrop' && matchQuery(f.set))),
-    [flatFiles, q, crawling],
-  )
-  const titleCardItems = useMemo(
-    () => sortFiles(flatFiles.filter(f => posterFileType(f.poster) === 'title_card' && matchQuery(f.set))),
-    [flatFiles, q, crawling],
-  )
-
-  // Unfiltered counts for the tab labels
-  const counts = useMemo(() => {
-    let p = 0, b = 0, tc = 0
-    for (const s of sets) {
-      for (const f of s.posters) { const t = posterFileType(f); if (t === 'poster') p++; else if (t === 'backdrop') b++; else if (t === 'title_card') tc++ }
-    }
-    return { sets: sets.length, posters: p, backdrops: b, titlecards: tc }
-  }, [sets])
-
-  function toggleSelect(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }
-  // Selection acts on the currently-shown (search-filtered) sets, so "Select all" /
-  // "In library" reflect what the user is actually looking at, not the whole catalog
-  const selectAll       = () => setSelected(new Set(setsFiltered.map(s => s.id)))
-  const selectInLibrary = () => setSelected(new Set(setsFiltered.filter(s => s.matchedKey).map(s => s.id)))
-  const clearSelection  = () => setSelected(new Set())
-
-  async function applySet(s: MediuxUserSet) {
-    if (!s.matchedKey && !s.posters.some(p => p.isCollection)) return
-    // One poster per Plex slot, as in the Library view (see resolveVariants).
-    const collectionArt = resolveVariants(s.posters.filter(p => p.isCollection), 'title')
-    const mainPosters   = resolveVariants(s.posters.filter(p => !p.isCollectionMember && !p.isCollection), 'title')
-    const memberPosters = resolveVariants(s.posters.filter(p => p.isCollectionMember), 'title')
-    const enabledTotal  = [...collectionArt, ...mainPosters, ...memberPosters].filter(p => allTypes.has(posterFileType(p))).length
-    setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: 0, total: enabledTotal } }))
-
-    let totalDone = 0, totalFailed = 0
-    const allAppliedUrls: string[] = []
-    const allAppliedSlots: string[] = []
-
-    if (s.matchedKey) {
-      const mainRes = await applyPosters(s.matchedKey, mainPosters, allTypes,
-        (d, _t) => setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: totalDone + d, total: enabledTotal } })))
-      totalDone   += mainRes.done
-      totalFailed += mainRes.failed
-      allAppliedUrls.push(...mainRes.appliedUrls)
-      allAppliedSlots.push(...mainRes.appliedSlots)
-    } else if (mainPosters.length > 0) {
-      totalFailed += mainPosters.filter(p => allTypes.has(posterFileType(p))).length
-    }
-
-    // Each collection the set names gets its own art.
-    const byCollection = new Map<string, PosterInfo[]>()
-    for (const p of collectionArt) {
-      const name = collectionName(p.title)
-      const list = byCollection.get(name)
-      if (list) list.push(p)
-      else byCollection.set(name, [p])
-    }
-    for (const posters of byCollection.values()) {
-      const coll = await window.api.plex.findCollection(posters[0].title) as { key: string; title: string; thumb?: string } | null
-      if (!coll) {
-        totalFailed += posters.filter(p => allTypes.has(posterFileType(p))).length
-        continue
-      }
-      const collRes = await applyPosters(coll.key, posters, allTypes,
-        (d, _t) => setApplyMap(m => ({ ...m, [s.id]: { status: 'applying', done: totalDone + d, total: enabledTotal } })))
-      totalDone   += collRes.done
-      totalFailed += collRes.failed
-      allAppliedUrls.push(...collRes.appliedUrls)
-      allAppliedSlots.push(...collRes.appliedSlots)
-      if (collRes.done > 0) {
-        void recordAppliedQuietly({
-          itemKey: coll.key, title: coll.title, type: 'collection',
-          source: 'mediux', thumb: posters[0].thumbUrl ?? posters[0].url,
-          setId: s.id, uploader: s.uploader,
-          posterUrls: collRes.appliedUrls, slots: collRes.appliedSlots, appliedAt: new Date().toISOString(),
-        })
-      }
-    }
-
-    if (memberPosters.length > 0) {
-      const movieMap = new Map<string, { title: string; year?: number; posters: PosterInfo[] }>()
-      for (const p of memberPosters) {
-        const key = `${p.title.toLowerCase()}|${p.year ?? ''}`
-        const existing = movieMap.get(key)
-        if (existing) existing.posters.push(p)
-        else movieMap.set(key, { title: p.title, year: p.year, posters: [p] })
-      }
-      for (const m of movieMap.values()) {
-        const found = await window.api.plex.findItem(m.title, m.year) as { key: string; title: string; year?: number; type: string; thumb?: string } | null
-        if (!found) {
-          totalFailed += m.posters.filter(p => allTypes.has(posterFileType(p))).length
-          continue
-        }
-        const memberRes = await applyPosters(found.key, m.posters, allTypes,
-          (d, _t) => setApplyMap(mm => ({ ...mm, [s.id]: { status: 'applying', done: totalDone + d, total: enabledTotal } })))
-        totalDone   += memberRes.done
-        totalFailed += memberRes.failed
-        allAppliedUrls.push(...memberRes.appliedUrls)
-        allAppliedSlots.push(...memberRes.appliedSlots)
-        if (memberRes.done > 0) {
-          void recordAppliedQuietly({
-            itemKey: found.key, title: found.title, year: found.year,
-            type: (found.type === 'movie' ? 'movie' : 'show'),
-            source: 'mediux', thumb: found.thumb,
-            setId: s.id, uploader: s.uploader,
-            posterUrls: memberRes.appliedUrls, slots: memberRes.appliedSlots, appliedAt: new Date().toISOString(),
-          })
-        }
-      }
-    }
-
-    let historyError: string | undefined
-    if (totalDone > 0 && s.matchedKey) {
-      historyError = await recordApplied({
-        itemKey: s.matchedKey, title: s.title, year: s.year, type: s.matchedType ?? 'movie',
-        source: 'mediux', thumb: s.previewUrl, setId: s.id, uploader: s.uploader,
-        posterUrls: allAppliedUrls, slots: allAppliedSlots, appliedAt: new Date().toISOString(),
-      }).then(() => undefined, (err: unknown) => errorMessage(err))
-      onApplied(setKey(s), s.matchedKey, s.title, s.year, allAppliedUrls)
-    }
-    setApplyMap(m => ({
-      ...m,
-      [s.id]: { status: totalFailed && !totalDone ? 'error' : 'done', done: totalDone, total: enabledTotal, error: applyError(totalFailed, historyError) },
-    }))
-  }
-
-  /** Applies a single poster/backdrop file (from the Posters/Backdrops tabs). */
-  async function applySingle(s: MediuxUserSet, file: PosterInfo) {
-    const key = `${s.id}:${file.url}`
-    setApplyMap(m => ({ ...m, [key]: { status: 'applying', done: 0, total: 1 } }))
-
-    if (file.isCollection) {
-      const coll = await window.api.plex.findCollection(file.title) as { key: string; title: string } | null
-      if (!coll) {
-        setApplyMap(m => ({ ...m, [key]: { status: 'error', done: 0, total: 1, error: 'No matching Plex Collection' } }))
-        return
-      }
-      const { done, appliedUrls, appliedSlots, lastError } = await applyPosters(coll.key, [file], allTypes, () => {})
-      if (done) {
-        void recordAppliedQuietly({
-          itemKey: coll.key, title: coll.title, type: 'collection',
-          source: 'mediux', thumb: file.thumbUrl ?? file.url, setId: s.id, uploader: s.uploader,
-          posterUrls: appliedUrls, slots: appliedSlots, appliedAt: new Date().toISOString(),
-        })
-      }
-      setApplyMap(m => ({ ...m, [key]: { status: done ? 'done' : 'error', done, total: 1, error: lastError } }))
-      return
-    }
-
-    if (!s.matchedKey) return
-    const { done, appliedUrls, appliedSlots, lastError } = await applyPosters(s.matchedKey, [file], allTypes, () => {})
-    if (done) {
-      void recordAppliedQuietly({
-        itemKey: s.matchedKey, title: s.title, year: s.year, type: s.matchedType ?? 'movie',
-        source: 'mediux', thumb: file.thumbUrl ?? file.url, setId: s.id, uploader: s.uploader,
-        posterUrls: appliedUrls, slots: appliedSlots, appliedAt: new Date().toISOString(),
-      })
-      onApplied(setKey(s), s.matchedKey, s.title, s.year, appliedUrls)
-    }
-    setApplyMap(m => ({ ...m, [key]: { status: done ? 'done' : 'error', done, total: 1, error: lastError } }))
-  }
-
-  /**
-   * Syncs the selected sets, or the whole creator when none are selected,
-   * merging into this creator's existing job instead of stacking new ones.
-   */
-  async function scheduleSync() {
-    const chosen = setsFiltered.filter(s => selected.has(s.id))
-    const urls = chosen.length
-      ? chosen.map(s => `https://mediux.pro/sets/${s.id}`)
-      : [creatorSyncUrl(username)]
-    setScheduling(true)
-    setScheduleError(null)
-    setScheduledMsg(null)
-    try {
-      const plan = planQuickSync(await window.api.scheduler.list(), {
-        urls,
-        name: chosen.length ? `Sync @${username} (${urls.length} ${urls.length === 1 ? 'set' : 'sets'})` : `Sync @${username}`,
-        cronExpr: quickCron,
-        creator: username,
-        groupByCreator: true,
-      }, uuid)
-      const saved = plan.kind === 'exists' ? plan.job : await window.api.scheduler.save(plan.job)
-      setSchedJobs(await window.api.scheduler.list())
-      setScheduledJobId(saved.id)
-      setScheduledMsg(describeQuickSync({ ...plan, job: saved }, chosen.length, username))
-    } catch (err) {
-      setScheduleError(errorMessage(err))
-    } finally {
-      setScheduling(false)
-    }
-  }
-
-  function openScheduledJob() {
-    if (scheduledJobId) goScheduler(scheduledJobId)
-    navigate('scheduler')
-  }
-
-  // Scoped to the visible (search-filtered) sets so the toolbar counts track the view
-  const matchCount      = setsFiltered.filter(s => s.matchedKey).length
-  const selectedVisible = setsFiltered.filter(s => selected.has(s.id)).length
-
-  const renderSetCard = (s: MediuxUserSet) => {
-    const isCurrent    = !!s.matchedKey && appliedIdx.currentByItem.get(s.matchedKey) === setKey(s)
-    const wasApplied   = appliedIdx.setKeys.has(setKey(s))
-    const titleApplied = appliedIdx.titles.has(appliedKey(s.title, s.year))
-    const isScheduled  = !!coveringJob(coverage, s.id, username)
-    const matchBadge = s.matchedKey
-      ? isCurrent
-        ? <span className={styles.matchBadge}><CheckCircle2 size={11} /> Applied</span>
-        : wasApplied
-          ? <span className={styles.downloadedBadge}><Download size={11} /> Downloaded</span>
-          : titleApplied
-            ? <span className={styles.scheduledBadge}><Library size={11} /> Has art</span>
-            : <span className={styles.matchBadge}><Check size={11} /> In library</span>
-      : <span className={styles.noMatchBadge}>Not in library</span>
-    return (
-      <SetCard
-        key={s.id}
-        set={s}
-        apply={applyMap[s.id]}
-        onApply={() => applySet(s)}
-        enabledTypes={allTypes}
-        title={s.year ? `${s.title} (${s.year})` : s.title}
-        badge={<span className={styles.badgeRow}>{matchBadge}{isScheduled && <span className={styles.scheduledBadge}><CalendarClock size={11} /> Scheduled</span>}</span>}
-        disabled={!s.matchedKey}
-        selectable={following}
-        checked={selected.has(s.id)}
-        onToggleSelect={() => toggleSelect(s.id)}
-      />
-    )
-  }
-
-  const fileItems = tab === 'posters' ? posterItems : tab === 'backdrops' ? backdropItems : tab === 'titlecards' ? titleCardItems : []
-  const fileLightboxImages = useMemo<LightboxImage[]>(
-    () => fileItems.map(({ set, poster }) => ({ url: poster.url, label: set.year ? `${set.title} (${set.year})` : set.title, caption: poster.episode != null ? `Episode ${poster.episode}` : undefined })),
-    [fileItems],
-  )
-
-  // Only the current page renders, so the DOM stays tiny regardless of catalog
-  // size. As the crawl streams more sets in, the page count grows but the page
-  // the user is on stays put.
-  const perPage = tab === 'sets' ? CREATOR_SETS_PER_PAGE : CREATOR_FILES_PER_PAGE
-  const activeLen = tab === 'sets' ? setsFiltered.length : fileItems.length
-  const pageCount = Math.max(1, Math.ceil(activeLen / perPage))
-  const safePage = Math.min(page, pageCount - 1)
-  const pageStart = safePage * perPage
-  const pageSets = setsFiltered.slice(pageStart, pageStart + perPage)
-  const pageFiles = fileItems.slice(pageStart, pageStart + perPage)
-  const goPage = (p: number) => { setPage(p); listRef.current?.scrollTo({ top: 0 }) }
-
-  return (
-    <div className={styles.creatorSets}>
-      <div className={styles.creatorBar}>
-        <div className={styles.creatorBarInfo}>
-          <span className={styles.creatorBarName}>{username}</span>
-          <span className={styles.creatorBarMeta}>
-            {error && sets.length === 0 ? (
-              'Could not load sets'
-            ) : loading ? (
-              'Loading…'
-            ) : crawling ? (
-              <>
-                {sets.length} sets{matchCount > 0 ? ` · ${matchCount} in your library` : ''}
-                <span className={styles.lastChecked}>· loading more…</span>
-              </>
-            ) : (
-              <>
-                {sets.length} sets · {matchCount} in your library
-                {refreshing
-                  ? <span className={styles.lastChecked}>· refreshing…</span>
-                  : lastChecked && <span className={styles.lastChecked}>· checked {timeAgo(lastChecked)}</span>}
-              </>
-            )}
-          </span>
-        </div>
-        <div className={styles.creatorBarActions}>
-          {following ? (
-            <Button variant="secondary" size="sm" icon={<Star size={12} />} onClick={() => onCreatorChange('none')}>Following</Button>
-          ) : (
-            <Button variant="primary" size="sm" icon={<UserPlus size={12} />} onClick={() => onCreatorChange('followed')}>Follow</Button>
-          )}
-          {creator === 'hidden' ? (
-            <Button variant="secondary" size="sm" icon={<Eye size={12} />} onClick={() => onCreatorChange('none')}>Unhide</Button>
-          ) : (
-            <Button variant="ghost" size="sm" icon={<EyeOff size={12} />} onClick={() => onCreatorChange('hidden')}>Hide</Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={<RefreshCw size={12} className={refreshing ? styles.spin : ''} />}
-            onClick={refresh}
-            disabled={loading || refreshing}
-          >
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* Tabs + title filter: skeleton on first load, real once sets exist */}
-      {!error && loading && sets.length === 0 && <SkeletonTabs />}
-      {!error && sets.length > 0 && (
-        <div className={styles.creatorTabsRow}>
-          <div className={styles.creatorTabs}>
-            {([['sets', 'Sets', counts.sets], ['posters', 'Posters', counts.posters], ['backdrops', 'Backdrops', counts.backdrops], ['titlecards', 'Title Cards', counts.titlecards]] as const).map(([k, label, n]) => (
-              <button
-                key={k}
-                className={`${styles.creatorTab} ${tab === k ? styles.creatorTabActive : ''}`}
-                onClick={() => setTab(k)}
-                disabled={n === 0}
-              >
-                {label}<span className={styles.creatorTabCount}>{n}</span>
-              </button>
-            ))}
-          </div>
-          <div className={styles.creatorSearch}>
-            {searching ? <Loader2 size={13} className={`${styles.creatorSearchIcon} ${styles.spin}`} /> : <Search size={13} className={styles.creatorSearchIcon} />}
-            <input
-              ref={searchRef}
-              className={styles.creatorSearchInput}
-              placeholder="Search all their art by title…"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              spellCheck={false}
-            />
-            {query && <button className={styles.creatorSearchClear} onClick={() => setQuery('')}><X size={12} /></button>}
-          </div>
-        </div>
-      )}
-
-      {/* Selection toolbar (Sets tab only) */}
-      {following && !loading && !error && sets.length > 0 && tab === 'sets' && (
-        <div className={styles.selectBar}>
-          <span className={styles.selectCount}>
-            {selectedVisible > 0 ? `${selectedVisible} of ${setsFiltered.length} selected` : 'Pick sets to sync, or sync all'}
-          </span>
-          <div className={styles.selectActions}>
-            <button className={styles.selectBtn} onClick={selectAll}>Select all</button>
-            <button className={styles.selectBtn} onClick={selectInLibrary} disabled={!matchCount}>In library ({matchCount})</button>
-            <button className={styles.selectBtn} onClick={clearSelection} disabled={!selected.size}>Clear</button>
-            <Button
-              variant={creatorJob && selectedVisible === 0 ? 'secondary' : 'primary'}
-              size="sm"
-              icon={creatorJob && selectedVisible === 0 ? <CheckCircle2 size={12} /> : <CalendarClock size={12} />}
-              onClick={scheduleSync}
-              loading={scheduling}
-              className={styles.syncWeeklyBtn}
-              title={creatorJob
-                ? `Every set from @${username} is synced by "${creatorJob.name}" (${describeCron(creatorJob.cronExpr)})`
-                : `Apply new uploads automatically (${describeCron(quickCron)}). Change the default in the Scheduler.`}
-            >
-              {selectedVisible > 0 ? `Sync ${selectedVisible} selected` : creatorJob ? 'Syncing all' : 'Sync all'}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Post-schedule tip */}
-      <AnimatePresence>
-        {(scheduledMsg || scheduleError) && (
-          <motion.div
-            className={`${styles.scheduleTip} ${scheduleError ? styles.scheduleTipError : ''}`}
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            role={scheduleError ? 'alert' : 'status'}
-          >
-            {scheduleError ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
-            {scheduleError
-              ? <span>Couldn&apos;t save the sync: {scheduleError}</span>
-              : <span>{scheduledMsg} <button className={styles.tipLink} onClick={openScheduledJob}>Open in Scheduler</button></span>}
-            <button className={styles.tipClose} onClick={() => { setScheduledMsg(null); setScheduleError(null) }}><X size={13} /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className={styles.creatorSetsList} ref={listRef}>
-        {/* First paint only: skeletons until the buffer has anything to show.
-            After that only the current page renders, so the DOM stays small. */}
-        {loading && !error &&
-          Array.from({ length: 6 }).map((_, i) => <SetCardSkeleton key={`skel-${i}`} />)}
-        {error && sets.length === 0 && <div className={styles.panelNotice}><AlertCircle size={20} /><p>{error}</p></div>}
-
-        {/* Sets tab */}
-        {!loading && !error && tab === 'sets' && (
-          pageSets.length
-            ? pageSets.map(renderSetCard)
-            : !crawling && (
-                <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found, try a different title.') : 'No sets found for this creator.'}</p></div>
-              )
-        )}
-
-        {/* Posters / Backdrops / Title Cards tabs: individual files */}
-        {!loading && !error && (tab === 'posters' || tab === 'backdrops' || tab === 'titlecards') && (
-          pageFiles.length ? (
-            <div className={`${styles.fileGrid} ${tab === 'backdrops' || tab === 'titlecards' ? styles.fileGridWide : ''}`}>
-              {pageFiles.map(({ set, poster }, i) => {
-                const key = `${set.id}:${poster.url}`
-                const st = applyMap[key]?.status
-                const done = st === 'done' || appliedIdx.posterUrls.has(poster.url)
-                return (
-                  <FileTile
-                    key={key}
-                    poster={poster}
-                    set={set}
-                    st={st}
-                    done={done}
-                    error={applyMap[key]?.error}
-                    onLightbox={() => setFileLightbox(pageStart + i)}
-                    onApply={() => applySingle(set, poster)}
-                  />
-                )
-              })}
-            </div>
-          ) : !crawling && <div className={styles.panelNotice}><ImageIcon size={20} /><p>{query ? (searching ? 'Searching their full catalog…' : 'No matches found, try a different title.') : tab === 'titlecards' ? 'No title cards found.' : `No ${tab} found.`}</p></div>
-        )}
-
-        {/* Cap note (shown once the catalog has settled) */}
-        {!crawling && !error && capped && sets.length > 0 && safePage >= pageCount - 1 && (
-          <div className={styles.loadMoreNote}>
-            Showing this creator's newest {sets.length} sets (MediUX's browse limit), with your library matches first.
-            Don't see one of your titles? <button className={styles.noteSearchLink} onClick={() => searchRef.current?.focus()}>Search</button> their full catalog by title above.
-          </div>
-        )}
-      </div>
-
-      {/* Pager + status: always visible below the (short) current page. */}
-      {!loading && !error && activeLen > 0 && (
-        <div className={styles.pagerBar}>
-          <span className={styles.pagerStatus}>
-            Page {safePage + 1} of {pageCount}
-            {crawling && <span className={styles.lastChecked}> · loading more…</span>}
-          </span>
-          <Pager page={safePage} pageCount={pageCount} onPage={goPage} />
-        </div>
-      )}
-
-      <AnimatePresence>
-        {fileLightbox !== null && (
-          <Lightbox images={fileLightboxImages} index={fileLightbox} onClose={() => setFileLightbox(null)} />
         )}
       </AnimatePresence>
     </div>

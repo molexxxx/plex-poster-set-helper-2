@@ -20,6 +20,9 @@ export interface LibraryIntent {
  */
 interface NavStore {
   libraryIntent: LibraryIntent | null
+  /** The Library Browser's last view, kept while the user visits other pages. */
+  libraryMode: 'library' | 'creators'
+  setLibraryMode: (mode: 'library' | 'creators') => void
   /** data-anchor of the Settings section to scroll to and pulse. */
   settingsAnchor: string | null
   /** Scheduled job id to scroll to and highlight. */
@@ -36,6 +39,8 @@ interface NavStore {
 
 export const useNavStore = create<NavStore>((set) => ({
   libraryIntent: null,
+  libraryMode: 'library',
+  setLibraryMode: (libraryMode) => set({ libraryMode }),
   settingsAnchor: null,
   schedulerJobId: null,
 

@@ -777,25 +777,6 @@
   flex-shrink: 0;
 }
 
-.filterRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text-muted);
-}
-
-.uploaderSelect {
-  flex: 1;
-  padding: var(--space-1) var(--space-2);
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
-  outline: none;
-  cursor: pointer;
-}
-
 /* Which site's sets to show. Its own row above the uploader/type filters: it
    selects a different axis (where art came from, not what it is). */
 .sourceToggles {
@@ -1332,49 +1313,8 @@
 
 .imgPending { opacity: 0; }
 
-/* -- Creators loading skeletons ------------------------------------------- */
-
-.setCardSkeleton {
-  display: flex;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
-  border-radius: var(--radius-md);
-  flex-shrink: 0;
-}
-
-.skelPreview {
-  width: 56px;
-  flex-shrink: 0;
-  aspect-ratio: 2 / 3;
-  border-radius: var(--radius-sm);
-}
-
-.skelInfo {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  padding-top: 3px;
-}
-
-.skelLine   { height: 11px; border-radius: 4px; }
-.skelTitle  { width: 58%; }
-.skelUploader { width: 38%; height: 9px; }
-
-.skelChips { display: flex; gap: 6px; margin-top: auto; }
-.skelChip  { width: 52px; height: 16px; border-radius: var(--radius-sm); }
-
-.skelTab    { display: inline-block; width: 76px; height: 27px; border-radius: var(--radius-sm); }
-.skelSearch { width: 180px; height: 30px; border-radius: var(--radius-sm); }
-
 /* Contrasting base for the bars; the .skeleton shimmer rides on top. Declared
    after .skeleton so this background wins over its elevated default. */
-.skelPreview, .skelLine, .skelChip, .skelTab, .skelSearch {
-  background: rgba(255, 255, 255, 0.06);
-}
 
 /* -- SetCard title mode (Creators) ---------------------------------------- */
 
@@ -1394,7 +1334,7 @@
   white-space: nowrap;
 }
 
-.matchBadge, .noMatchBadge {
+.matchBadge {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -1410,110 +1350,7 @@
   color: var(--color-success, #3fb950);
 }
 
-.noMatchBadge {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--color-text-muted);
-}
-
 /* -- Creators layout ------------------------------------------------------- */
-
-.creators {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  gap: var(--space-4);
-}
-
-.creatorRail {
-  width: 260px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  /* Bleed into the page wrapper's bottom padding so the rail runs full height,
-     flush to the window edge, matching the sets scroller beside it. */
-  margin-bottom: calc(-1 * var(--content-padding));
-}
-
-.railHeader {
-  padding: var(--space-3);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
-}
-
-.creatorList {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--space-2);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.railEmpty {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  padding: var(--space-3);
-  text-align: center;
-  margin: 0;
-}
-
-.creatorItem {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background var(--duration-fast), color var(--duration-fast);
-}
-
-.creatorItem:hover { background: rgba(255, 255, 255, 0.04); color: var(--color-text-primary); }
-
-.creatorItemActive {
-  background: var(--color-accent-soft);
-  color: var(--color-text-primary);
-}
-
-.creatorStar { color: var(--color-accent); fill: var(--color-accent); flex-shrink: 0; }
-
-.creatorName {
-  flex: 1;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.creatorRemove {
-  display: flex;
-  color: var(--color-text-muted);
-  opacity: 0;
-  cursor: pointer;
-  transition: opacity var(--duration-fast), color var(--duration-fast);
-}
-
-.creatorItem:hover .creatorRemove { opacity: 1; }
-.creatorRemove:hover { color: var(--color-error, #f85149); }
-
-.addCreator {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border-top: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
-}
 
 .addLabel {
   font-size: var(--text-2xs);
@@ -1568,144 +1405,14 @@
 
 .addBtn:hover:not(:disabled) { background: var(--color-accent-soft-hover); border-color: var(--color-accent); }
 .addBtn:disabled { opacity: 0.4; cursor: default; }
-
-.creatorMain {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  /* Anchor the overlaid pager (position: absolute) to this pane. */
-  position: relative;
-}
-
-.creatorEmpty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
-.creatorEmpty p { margin: 0; }
-.creatorEmptySub { font-size: var(--text-xs); opacity: 0.7; }
-.creatorEmptySub code, .creatorEmptySub :global(code) {
-  background: rgba(255, 255, 255, 0.07);
-  padding: 1px 5px;
-  border-radius: 4px;
-  font-family: var(--font-mono);
-}
-
-.creatorSets {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.creatorBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
-  flex-shrink: 0;
-}
-
-.creatorBarInfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.creatorBarName { font-size: var(--text-md, 15px); font-weight: 600; color: var(--color-text-primary); }
-.creatorBarMeta { font-size: var(--text-xs); color: var(--color-text-muted); }
-.lastChecked { color: var(--color-text-disabled); margin-left: 2px; }
-.creatorBarActions { display: flex; gap: var(--space-2); flex-shrink: 0; }
-
-.creatorSetsList {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-top: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  /* Bleed into the page wrapper's right padding so the scrollbar sits flush to
-     the window edge. Bottom clearance lets the list scroll cleanly under the
-     floating dock and the pager overlaid at the bottom. */
-  margin-right: calc(-1 * var(--content-padding));
-  padding-right: var(--space-3);
-  padding-bottom: var(--dock-clearance);
-}
-
-/* -- Pager ---------------------------------------------------------------- */
 /* Overlaid on the bottom of the scrolling list (not a footer that reserves
    space), so the list scrolls cleanly under the floating dock while the pager
    stays pinned at the bottom, flanking the centered dock. A scrim fades the
    scrolling content out beneath the controls; the bar is click-through except
    the controls themselves (pointer-events lives on .pager). */
-.pagerBar {
-  position: absolute;
-  /* Bleed to the right/bottom edges and left across the rail gap (--space-4, the
-     .creators row gap) so the scrim is a flush bottom fade with no ambient-glow
-     strip beside the sidebar. Content is padded back so the status stays aligned
-     with the list above. */
-  left: calc(-1 * var(--space-4));
-  right: calc(-1 * var(--content-padding));
-  bottom: calc(-1 * var(--content-padding));
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding: var(--space-6) var(--content-padding) calc(var(--space-4) + var(--content-padding)) var(--space-4);
-  background: linear-gradient(to top, var(--color-bg-base) 60%, transparent);
-  pointer-events: none;
-}
-.pagerStatus { font-size: var(--text-xs); color: var(--color-text-muted); white-space: nowrap; }
 /* The pager button group itself lives in the shared ui/Pager component. */
 
-/* -- Creator selection + schedule tip ------------------------------------- */
-.selectBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-1);
-  flex-shrink: 0;
-}
-.selectAll {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
-.selectHint { font-size: var(--text-xs); color: var(--color-text-muted); }
-
-.selectCount { font-size: var(--text-sm); font-weight: 500; color: var(--color-text-secondary); }
-
-.selectActions { display: flex; gap: var(--space-2); align-items: center; }
-
 /* Sync button sits with the selection actions; nudge it apart from the toggles. */
-.syncWeeklyBtn { margin-left: var(--space-2); }
-
-.selectBtn {
-  padding: 4px 10px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all var(--duration-fast);
-}
-.selectBtn:hover:not(:disabled) { color: var(--color-accent); border-color: var(--color-accent-border); background: var(--color-accent-soft); }
-.selectBtn:disabled { opacity: 0.4; cursor: default; }
-
-.badgeRow { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
 
 .scheduledBadge {
   display: inline-flex;
@@ -1732,38 +1439,6 @@
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
 }
-
-.scheduleTip {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-2);
-  border-radius: var(--radius-md);
-  background: var(--color-accent-soft);
-  border: 1px solid var(--color-accent-border);
-  color: var(--color-text-primary);
-  font-size: var(--text-xs);
-  flex-shrink: 0;
-}
-.scheduleTip > svg { color: var(--color-accent); flex-shrink: 0; }
-.scheduleTipError {
-  background: rgba(248, 113, 113, 0.07);
-  border-color: rgba(248, 113, 113, 0.3);
-}
-.scheduleTipError > svg { color: var(--color-accent-error); }
-.tipLink {
-  color: var(--color-accent);
-  font-weight: 600;
-  text-decoration: underline;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: inherit;
-}
-.tipClose { margin-left: auto; display: flex; color: var(--color-text-muted); cursor: pointer; flex-shrink: 0; }
-.tipClose:hover { color: var(--color-text-primary); }
 
 .setSelect {
   display: flex;
@@ -1794,204 +1469,6 @@
 
 /* --- Creator tabs + filter + file grid + load-more ----------------------- */
 
-.creatorTabsRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding: var(--space-2) var(--space-1);
-  flex-shrink: 0;
-}
-
-.creatorTabs { display: flex; gap: 4px; }
-
-.creatorTab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 11px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all var(--duration-fast);
-}
-.creatorTab:hover:not(:disabled) { color: var(--color-text-primary); background: var(--color-bg-elevated); }
-.creatorTab:disabled { opacity: 0.4; cursor: default; }
-.creatorTabActive {
-  color: var(--color-accent);
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent-border);
-}
-.creatorTabCount {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 0 5px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.creatorTabActive .creatorTabCount { background: var(--color-accent-soft-hover); color: var(--color-accent); }
-
-.creatorSearch {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-base);
-  border: 1px solid var(--color-border);
-  min-width: 180px;
-}
-.creatorSearchIcon { color: var(--color-text-muted); flex-shrink: 0; }
-.creatorSearchInput {
-  flex: 1;
-  background: none;
-  border: none;
-  outline: none;
-  color: var(--color-text-primary);
-  font-size: var(--text-xs);
-  min-width: 0;
-}
-.creatorSearchClear {
-  display: flex;
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  padding: 0;
-}
-.creatorSearchClear:hover { color: var(--color-text-primary); }
-
-.fileGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-1);
-}
-.fileGridWide { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
-
-.fileTile {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 6px;
-}
-
-.fileThumb {
-  position: relative;
-  aspect-ratio: 2 / 3;
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--color-bg-base);
-  padding: 0;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: border-color var(--duration-fast), transform var(--duration-fast);
-}
-.fileGridWide .fileThumb { aspect-ratio: 16 / 9; }
-.fileThumb:hover { border-color: var(--color-accent); transform: scale(1.03); }
-.fileThumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-.fileMeta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.fileTitle {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.fileApplyBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 3px 8px;
-  font-size: 10px;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent-soft);
-  border: 1px solid var(--color-accent-border);
-  color: var(--color-accent);
-  cursor: pointer;
-  transition: background var(--duration-fast);
-}
-.fileApplyBtn:hover { background: var(--color-accent-soft-hover); }
-.fileApplied {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--color-accent-success);
-}
-.fileNoMatch { font-size: 10px; color: var(--color-text-disabled); }
-.fileEpBadge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--color-bg-elevated);
-  color: var(--color-text-secondary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  vertical-align: middle;
-}
-.fileError {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--color-accent-error);
-  cursor: help;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.loadMoreBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: var(--space-3);
-  margin-top: var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all var(--duration-fast);
-}
-.loadMoreBtn:hover:not(:disabled) { color: var(--color-accent); border-color: var(--color-accent-border); background: var(--color-accent-soft); }
-.loadMoreBtn:disabled { opacity: 0.6; cursor: default; }
-
-.loadMoreNote {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: var(--space-3);
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
 .noteSearchLink {
   background: none;
   border: none;
@@ -2003,8 +1480,6 @@
   text-decoration: underline;
 }
 .noteSearchLink:hover { color: var(--color-accent-hover); }
-
-/* -- Follow / hide creators ------------------------------------------------ */
 
 /* Star + eye toggles beside the uploader. Quiet until the card is hovered,
    except an active follow, which stays lit so followed cards read at a glance. */
@@ -2064,10 +1539,8 @@
 .hiddenToggle:hover { color: var(--color-text-primary); border-color: rgba(255, 255, 255, 0.18); }
 
 /* The Hidden rail list sits under Following and should not fight it for room. */
-.creatorListHidden { flex: 0 1 auto; max-height: 30%; }
 
 /* A ThePosterDB creator in the rail opens their site rather than a tab here. */
-.creatorExternal { color: var(--color-text-muted); flex-shrink: 0; }
 
 .addError {
   margin: var(--space-2) 0 0;
