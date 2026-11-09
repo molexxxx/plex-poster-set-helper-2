@@ -162,6 +162,8 @@ export interface AppConfig {
   schedulerQuickCron?: string
   /** Optional - enables tvdb/imdb to tmdb resolution for legacy/HAMA libraries. */
   tmdbApiKey?: string
+  /** Download the newest Fribb anime list once a week (default true). */
+  animeListAutoUpdate?: boolean
   /** Followed MediUX usernames. Also drives the Creators tab and creator syncs. */
   mediuxSubscriptions?: string[]
   /**
@@ -255,6 +257,20 @@ export interface UpdateInfo {
 export interface ClearCachesRes {
   /** Human-readable names of the caches that were cleared. */
   cleared: string[]
+}
+
+/** The downloaded copy of the Fribb anime list that maps HAMA's AniDB IDs. */
+export interface AnimeListStatus {
+  /** A copy exists on disk or in memory. */
+  downloaded: boolean
+  /** ISO time the copy was fetched. */
+  updatedAt?: string
+  /** AniDB titles the copy maps; unknown until the list has been read. */
+  titles?: number
+  /** A download is running. */
+  updating: boolean
+  /** Why the last download failed, until one succeeds. */
+  error?: string
 }
 
 /** Where/how the app is running, so the renderer can tailor the update UX. */
@@ -824,6 +840,8 @@ export type IpcChannels = {
   'app:quitAndInstall': { req: void; res: void }
   'app:openLogFolder': { req: void; res: void }
   'app:clearCaches': { req: void; res: ClearCachesRes }
+  'app:animeListStatus': { req: void; res: AnimeListStatus }
+  'app:updateAnimeList': { req: void; res: AnimeListStatus }
   'applied:record': { req: AppliedRecord[]; res: void }
   'applied:forget': { req: string; res: void }
   'app:updateAvailable': { event: UpdateInfo }

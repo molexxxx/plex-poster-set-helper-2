@@ -1,7 +1,7 @@
 import type { Api } from '../../electron/preload'
 import type {
   AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress,
-  AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState,
+  AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AnimeListStatus, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState,
   SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq,
   CurrentArtReq, CurrentArtRes, UserSetsChunk, LinkedSetsReq, LinkedSetsRes, LinkSetReq, UnlinkSetReq,
 } from '../../electron/ipc/types'
@@ -173,6 +173,8 @@ export function createWebClient(): Api {
       quitAndInstall: () => apiFetch('/api/app/quit-and-install', { method: 'POST' }),
       openExternal: async (url: string) => { window.open(url, '_blank', 'noopener') },
       clearCaches: (): Promise<ClearCachesRes> => apiFetch('/api/app/clear-caches', { method: 'POST' }),
+      animeListStatus: (): Promise<AnimeListStatus> => apiFetch('/api/app/anime-list'),
+      updateAnimeList: (): Promise<AnimeListStatus> => apiFetch('/api/app/anime-list/update', { method: 'POST' }),
       openLogFolder: async () => {
         const res = await apiFetch<{ path: string }>('/api/app/log-path')
         await navigator.clipboard.writeText(res.path).catch(() => {})

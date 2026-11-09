@@ -8,6 +8,7 @@ import { Logger } from '../electron/services/logger'
 import { PlexService } from '../electron/services/plexService'
 import { SchedulerService } from '../electron/services/schedulerService'
 import { PlaywrightService } from '../electron/services/playwrightService'
+import { AnimeMappingService } from '../electron/services/animeMappingService'
 import { CreatorSetsService } from '../electron/services/creatorSetsService'
 import { handlers } from '../electron/handlers'
 import { appEvents } from '../electron/runtime/events'
@@ -57,6 +58,7 @@ export async function startServer() {
   PlaywrightService.setupEnv()
   SchedulerService.init(null)
   SchedulerService.startEngineHeartbeat()
+  AnimeMappingService.startAutoUpdate()
 
   // Config writes can carry the whole applied-poster history, which outgrows
   // Fastify's 1 MiB default once a few creators have been synced.
@@ -263,6 +265,8 @@ export async function startServer() {
   app.post('/api/app/quit-and-install', async () => { handlers.app.quitAndInstall(); return { ok: true } })
   app.get('/api/app/log-path', async () => ({ path: ConfigService.getLogPath() }))
   app.post('/api/app/clear-caches', async () => handlers.app.clearCaches())
+  app.get('/api/app/anime-list', async () => handlers.app.animeListStatus())
+  app.post('/api/app/anime-list/update', async () => handlers.app.updateAnimeList())
 
   // Applied-poster history
   app.post('/api/applied/record', async (req) => {

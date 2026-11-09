@@ -11,6 +11,7 @@ import { PlaywrightService } from '../services/playwrightService'
 import { CreatorSetsService } from '../services/creatorSetsService'
 import { ShowStatusService } from '../services/showStatusService'
 import { LinkedSetsService } from '../services/linkedSets'
+import { AnimeMappingService } from '../services/animeMappingService'
 import { appEvents } from '../runtime/events'
 import { getAppVersion, isContainerEnv, isWebMode } from '../runtime/runtime'
 import type {
@@ -20,7 +21,7 @@ import type {
   UserSetsSnapshot, CollectionsReq, CollectionSetsReq,
   CreatorSearchReq, MediuxUserSet, AppEnv, UpdateInfo,
   CurrentArtReq, ClearCachesRes, AppliedRecord, PosterSetSummary,
-  LinkedSetsReq, LinkSetReq, UnlinkSetReq,
+  LinkedSetsReq, LinkSetReq, UnlinkSetReq, AnimeListStatus,
 } from '../ipc/types'
 import { mergeAppliedRecords } from '../services/scheduleUtils'
 import { browseOutcome, type SourceResult } from '../services/browseSets'
@@ -376,6 +377,8 @@ export const handlers = {
       Logger.info('App', 'Cached data cleared')
       return { cleared: ['Creator catalogs', 'Series statuses', 'Library listings', 'ThePosterDB title matches', 'Linked set pages'] }
     },
+    animeListStatus: (): Promise<AnimeListStatus> => AnimeMappingService.status(),
+    updateAnimeList: (): Promise<AnimeListStatus> => AnimeMappingService.update(),
   },
 
   // Applied-poster history is merged here so the renderer never round-trips

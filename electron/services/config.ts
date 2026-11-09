@@ -27,6 +27,7 @@ const DEFAULTS: AppConfig = {
   plexServerName: '',
   scheduledJobs: [],
   tmdbApiKey: '',
+  animeListAutoUpdate: true,
   mediuxSubscriptions: [],
   posterdbSubscriptions: [],
   hiddenCreators: [],

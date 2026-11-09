@@ -17,6 +17,7 @@ import { registerBrowserHandlers, wireBrowserEvents } from './ipc/browserHandler
 import { registerLibraryHandlers } from './ipc/libraryHandlers'
 import { SchedulerService } from './services/schedulerService'
 import { PlaywrightService } from './services/playwrightService'
+import { AnimeMappingService } from './services/animeMappingService'
 import { CreatorSetsService } from './services/creatorSetsService'
 
 /**
@@ -307,6 +308,7 @@ async function initServices() {
   if (mainWindow) {
     SchedulerService.init(mainWindow)
   }
+  AnimeMappingService.startAutoUpdate()
 
   void PlaywrightService.bootstrap()
 }

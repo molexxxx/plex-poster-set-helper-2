@@ -17,7 +17,7 @@ import { DEFAULT_QUICK_CRON, QUICK_SCHEDULES, describeCron } from '../../../elec
 import { useAppContext } from '../../app/AppContext'
 import type {
   AppConfig, AppEnv, Library, PlexAuthStatus, BrowserStatus, BrowserActionResult, BrowserInstallError,
-  BrowserSource, NavDockMode, SchedulerEngineStatus,
+  BrowserSource, NavDockMode, SchedulerEngineStatus, AnimeListStatus,
 } from '../../../electron/ipc/types'
 import styles from './SettingsPage.module.css'
 
@@ -110,6 +110,30 @@ function Block({ title, description, action, anchor, children }: {
       <div className={styles.list}>{children}</div>
     </section>
   )
+}
+
+/**
+ * Describes the anime list row: what the list does, then the state of the downloaded copy.
+ *
+ * @param status - The list's status, or null while it loads.
+ * @returns The row description.
+ */
+function animeListText(status: AnimeListStatus | null): string
+{
+  const lead = 'Matches anime in HAMA libraries by mapping their AniDB IDs to TMDB, using the Fribb anime-lists project.'
+  if (!status) return lead
+  if (status.updating) return `${lead} Downloading the newest list…`
+  const date = status.updatedAt
+    ? new Date(status.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    : ''
+  if (status.error)
+  {
+    return status.downloaded
+      ? `${lead} The last update failed (${status.error}), so the copy from ${date} is still in use.`
+      : `${lead} The download failed (${status.error}).`
+  }
+  if (!status.downloaded) return `${lead} Not downloaded yet. It downloads the first time a HAMA title needs it.`
+  return `${lead} Downloaded ${date}${status.titles ? `, with ${status.titles.toLocaleString()} titles` : ''}.`
 }
 
 /**
@@ -236,6 +260,10 @@ export default function SettingsPage() {
   const [savedTmdbKey, setSavedTmdbKey] = useState('')
   const [showKey, setShowKey]           = useState(false)
 
+  const [animeList, setAnimeList]         = useState<AnimeListStatus | null>(null)
+  const [animeUpdating, setAnimeUpdating] = useState(false)
+  const [animeUpdated, setAnimeUpdated]   = useState(false)
+
   const [browserStatus, setBrowserStatus]         = useState<BrowserStatus | null>(null)
   const [browserInstalling, setBrowserInstalling] = useState(false)
   const [installLog, setInstallLog]               = useState<string[]>([])
@@ -317,6 +345,35 @@ export default function SettingsPage() {
     setBrowserStatus(s)
     if (!s.installed) setEngineOpen(true)
   }, [])
+
+  const loadAnimeList = useCallback(async () =>
+  {
+    try
+    {
+      setAnimeList(await window.api.app.animeListStatus())
+    }
+    catch
+    {
+      setAnimeList(null)
+    }
+  }, [])
+
+  useEffect(() =>
+  {
+    if (group !== 'artwork') return
+    let live = true
+    window.api.app.animeListStatus()
+      .then(status => { if (live) setAnimeList(status) })
+      .catch(() => { if (live) setAnimeList(null) })
+    return () => { live = false }
+  }, [group])
+
+  useEffect(() =>
+  {
+    if (!animeList?.updating || animeUpdating) return
+    const timer = setTimeout(() => void loadAnimeList(), 2000)
+    return () => clearTimeout(timer)
+  }, [animeList, animeUpdating, loadAnimeList])
 
   useEffect(() => {
     if (!libraries.length) return
@@ -435,6 +492,36 @@ export default function SettingsPage() {
     const key = value.trim()
     autosave('tmdbApiKey', key)
     setSavedTmdbKey(key)
+  }
+
+  async function updateAnimeList()
+  {
+    setAnimeUpdating(true)
+    try
+    {
+      const next = await window.api.app.updateAnimeList()
+      setAnimeList(next)
+      if (next.error)
+      {
+        announce(`The anime list could not be downloaded: ${next.error}`)
+      }
+      else
+      {
+        setAnimeUpdated(true)
+        announce('Anime list updated')
+        setTimeout(() => setAnimeUpdated(false), 2500)
+      }
+    }
+    catch (err)
+    {
+      const error = err instanceof Error ? err.message : String(err)
+      setAnimeList(prev => ({ downloaded: false, ...prev, updating: false, error }))
+      announce(`The anime list could not be downloaded: ${error}`)
+    }
+    finally
+    {
+      setAnimeUpdating(false)
+    }
   }
 
   async function clearLogs() {
@@ -824,6 +911,35 @@ export default function SettingsPage() {
                         Get a key
                       </Button>
                     </div>
+                  )}
+                </Row>
+                <Row label="Anime ID list" description={animeListText(animeList)}>
+                  <Button
+                    variant="secondary" size="sm"
+                    icon={animeUpdated
+                      ? <CheckCircle2 size={13} />
+                      : animeUpdating || animeList?.updating ? <Spinner size="xs" color="current" /> : <RefreshCw size={13} />}
+                    onClick={() => void updateAnimeList()}
+                    disabled={animeUpdating || !!animeList?.updating}
+                  >
+                    {animeUpdated
+                      ? 'Updated'
+                      : animeUpdating || animeList?.updating
+                        ? 'Downloading…'
+                        : animeList?.downloaded ? 'Update now' : 'Download now'}
+                  </Button>
+                </Row>
+                <Row
+                  label="Update the anime list automatically"
+                  description="Downloads the newest list once a week, which is how often it is published. When off, it changes only when you click Update now."
+                >
+                  {({ labelId, descId }) => (
+                    <Switch
+                      checked={cfg.animeListAutoUpdate ?? true}
+                      onChange={v => autosave('animeListAutoUpdate', v)}
+                      ariaLabelledBy={labelId}
+                      ariaDescribedBy={descId}
+                    />
                   )}
                 </Row>
               </Block>

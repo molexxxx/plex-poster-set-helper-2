@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk, LinkedSetsReq, LinkedSetsRes, LinkSetReq, UnlinkSetReq } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AnimeListStatus, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk, LinkedSetsReq, LinkedSetsRes, LinkSetReq, UnlinkSetReq } from './ipc/types'
 
 /** Typed IPC bridge exposed to the renderer as window.api. */
 const api = {
@@ -107,6 +107,8 @@ const api = {
     openExternal: (url: string) => ipcRenderer.invoke('app:openExternal', url),
     openLogFolder: () => ipcRenderer.invoke('app:openLogFolder'),
     clearCaches: (): Promise<ClearCachesRes> => ipcRenderer.invoke('app:clearCaches'),
+    animeListStatus: (): Promise<AnimeListStatus> => ipcRenderer.invoke('app:animeListStatus'),
+    updateAnimeList: (): Promise<AnimeListStatus> => ipcRenderer.invoke('app:updateAnimeList'),
     onUpdateAvailable: (cb: (info: UpdateInfo) => void) =>
     {
       const handler = (_: unknown, data: UpdateInfo) => cb(data)
