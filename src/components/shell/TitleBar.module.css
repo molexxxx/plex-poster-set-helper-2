@@ -11,25 +11,67 @@
   flex-shrink: 0;
 }
 
-.drag {
+.lead {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  padding: 0 var(--space-3);
-  -webkit-app-region: drag;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
 }
+
+.drag { -webkit-app-region: drag; }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 9px;
+  flex-shrink: 0;
 }
 
 .appName {
-  font-size: var(--text-xs);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: var(--font-semibold);
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.version {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: var(--radius-xs);
+  background: var(--color-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--color-accent-border);
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: var(--font-bold);
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.section {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
   font-weight: var(--font-medium);
-  color: var(--color-text-muted);
-  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
 }
 
 .controls {
@@ -47,17 +89,27 @@
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: background var(--duration-fast), color var(--duration-fast);
 }
 
 .btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.07);
   color: var(--color-text-primary);
 }
 
+.btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
 .close:hover {
-  background: var(--color-accent-error);
+  background: #c42b1c;
   color: #fff;
+}
+
+@media (max-width: 640px) {
+  .divider,
+  .section { display: none; }
 }

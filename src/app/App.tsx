@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import TitleBar from '../components/shell/TitleBar'
 import FloatingDock from '../components/shell/FloatingDock'
+import { NAV_ENTRIES } from '../components/shell/navModel'
 import CommandPalette from '../components/shell/CommandPalette'
 import StatusBar from '../components/shell/StatusBar'
 import AmbientBackground from '../components/shell/AmbientBackground'
@@ -216,7 +217,7 @@ export default function App() {
     >
       <AmbientBackground />
 
-      <TitleBar />
+      <TitleBar section={NAV_ENTRIES.find(e => e.id === activeTab)?.label} />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
         <main

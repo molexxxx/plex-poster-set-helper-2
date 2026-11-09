@@ -112,7 +112,7 @@
   --statusbar-height-docked: 40px;
   --content-padding:         var(--space-6);
   /* Bottom breathing room inside scrollers so content clears the floating dock. */
-  --dock-clearance:          84px;
+  --dock-clearance:          72px;
 }
 
 /* Docked in the status bar, the dock covers nothing; keep ordinary padding. */

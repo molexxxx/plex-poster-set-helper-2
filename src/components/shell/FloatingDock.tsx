@@ -25,6 +25,9 @@ function DockButton({ icon, label, active, onClick }: DockButtonProps) {
       onMouseEnter={() => setShowLabel(true)}
       onMouseLeave={() => setShowLabel(false)}
       aria-label={label}
+      aria-current={active ? 'page' : undefined}
+      onFocus={() => setShowLabel(true)}
+      onBlur={() => setShowLabel(false)}
     >
       <AnimatePresence>
         {showLabel && (
@@ -40,7 +43,6 @@ function DockButton({ icon, label, active, onClick }: DockButtonProps) {
         )}
       </AnimatePresence>
       <span className={styles.iconWrap}>{icon}</span>
-      {active && <span className={styles.dot} />}
     </button>
   )
 }
@@ -64,7 +66,7 @@ interface Props {
 export default function FloatingDock({ activeTab, logOpen, onNavigate, onToggleLogs, onOpenPalette, isMac, variant = 'floating' }: Props) {
   const bar = variant === 'bar'
   const compact = logOpen || bar
-  const iconSize = bar ? 16 : compact ? 17 : 20
+  const iconSize = bar || compact ? 16 : 18
 
   const { showLegacyTools } = useAppContext()
   const mainEntries = NAV_ENTRIES.filter(e => e.id !== 'settings' && (!e.legacy || showLegacyTools || e.id === activeTab))
