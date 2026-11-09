@@ -90,7 +90,7 @@ export default function Menu({ label, items }: MenuProps) {
               }}
             >
               {item.icon && <span className={styles.icon} aria-hidden>{item.icon}</span>}
-              {item.label}
+              <span className={styles.label}>{item.label}</span>
             </button>
           ))}
         </div>
