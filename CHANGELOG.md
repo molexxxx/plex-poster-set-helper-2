@@ -4,6 +4,63 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.15.0
+
+### Creators, rebuilt around the art
+A creator's catalog is now a wall of posters, one per title, instead of a list of wide cards with small thumbnails. When a creator has several sets for one title, they show as small swatches under its poster; pick one and the poster and Apply follow it. Apply sits on the art itself, shown on hover or keyboard focus, with the title's state on the poster: Applied, Other set applied, Other art, or dimmed when the title isn't in your library. Clicking a poster opens a shelf under its row with the picked set large, every set the creator has for that title by name (such as Dolby, IMAX, or Teaser), and the set's posters, title cards, and backdrops grouped by type. The Posters, Backdrops, and Title cards tabs use the same tiles, with season and episode labels.
+
+- A filter for **In my library**, **Not in library**, or **All** starts on your library, so a 1,900-set catalog opens on the 1,020 sets for titles you have.
+- The header names the creator with one status line: sets, library matches, whether it's synced, and when the catalog was last checked, with **Check now** beside it.
+- Choosing sets to sync is a **Select** mode instead of a checkbox on every card.
+- The creator list works from the keyboard, ThePosterDB follows sit in their own group (they still open on ThePosterDB), and unfollowing moved off the invisible trash button.
+- Your tab, page, search, and filter for each creator stay put while you visit other pages, and the Library Browser reopens on the view you left it on.
+
+### Syncing a creator is a choice you can see
+**Sync all** used to save a weekly job in one click, and its first run applied every matched set, about 700 titles for one large creator, over art you had picked from other creators. **Set up sync…** now opens a dialog that sets when it runs, whether it starts from **new uploads from today on** (nothing in your library changes now) or applies **everything now**, and **Only fill gaps**, with the number of titles it would touch stated before anything is saved. Opening it again on a synced creator edits that job.
+
+When a title has several sets, a creator sync used to apply them newest first, so the oldest set ended up on top. They now apply oldest to newest, and the newest set wins. The Scheduler shows where each creator sync starts.
+
+### Creator catalogs load in an instant
+Opening a creator sent the whole cached catalog every time, about 5.5 MB for a 1,900-set creator, and over HTTP in Docker. A revisit now paints at once from the window's own copy and asks only whether anything changed, which costs nothing when it hasn't. Checks for new uploads send only the new or changed sets. Searching a creator no longer runs up to twenty lookups against Plex and MediUX per query when the catalog is already complete; that search now runs only for catalogs MediUX cuts short.
+
+**Refresh** used to delete the cached catalog and crawl every page again, about eight minutes for a large creator, behind loading placeholders. **Check for new sets** keeps the cards on screen. A full re-read moved into the menu behind a confirmation, runs beside the cached catalog, and swaps in only when it finishes; if it fails, the cached catalog stays. A first crawl that is cut short by quitting the app, or by a page that fails to load, now resumes from where it stopped instead of starting over.
+
+### A new Scheduler
+The Scheduler is a job list in run order beside the selected job, which shows its schedule and pause switch, next run, the last result with any error written out, its links, how it applies, and its recent runs.
+
+- **Stop** ends a running job between posters and keeps what it already applied; a job waiting in the queue can be taken out, and queued jobs show their place in line.
+- Jobs that had problems on their last run are named in a notice that selects them, and deleting a job asks first.
+- Times read like the rest of the app ("Every Sunday at 3:00 AM"), and run summaries group thousands.
+- The job editor keeps keyboard focus inside, returns it to the button that opened it, and asks before discarding unsaved changes.
+- With no jobs yet, the page explains what a job does and offers three ways to start: sync a creator, schedule a set, or paste links.
+
+### Settings, rebuilt
+Settings was nine stacked full-width cards, with labels about 1,400 pixels from their controls on a wide window. It is now a section list (Plex, Artwork, App, Advanced) beside rows that pair each label with its control. Every on and off choice is a switch named after its row.
+
+- **Sign out** (was Disconnect) and **Clear cached data** ask first, and signing out keeps your library exclusions.
+- **Schedule and Sync timing** under Artwork sets the schedule a new job gets from Schedule or Sync.
+- The browser engine is one status row under Advanced, Launch at login joins App, and "Max Workers" became **Sets fetched at once**.
+- Dropdown menus in Settings are no longer cut off by their row.
+
+### Manual Import and Title Mappings move to Legacy tools
+The Library Browser, the Scheduler, and Linked sets now cover most of what these two pages did, so they leave the navigation by default. **Settings → App → Legacy tools** brings them back and explains each page. They stay in the navigation for anyone with saved title mappings or a bulk file with links in it, and the command palette still finds them.
+
+### Title Mappings work again
+Saved title mappings had not been used for matching since the app moved to Electron, even though the page said they fix failed matches. Manual Import, scheduled jobs, and creator syncs now use them. A poster's TMDB ID match comes first, and a mapping applies only when the poster's year agrees with the mapped title, so mapping "The Office (US)" to "The Office" never pulls in sets for the 2001 UK series. Writing a year on the poster-site side, as in "The Office (2005)", maps one title per release.
+
+### A cleaner window
+- The title bar spells out the app's name with the 2 as an amber mark and names the page you're on.
+- The floating dock is smaller and neater, and shows each button's name on keyboard focus too.
+- The glowing gradient behind every page is now a solid background, and sliders, progress bars, and the sets panel's resize grip use flat colors.
+- Hint and description text is brighter (at least 4.5:1 contrast), switches, checkboxes, and sliders show a focus ring from the keyboard, and the full-size image viewer works as a proper dialog.
+
+### Lighter on your computer
+The floating dock and the status pills on Creators posters drew a blur over scrolling grids, which was redrawn on every scroll frame; they use solid fills now. The window keeps at most three creators' catalogs for instant revisits, about 6 MB each for the largest catalogs. Electron's built-in spellchecker is off, so its dictionaries are never loaded.
+
+### Security and dependencies
+- Scraper requests are limited to theposterdb.com and mediux.pro pages, rebuilt from encoded path segments, so a crafted link in Manual Import, a linked set, or a job can't reach another address. In the Docker web UI that would have been a server-side request forgery.
+- Electron 45.2.3, @fastify/static 10.1.10, and plex-oauth 2.2.1, plus updates to the build tools. joi and minimatch move past their published advisories, and `npm audit` reports no vulnerabilities.
+
 ## What's new in v2.14.0
 
 ### Quieter when idle, quicker between pages
