@@ -57,11 +57,15 @@ function onSse(event: string, cb: SseHandler): () => void {
   return () => sseHandlers.get(event)?.delete(cb)
 }
 
+/**
+ * Calls the web API with the session cookie. Only requests with a body are
+ * sent as JSON, because Fastify rejects an empty JSON body with a 400.
+ */
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
+    credentials: 'include',
+    headers: { ...(init?.body != null ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
   })
   if (!res.ok) {
     // Fastify's default error reply puts the thrown message in `message` and the
