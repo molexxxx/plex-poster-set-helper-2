@@ -59,10 +59,10 @@ When it finishes, open in your browser:
 
 ## Step 3 - Sign in to Plex
 
-1. In the app, go to **Settings → Sign in with Plex**.
+1. In the app, go to **Settings → Plex → Account → Sign in with Plex**.
 2. Click **Copy** on the sign-in link, open it in a browser, sign in, and click **Approve**.
 3. The app connects automatically. All libraries are included by default.
-   To exclude a library, uncheck it in **Settings → Libraries**.
+   To exclude a library, switch it off in **Settings → Plex → Libraries**.
 
 That's it - open **Library Browser** and start applying posters. Schedules run 24/7
 in this container.

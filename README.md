@@ -79,8 +79,8 @@ Install it from **Community Applications**: search for _Plex Poster Helper_ in t
 ## First run
 
 1. **Browser check.** The app ships with the Chromium headless shell it uses to read the poster sites, so the first launch only checks that it starts. Nothing is downloaded. If the check fails, see [Troubleshooting](#troubleshooting-and-support).
-2. **Sign in to Plex.** Open **Settings → Plex Account → Sign in with Plex** and approve the request in your browser; the Docker web page asks you to sign in as soon as it opens. Your server is detected automatically and every library is included. To leave one out, uncheck it under **Settings → Libraries**.
-3. **Add a TMDB API key** (optional, recommended). A free [TMDB API key](https://www.themoviedb.org/settings/api) fixes most matching problems for titles Plex stores without a TMDB ID. The first launch offers a step to paste one, or add it later under **Settings → TMDB Matching**. See [How matching works](#how-matching-works).
+2. **Sign in to Plex.** Open **Settings → Plex → Account → Sign in with Plex** and approve the request in your browser; the Docker web page asks you to sign in as soon as it opens. Your server is detected automatically and every library is included. To leave one out, switch it off under **Settings → Plex → Libraries**.
+3. **Add a TMDB API key** (optional, recommended). A free [TMDB API key](https://www.themoviedb.org/settings/api) fixes most matching problems for titles Plex stores without a TMDB ID. The first launch offers a step to paste one, or add it later under **Settings → Artwork → Title matching**. See [How matching works](#how-matching-works).
 
 That's it: open the **Library Browser** and start applying posters.
 
@@ -88,26 +88,26 @@ That's it: open the **Library Browser** and start applying posters.
 
 Pick a title and its MediUX and ThePosterDB sets appear in one list, each tagged with its site, with chips to show just one. Sets are listed most downloaded first: MediUX by its download counts, which each card shows, and ThePosterDB in the site's own downloads order, with the two sites alternating rank by rank when both are shown.
 
-- **Follow or hide creators** with the star and eye on any set card. Followed creators come first and hidden ones drop out of every list. The **Creators** tab manages both lists and browses a MediUX creator's whole catalog.
+- **Follow or hide creators** with the star and eye on any set card. Followed creators come first and hidden ones drop out of every list. The **Creators** view lists who you follow and shows a MediUX creator's whole catalog as a poster wall checked against your library, with each title's sets side by side.
 - **Find what still needs attention.** The art filter narrows the grid to titles with or without applied art, art that no job keeps updated, or art from a particular creator. On TV tabs, a status filter separates **Continuing** series from **Ended** ones, using TMDB when a key is set and otherwise whether an episode aired in the last year.
 - **Collections** have their own tab, with collection art from both sites.
 - **Link a set.** When neither site finds a title, or finds the wrong thing, the link button in the sets panel takes a MediUX or ThePosterDB link and attaches its sets to the title: a set, a poster (its set is used), or the title's own page on either site to take every set listed there. Linked sets list first and are remembered until unlinked.
 - **One poster per slot.** A set that carries several posters for the same place in Plex, such as collection art for a franchise and its spin-off, applies one of them: from a collection, the one named after it; otherwise the first. The expanded preview marks the one that will be applied, and a click on another poster's check mark picks it instead.
 - **Collection sets from a single movie.** Open a movie that belongs to a collection set and Apply puts that movie's own poster on it, even when you don't have the rest of the collection; when you do, the card can apply to every movie you own. The collection poster goes to the Plex collection it names, and when Plex has no matching collection the card says so and leaves that poster out.
 - **Open a set or poster on its site.** The button at the end of each set card opens the set's page, and hovering a poster in the expanded preview shows a button that opens it: its own page on ThePosterDB, or its set on MediUX, which has no page per poster.
-- **Fits small screens.** When the window is under 800 pixels tall or 1100 wide, measured after display scaling (a 1366x768 laptop, or a 1080p screen at 150%), the page buttons move into the status bar so they never cover content. Larger windows keep the floating dock, which moves aside for the sets panel. **Settings → General → Navigation Dock** switches between **Automatic** (the default), **Floating** everywhere, and **Status bar** everywhere.
+- **Fits small screens.** When the window is under 800 pixels tall or 1100 wide, measured after display scaling (a 1366x768 laptop, or a 1080p screen at 150%), the page buttons move into the status bar so they never cover content. Larger windows keep the floating dock, which moves aside for the sets panel. **Settings → App → Navigation dock** switches between **Automatic** (the default), **Floating** everywhere, and **Status bar** everywhere.
 - **Ctrl+F** opens the command palette to jump to any page, setting, schedule, or creator, or to paste a link.
 
 ## Keeping posters up to date
 
 The **Scheduler** re-applies sets and creators on a repeating schedule, so new episode title cards and new uploads get art without a trip back to the app.
 
-- **Quick sync:** click **Schedule** on any set or **Sync all** on a MediUX creator. Repeat clicks never stack duplicate jobs, a creator's sets share one job, and **Scheduler → Quick sync** picks the schedule these buttons use.
-- **Whole MediUX catalogs:** a creator job reads every set the creator has published. The first run crawls the catalog once, which takes a few minutes for a prolific creator; later runs only read pages with new or updated sets.
+- **Quick sync:** click **Schedule** on any set, or **Set up sync…** on a MediUX creator, which asks whether to start from today's uploads or apply the whole catalog now. Repeat clicks never stack duplicate jobs, a creator's sets share one job, and **Settings → Artwork → Schedule and Sync timing** picks the schedule these buttons start with.
+- **Whole MediUX catalogs:** a creator job reads every set the creator has published. The first run crawls the catalog once, which takes a few minutes for a prolific creator; later runs only read pages with new or updated sets, and a first crawl cut short resumes where it stopped. A creator job that starts from today applies only sets added or updated since, and where a title has several sets they apply oldest to newest, so the newest ends up on top.
 - **Only apply new artwork** (on by default) skips posters already applied to an item, so Plex doesn't pile up duplicates. **Only fill gaps** makes a job a backup creator that adds only what other art doesn't cover.
-- **One at a time, in order:** jobs never overlap. Jobs due together run in the order shown on the Scheduler page, which you set with the arrows on each card, and **Run now** goes ahead of anything waiting. When two creators cover the same show, put your preferred one first and give the other **Only fill gaps**.
-- **Any schedule:** hourly, daily, weekly on chosen days, monthly, or a custom cron expression, with a preview of the next runs. Each job keeps its 10 most recent runs; click one to see which titles got art, which failed, and which aren't in your library.
-- **Where it runs:** the desktop app runs schedules while it's open or minimized to the tray, and **Launch at login** on the Scheduler page starts it with your computer. For schedules that run around the clock without a PC left on, use [Docker](#docker).
+- **One at a time, in order:** jobs never overlap. Jobs due together run in the order shown on the Scheduler page, which you set with **Run earlier** and **Run later** in each job's menu, and **Run now** goes ahead of anything waiting. **Stop** ends a running job and keeps what it already applied. When two creators cover the same show, put your preferred one first and give the other **Only fill gaps**.
+- **Any schedule:** hourly, daily, weekly on chosen days, monthly, or a custom cron expression, with a preview of the next runs. Each job keeps its 10 most recent runs; open one to see which titles got art, which failed, and which aren't in your library.
+- **Where it runs:** the desktop app runs schedules while it's open or minimized to the tray, and **Launch at login** in **Settings → App** starts it with your computer. For schedules that run around the clock without a PC left on, use [Docker](#docker).
 
 ## Updating
 
@@ -126,13 +126,13 @@ Your Plex sign-in, schedules, and applied-poster history survive every update. T
 
 ## Troubleshooting and support
 
-- **The first-launch browser check fails.** The setup screen explains why and offers fixes. On Linux it shows the exact command for any missing system libraries, and on any platform you can pick an installed Google Chrome, Edge, Brave, or Chromium instead. **Settings → Browser Engine** also has a managed download that retries automatically, detects system proxies, and can be canceled.
-- **A title gets no match or the wrong art.** Use the link button in the sets panel to attach the right set, or the title's page on either site, to that title. For matching in general, add a TMDB API key (see [How matching works](#how-matching-works)), and use **Title Mappings** to point a site's title at the right Plex title.
+- **The first-launch browser check fails.** The setup screen explains why and offers fixes. On Linux it shows the exact command for any missing system libraries, and on any platform you can pick an installed Google Chrome, Edge, Brave, or Chromium instead. **Settings → Advanced → Browser engine** also has a managed download that retries automatically, detects system proxies, and can be canceled.
+- **A title gets no match or the wrong art.** Use the link button in the sets panel to attach the right set, or the title's page on either site, to that title. For matching in general, add a TMDB API key (see [How matching works](#how-matching-works)), and use **Title Mappings** to point a site's title at the right Plex title. It is a legacy tool: turn on **Settings → App → Legacy tools** to show it.
 - **Anything else.** The log drawer shows what the app is doing, and **Open Log Folder** in the command palette opens the full logs. If you're stuck, [open an issue](https://github.com/molexxxx/plex-poster-set-helper-2/issues) with the relevant log lines.
 
 ## Supported links
 
-**Manual Import** and scheduled jobs accept links from both sites.
+Scheduled jobs and **Manual Import** accept links from both sites. Manual Import is a legacy tool; **Settings → App → Legacy tools** shows it.
 
 | Site | Links |
 |---|---|
