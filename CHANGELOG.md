@@ -4,6 +4,26 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.17.0
+
+### Pick artwork types per schedule
+A schedule can now apply some artwork types and skip others: posters and backdrops for a show, for example, but not its title cards when the cards in a set are wrong. Thanks to @sandman4sure for the request (#76).
+
+- **Artwork types** sits under **How it applies** when you edit a job. A job starts with the types picked in Settings and follows any change made there. Pick different types and the job keeps its own; **Use Settings** puts it back.
+- The job details show which types a job applies and whether they come from Settings or were picked for that job.
+- The creator sync dialog has the same choice. **Schedule** on a set in the Library Browser carries over the sets panel's types when they differ from Settings, and the button's tooltip names them.
+
+### The same choice everywhere art is applied
+**Settings → Artwork → MediUX asset types** is now **Artwork types**. It is the starting choice for every place that applies art, and each place can change it while you work:
+
+- **Library Browser:** the Posters, Backdrops, and Title cards chips in the sets panel, as before, now announced as toggles to screen readers.
+- **Creators:** **Types to apply** in an open set picks what that set's **Apply set** and the Apply buttons on the poster wall use. It used to follow Settings only.
+- **Manual Import:** **Scrape URLs** and **Bulk Files** have the same toggles. Scrape URLs now reads every type and shows only the ones picked, so changing them needs no rescrape, and each row says how many files are hidden.
+
+### Fixes
+- Applying one title card or backdrop from the Creators file tabs did nothing when that type was off in Settings. A file you pick applies now.
+- Scheduled jobs and Manual Import applied every ThePosterDB file regardless of the Settings types. They now apply the same types as MediUX links.
+
 ## What's new in v2.16.1
 
 ### Log actions say what happened
