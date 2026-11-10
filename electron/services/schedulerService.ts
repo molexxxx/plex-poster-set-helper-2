@@ -8,13 +8,13 @@ import { Logger } from './logger'
 import { PlexService } from './plexService'
 import { CreatorSetsService } from './creatorSetsService'
 import { ScraperFactory } from '../scrapers/scraperFactory'
-import type { AppliedRecord, CronPreview, JobProgress, JobRun, PosterInfo, ScheduledJob, SchedulerEngineStatus } from '../ipc/types'
+import type { AppliedRecord, ArtworkType, CronPreview, JobProgress, JobRun, PosterInfo, ScheduledJob, SchedulerEngineStatus } from '../ipc/types'
 import { getUserDataPath } from '../runtime/paths'
 import { appEvents } from '../runtime/events'
 import { isWebMode } from '../runtime/runtime'
 import {
   addSlotCoverage, appliedUrlIndex, coverageKey, creatorOfUrl, creatorSyncOrder, describeRun, emptyTally, failedRun, finishRun, isSlotCovered,
-  mergeAppliedRecords, normalizeJob, posterKind, posterSlot, previewCron, recordRun, recoverInterrupted, setRefOfUrl,
+  jobArtworkTypes, mergeAppliedRecords, normalizeJob, posterKind, posterSlot, previewCron, recordRun, recoverInterrupted, setRefOfUrl,
   reorderJobs, slotCoverage, titleLabel, withNextRun, type RunTally, type SlotCoverage,
 } from './scheduleUtils'
 
@@ -71,8 +71,8 @@ interface RunContext {
   applied: Map<string, Set<string>> | null
   /** Slot coverage for fill-gaps jobs; null otherwise. */
   coverage: SlotCoverage | null
-  /** MediUX file types the user has enabled. */
-  filters: Set<string>
+  /** Artwork types this run applies: the job's own, or the ones picked in Settings. */
+  filters: Set<ArtworkType>
   lookups: Map<string, Promise<ResolvedItem | null>>
   records: Map<string, AppliedRecord>
   mainThumb: Set<string>
@@ -577,7 +577,7 @@ export const SchedulerService = {
     let scrapeError: string | undefined
     const posters = await ScraperFactory.scrapeUrl(url, p => {
       if (p.status === 'error') scrapeError = p.error ?? 'Scrape failed'
-    })
+    }, 0, [...ctx.filters])
     if (scrapeError && !posters.length) {
       tally.urlErrors++
       tally.firstError ??= `${url}: ${scrapeError}`
@@ -615,7 +615,7 @@ export const SchedulerService = {
         tally: emptyTally(job.urls.length),
         applied: job.skipApplied === false ? null : appliedUrlIndex(history),
         coverage: job.fillGaps ? slotCoverage(history) : null,
-        filters: new Set(cfg.mediuxFilters ?? ['poster', 'backdrop', 'title_card']),
+        filters: new Set(jobArtworkTypes(job, cfg.mediuxFilters)),
         lookups: new Map(),
         records: new Map(),
         mainThumb: new Set(),

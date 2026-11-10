@@ -8,8 +8,10 @@ import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import EmptyState from '../../components/ui/EmptyState'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
+import TypeToggles from '../../components/ui/TypeToggles'
 import { useAppContext } from '../../app/AppContext'
-import type { PosterInfo } from '../../../electron/ipc/types'
+import type { ArtworkType, PosterInfo } from '../../../electron/ipc/types'
+import { ARTWORK_TYPES } from '../../../electron/services/scheduleUtils'
 import styles from './BulkPage.module.css'
 
 
@@ -89,6 +91,7 @@ export default function BulkPage() {
   const [showNewInput, setShowNew]  = useState(false)
   const [runStatus, setRunStatus]   = useState<RunStatus>('idle')
   const [results, setResults]       = useState<RunResult[]>([])
+  const [types, setTypes]           = useState<Set<ArtworkType>>(new Set(ARTWORK_TYPES))
   const abortRef = useRef(false)
   const newInputRef = useRef<HTMLInputElement>(null)
 
@@ -101,6 +104,12 @@ export default function BulkPage() {
   }, [])
 
   useEffect(() => { loadFiles() }, [loadFiles])
+
+  useEffect(() => {
+    window.api.config.get()
+      .then(c => { if (c.mediuxFilters?.length) setTypes(new Set(c.mediuxFilters)) })
+      .catch(() => { /* keep every type */ })
+  }, [])
 
 
   async function selectFile(filename: string) {
@@ -179,7 +188,7 @@ export default function BulkPage() {
     for (const url of urls) {
       if (abortRef.current) break
       try {
-        const posters = await window.api.scrape.url(url) as PosterInfo[]
+        const posters = await window.api.scrape.url(url, [...types]) as PosterInfo[]
         let uploaded = 0
 
         for (const poster of posters) {
@@ -217,7 +226,7 @@ export default function BulkPage() {
     }
 
     setRunStatus('done')
-  }, [active, content, isDirty, runStatus])
+  }, [active, content, isDirty, runStatus, types])
 
 
   const totalUploaded = results.reduce((n, r) => n + r.uploadedCount, 0)
@@ -342,6 +351,7 @@ export default function BulkPage() {
                 {urlCount > 0 && (
                   <span className={styles.urlCount}>{urlCount} URL{urlCount !== 1 ? 's' : ''}</span>
                 )}
+                <TypeToggles value={types} onChange={setTypes} label="Artwork types to apply" disabled={runStatus === 'running'} />
                 <Button
                   variant="ghost"
                   size="sm"

@@ -87,6 +87,22 @@
 
 .inlineLink:hover { color: var(--color-accent-warning); }
 
+.helpLink {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-weight: var(--font-medium);
+  text-decoration: underline;
+  text-decoration-color: rgba(240, 242, 248, 0.35);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.helpLink:hover { color: var(--color-text-primary); text-decoration-color: currentColor; }
+.helpLink:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 2px; }
+
 .emptyPage {
   display: flex;
   flex-direction: column;

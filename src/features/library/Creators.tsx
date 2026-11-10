@@ -10,6 +10,7 @@ import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
 import Menu from '../../components/ui/Menu'
 import Pager from '../../components/ui/Pager'
 import Segmented from '../../components/ui/Segmented'
+import TypeToggles from '../../components/ui/TypeToggles'
 import type { CreatorCrawlStatus, MediuxUserSet, PosterInfo, ScheduledJob, UserSetsChunk, UserSetsSnapshot } from '../../../electron/ipc/types'
 import {
   ALL_TYPES, SOURCE_LABEL, collectionName, groupPosters, posterFileType, posterPageUrl, resolveVariants, setKey, type FileType,
@@ -17,7 +18,7 @@ import {
 import { useCreatorPrefs, parseCreatorInput, type CreatorState } from '../../utils/creatorPrefs'
 import { recordApplied, recordAppliedQuietly, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
 import { errorMessage } from '../../utils/errorMessage'
-import { DEFAULT_QUICK_CRON, coveringJob, describeCron, scheduleCoverage, type ScheduleCoverage } from '../../../electron/services/scheduleUtils'
+import { DEFAULT_QUICK_CRON, coveringJob, describeArtworkTypes, describeCron, scheduleCoverage, type ScheduleCoverage } from '../../../electron/services/scheduleUtils'
 import { useAppContext } from '../../app/AppContext'
 import { useNavStore } from '../../app/navStore'
 import { useSmoothScroll } from '../../app/useSmoothScroll'
@@ -212,7 +213,8 @@ export default function CreatorsView({ initialCreator }: { initialCreator: strin
   const [prefsError, setPrefsError] = useState<string | null>(null)
   const [jobs, setJobs]       = useState<ScheduledJob[]>([])
   const [quickCron, setQuickCron] = useState(DEFAULT_QUICK_CRON)
-  const [allTypes, setAllTypes] = useState<Set<FileType>>(new Set(ALL_TYPES))
+  const [types, setTypes] = useState<Set<FileType>>(new Set(ALL_TYPES))
+  const [settingsTypes, setSettingsTypes] = useState<FileType[]>(ALL_TYPES)
   const coverage = useMemo(() => scheduleCoverage(jobs), [jobs])
   const railRef = useRef<HTMLDivElement>(null)
   const inputId = useId()
@@ -229,7 +231,8 @@ export default function CreatorsView({ initialCreator }: { initialCreator: strin
   useEffect(() => { lastCreator = active }, [active])
   useEffect(() => {
     window.api.config.get().then(c => {
-      if (c.mediuxFilters?.length) setAllTypes(new Set(c.mediuxFilters as FileType[]))
+      if (c.mediuxFilters?.length) setTypes(new Set(c.mediuxFilters as FileType[]))
+      if (c.mediuxFilters) setSettingsTypes(c.mediuxFilters)
       setQuickCron(c.schedulerQuickCron || DEFAULT_QUICK_CRON)
     }).catch(() => { /* keep the defaults */ })
     window.api.scheduler.list().then(setJobs).catch(() => { /* scheduler unavailable */ })
@@ -381,7 +384,9 @@ export default function CreatorsView({ initialCreator }: { initialCreator: strin
             jobs={jobs}
             coverage={coverage}
             quickCron={quickCron}
-            allTypes={allTypes}
+            types={types}
+            settingsTypes={settingsTypes}
+            onTypesChange={setTypes}
             onCreatorChange={state => {
               setPicked(active)
               savePrefs(setState('mediux', active, state))
@@ -415,13 +420,16 @@ interface CatalogProps {
   jobs: ScheduledJob[]
   coverage: ScheduleCoverage
   quickCron: string
-  allTypes: Set<FileType>
+  /** Types Apply uses here; they start from Settings. */
+  types: Set<FileType>
+  settingsTypes: FileType[]
+  onTypesChange: (types: Set<FileType>) => void
   onCreatorChange: (state: CreatorState) => void
   onApplied: (sKey: string, itemKey: string, title: string, year: number | undefined, urls: string[]) => void
 }
 
 /** One creator's catalog: a header with status and sync, then titles with their variant sets, or single files. */
-function CreatorCatalog({ username, creator, appliedIdx, jobs, coverage, quickCron, allTypes, onCreatorChange, onApplied }: CatalogProps) {
+function CreatorCatalog({ username, creator, appliedIdx, jobs, coverage, quickCron, types: allTypes, settingsTypes, onTypesChange, onCreatorChange, onApplied }: CatalogProps) {
   const key = username.toLowerCase()
   const catalog = useCreatorCatalog(username)
   const { navigate } = useAppContext()
@@ -653,7 +661,7 @@ function CreatorCatalog({ username, creator, appliedIdx, jobs, coverage, quickCr
       setApplyMap(m => ({ ...m, [k]: { status: 'error', done: 0, total: 1, error: file.isCollection ? 'No matching Plex collection' : 'Not in your library' } }))
       return
     }
-    const { done, appliedUrls, appliedSlots, lastError } = await applyPosters(target.key, [file], allTypes, () => {})
+    const { done, appliedUrls, appliedSlots, lastError } = await applyPosters(target.key, [file], new Set([posterFileType(file)]), () => {})
     if (done) {
       void recordAppliedQuietly({
         itemKey: target.key, title: target.title, year: target.year, type: target.type, source: 'mediux', thumb: file.thumbUrl ?? file.url,
@@ -890,6 +898,7 @@ function CreatorCatalog({ username, creator, appliedIdx, jobs, coverage, quickCr
                     onPick={id => setPicks(prev => ({ ...prev, [group.key]: id }))}
                     onToggleSelect={() => toggleSelect(set.id)}
                     onApply={() => void applySet(set)}
+                    applyHint={allTypes.size < ALL_TYPES.length ? `Applies ${describeArtworkTypes(allTypes)}` : undefined}
                   />
                   {openGroupData && (
                     <SetDetail
@@ -898,6 +907,7 @@ function CreatorCatalog({ username, creator, appliedIdx, jobs, coverage, quickCr
                       set={pickedSet(openGroupData)}
                       appliedIdx={appliedIdx}
                       enabledTypes={allTypes}
+                      onTypesChange={onTypesChange}
                       apply={applyMap[pickedSet(openGroupData).id]}
                       onPick={id => setPicks(prev => ({ ...prev, [openGroupData.key]: id }))}
                       onApply={() => void applySet(pickedSet(openGroupData))}
@@ -974,7 +984,8 @@ function CreatorCatalog({ username, creator, appliedIdx, jobs, coverage, quickCr
           jobs={jobs}
           matchedTitles={syncScope.kind === 'sets' ? new Set(syncScope.sets.map(s => s.matchedKey).filter(Boolean)).size : matchedTitles}
           defaultCron={quickCron}
-          enabledTypes={allTypes}
+          pickedTypes={allTypes}
+          settingsTypes={settingsTypes}
           onClose={() => setSyncScope(null)}
           onSaved={(message, jobId) => {
             setSyncScope(null)
@@ -1018,12 +1029,14 @@ interface TitleTileProps {
   onPick: (setId: string) => void
   onToggleSelect: () => void
   onApply: () => void
+  /** Names the types Apply uses when some are switched off. */
+  applyHint?: string
 }
 
 const MAX_SWATCHES = 5
 
 /** One title on the poster wall: the picked set's art, with Apply on the art and the other sets as swatches. */
-function TitleTile({ group, set, username, appliedIdx, coverage, apply, selecting, checked, open, onOpen, onPick, onToggleSelect, onApply }: TitleTileProps) {
+function TitleTile({ group, set, username, appliedIdx, coverage, apply, selecting, checked, open, onOpen, onPick, onToggleSelect, onApply, applyHint }: TitleTileProps) {
   const [loaded, setLoaded] = useState(false)
   const [broken, setBroken] = useState(false)
   const current = group.matchedKey ? appliedIdx.currentByItem.get(group.matchedKey) : undefined
@@ -1092,7 +1105,7 @@ function TitleTile({ group, set, username, appliedIdx, coverage, apply, selectin
             ) : status === 'done' ? (
               <span className={styles.overlayStatus} title={apply!.error}><Check size={12} aria-hidden /> Applied {apply!.done}{apply!.error ? ', some failed' : ''}</span>
             ) : (
-              <button type="button" className={styles.overlayButton} onClick={onApply} aria-label={`Apply ${set.setName}`}>
+              <button type="button" className={styles.overlayButton} onClick={onApply} aria-label={`Apply ${set.setName}`} title={applyHint}>
                 <Upload size={12} aria-hidden /> Apply
               </button>
             )}
@@ -1138,6 +1151,7 @@ interface SetDetailProps {
   set: MediuxUserSet
   appliedIdx: AppliedIndex
   enabledTypes: Set<FileType>
+  onTypesChange: (types: Set<FileType>) => void
   apply?: ApplyState
   onPick: (setId: string) => void
   onApply: () => void
@@ -1145,9 +1159,10 @@ interface SetDetailProps {
 }
 
 /** The shelf that opens under a title's row: the picked set large, every set for the title, and its files. */
-function SetDetail({ group, set, appliedIdx, enabledTypes, apply, onPick, onApply, onClose }: SetDetailProps) {
+function SetDetail({ group, set, appliedIdx, enabledTypes, onTypesChange, apply, onPick, onApply, onClose }: SetDetailProps) {
   const ref = useRef<HTMLElement>(null)
   const headingId = useId()
+  const typesLabelId = useId()
   const heading = group.year ? `${group.title} (${group.year})` : group.title
   const [lightbox, setLightbox] = useState<number | null>(null)
   const fileRows = useMemo(() => {
@@ -1248,7 +1263,12 @@ function SetDetail({ group, set, appliedIdx, enabledTypes, apply, onPick, onAppl
           </div>
         )}
 
-        {fileRows.length === 0 && <p className={styles.detailSub}>None of this set&apos;s files are of a type switched on in Settings.</p>}
+        <div className={styles.detailTypes}>
+          <span id={typesLabelId} className={styles.fileGroupLabel}>Types to apply</span>
+          <TypeToggles value={enabledTypes} onChange={onTypesChange} ariaLabelledBy={typesLabelId} />
+        </div>
+
+        {fileRows.length === 0 && <p className={styles.detailSub}>This set has none of the types picked above.</p>}
         {fileRows.map(row => (
           <div key={row.label} className={styles.fileGroup}>
             <span className={styles.fileGroupLabel}>{row.label}<span className={styles.tabCount}>{count(row.items.length)}</span></span>

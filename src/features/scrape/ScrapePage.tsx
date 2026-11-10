@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo, useId } from 'react'
 import { Reorder, AnimatePresence, motion } from 'framer-motion'
 import { Link2, Play, Square, Trash2, ListPlus, Zap, ExternalLink } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import EmptyState from '../../components/ui/EmptyState'
 import Spinner from '../../components/ui/Spinner'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
+import TypeToggles from '../../components/ui/TypeToggles'
 import { useAppContext } from '../../app/AppContext'
 import { useUpdater } from '../updater/UpdaterContext'
 import { useScrapeStore } from './useScrapeStore'
 import UrlQueueEntry from './components/UrlQueueEntry'
 import type { QueueEntry, PosterResult } from './useScrapeStore'
 import type { PosterInfo, ScrapeProgress } from '../../../electron/ipc/types'
+import { ARTWORK_TYPES, posterKind } from '../../../electron/services/scheduleUtils'
 import styles from './ScrapePage.module.css'
 
 
@@ -27,13 +29,22 @@ const SOURCES = [
 export default function ScrapePage() {
   const { plexConnected } = useAppContext()
   const { env } = useUpdater()
-  const { entries, isRunning, addUrls, setEntries, patchEntry, patchPoster, clearAll, setRunning } =
+  const { entries, isRunning, addUrls, setEntries, patchEntry, patchPoster, clearAll, setRunning, types, setTypes } =
     useScrapeStore()
+  const shownTypes = useMemo(() => new Set(types ?? ARTWORK_TYPES), [types])
+  const typesLabelId = useId()
 
   const [inputValue, setInputValue] = useState('')
   const abortRef = useRef(false)
   const runningRef = useRef(false)
 
+  // The page starts from the types picked in Settings, once per session.
+  useEffect(() => {
+    if (useScrapeStore.getState().types) return
+    window.api.config.get()
+      .then(c => { if (!useScrapeStore.getState().types) setTypes(c.mediuxFilters?.length ? c.mediuxFilters : [...ARTWORK_TYPES]) })
+      .catch(() => setTypes([...ARTWORK_TYPES]))
+  }, [setTypes])
 
   useEffect(() => {
     const off = window.api.scrape.onProgress((prog: ScrapeProgress) => {
@@ -68,7 +79,8 @@ export default function ScrapePage() {
       if (abortRef.current) return
       patchEntry(entry.id, { status: 'scraping', posters: [] })
       try {
-        const results = await window.api.scrape.url(entry.url) as PosterInfo[]
+        // Every type is read so the type toggles can change what applies without a rescrape.
+        const results = await window.api.scrape.url(entry.url, [...ARTWORK_TYPES]) as PosterInfo[]
         if (abortRef.current) return
         patchEntry(entry.id, {
           status: 'done',
@@ -146,7 +158,7 @@ export default function ScrapePage() {
   const idleCount    = entries.filter(e => e.status === 'idle').length
   const doneCount    = entries.filter(e => e.status === 'done').length
   const errorCount   = entries.filter(e => e.status === 'error').length
-  const totalPosters = entries.reduce((n, e) => n + e.posters.length, 0)
+  const totalPosters = entries.reduce((n, e) => n + e.posters.filter(p => shownTypes.has(posterKind(p))).length, 0)
 
   return (
     <div className={styles.page}>
@@ -232,6 +244,13 @@ export default function ScrapePage() {
             >
               Clear All
             </Button>
+            <span id={typesLabelId} className={styles.typesLabel}>Types to apply</span>
+            <TypeToggles
+              value={shownTypes}
+              onChange={next => setTypes([...next])}
+              ariaLabelledBy={typesLabelId}
+              disabled={!types}
+            />
           </div>
 
           <div className={styles.controlsRight}>
@@ -312,6 +331,7 @@ export default function ScrapePage() {
                   <UrlQueueEntry
                     key={entry.id}
                     entry={entry}
+                    types={shownTypes}
                     isRunning={isRunning}
                     patchPoster={patchPoster}
                   />

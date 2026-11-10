@@ -640,11 +640,12 @@ export class MediuxScraper extends BaseScraper {
    * as fallback.
    *
    * @param url - Set, boxset, show, or creator page URL.
-   * @returns Posters allowed by the configured fileType filters.
+   * @param types - File types to keep; unset keeps the types picked in Settings.
+   * @returns Posters of the allowed file types.
    */
-  async scrape(url: string): Promise<PosterInfo[]> {
+  async scrape(url: string, types?: readonly string[]): Promise<PosterInfo[]> {
     Logger.scrape('MediUX', `Scraping: ${url}`)
-    const allowed = new Set<string>(ConfigService.get().mediuxFilters)
+    const allowed = new Set<string>(types ?? ConfigService.get().mediuxFilters)
 
     const result = await this._fetchSets(url)
     if (result?.sets.length) {

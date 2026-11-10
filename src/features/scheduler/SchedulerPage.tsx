@@ -11,10 +11,11 @@ import Segmented from '../../components/ui/Segmented'
 import Menu from '../../components/ui/Menu'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import ProgressBar from '../../components/ui/ProgressBar'
-import type { ScheduledJob, SchedulerEngineStatus, CronPreview, JobRun } from '../../../electron/ipc/types'
+import TypeToggles from '../../components/ui/TypeToggles'
+import type { ArtworkType, ScheduledJob, SchedulerEngineStatus, CronPreview, JobRun } from '../../../electron/ipc/types'
 import {
-  HOUR_INTERVALS, analyzeUrls, creatorOfUrl, cronToForm, describeCron, describeProgress, describeRun, formToCron, relativeTime,
-  type ScheduleForm, type SchedulePreset,
+  ARTWORK_TYPES, HOUR_INTERVALS, analyzeUrls, artworkOverride, creatorOfUrl, cronToForm, describeArtworkTypes, describeCron, describeProgress,
+  describeRun, formToCron, relativeTime, type ScheduleForm, type SchedulePreset,
 } from '../../../electron/services/scheduleUtils'
 import { classifyUrl } from '../../../electron/scrapers/urlSource'
 import { useNavStore } from '../../app/navStore'
@@ -37,6 +38,37 @@ const DAYS_OF_MONTH = Array.from({ length: 31 }, (_, i) => i + 1)
 const BROWSER_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+/**
+ * The artwork types picked in Settings, which jobs without their own choice follow.
+ *
+ * @returns The types, every type until Settings has loaded.
+ */
+function useSettingsTypes(): ArtworkType[] {
+  const [types, setTypes] = useState<ArtworkType[]>([...ARTWORK_TYPES])
+  useEffect(() => {
+    let cancelled = false
+    window.api.config.get()
+      .then(c => { if (!cancelled && c.mediuxFilters) setTypes(c.mediuxFilters) })
+      .catch(() => { /* keep every type */ })
+    return () => { cancelled = true }
+  }, [])
+  return types
+}
+
+/**
+ * Describes the artwork a job applies.
+ *
+ * @param job - The job.
+ * @param settingsTypes - Types picked in Settings.
+ * @returns A line such as "Posters and backdrops, picked for this job".
+ */
+function describeJobTypes(job: ScheduledJob, settingsTypes: ArtworkType[]): string {
+  return job.assetTypes
+    ? `${capitalize(describeArtworkTypes(job.assetTypes))}, picked for this job`
+    : `${capitalize(describeArtworkTypes(settingsTypes))}, as set in Settings`
+}
 
 /**
  * Formats a run time for display in the viewer's locale.
@@ -134,24 +166,26 @@ function trapTab(e: React.KeyboardEvent, container: HTMLElement | null) {
 
 interface JobFormProps {
   initial?: ScheduledJob
+  settingsTypes: ArtworkType[]
   onSave:  (job: ScheduledJob, runAfterSave: boolean) => Promise<void>
   onClose: () => void
 }
 
 /** Dialog for creating or editing a scheduled job. */
-function JobForm({ initial, onSave, onClose }: JobFormProps) {
+function JobForm({ initial, settingsTypes, onSave, onClose }: JobFormProps) {
   const [name,        setName]        = useState(initial?.name ?? '')
   const [urls,        setUrls]        = useState((initial?.urls ?? []).join('\n'))
   const [schedule,    setSchedule]    = useState<ScheduleForm>(() => cronToForm(initial?.cronExpr ?? '0 3 * * *'))
   const [enabled,     setEnabled]     = useState(initial?.enabled ?? true)
   const [skipApplied, setSkipApplied] = useState(initial?.skipApplied !== false)
   const [fillGaps,    setFillGaps]    = useState(initial?.fillGaps === true)
+  const [assetTypes,  setAssetTypes]  = useState<ArtworkType[] | undefined>(initial?.assetTypes)
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState<string | null>(null)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [dayHint,     setDayHint]     = useState(false)
 
-  const ids = { title: useId(), name: useId(), urls: useId(), urlsHelp: useId(), schedule: useId(), every: useId(), minute: useId(), day: useId(), time: useId(), custom: useId(), customHelp: useId() }
+  const ids = { title: useId(), name: useId(), urls: useId(), urlsHelp: useId(), schedule: useId(), every: useId(), minute: useId(), day: useId(), time: useId(), custom: useId(), customHelp: useId(), types: useId(), typesHelp: useId() }
   const dialogRef = useRef<HTMLDivElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const openerRef = useRef<Element | null>(null)
@@ -164,7 +198,7 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
   const cronError = current && preview && !preview.valid ? preview.error ?? 'This schedule is not valid' : null
   const valid     = name.trim().length > 0 && urlInfo.urls.length > 0 && urlInfo.unsupported.length === 0 && !cronError
 
-  const snapshot = JSON.stringify({ name: name.trim(), urls: urlInfo.urls, cronExpr, enabled, skipApplied, fillGaps })
+  const snapshot = JSON.stringify({ name: name.trim(), urls: urlInfo.urls, cronExpr, enabled, skipApplied, fillGaps, assetTypes: assetTypes ?? null })
   const [initialSnapshot] = useState(snapshot)
   const dirty = snapshot !== initialSnapshot
 
@@ -202,6 +236,7 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
         enabled,
         skipApplied,
         fillGaps,
+        assetTypes,
       }, runAfterSave)
     } catch (err) {
       setError(errorMessage(err))
@@ -461,6 +496,23 @@ function JobForm({ initial, onSave, onClose }: JobFormProps) {
 
           <section className={styles.formSection}>
             <h3 className={styles.formHeading}>How it applies</h3>
+            <div className={styles.field}>
+              <span id={ids.types} className={styles.label}>Artwork types</span>
+              <TypeToggles
+                value={assetTypes ?? settingsTypes}
+                onChange={next => setAssetTypes(artworkOverride(next, settingsTypes))}
+                ariaLabelledBy={ids.types}
+                ariaDescribedBy={ids.typesHelp}
+              />
+              <span id={ids.typesHelp} className={styles.help}>
+                {assetTypes ? (
+                  <>
+                    Picked for this job, so changes in Settings leave it alone.{' '}
+                    <button type="button" className={styles.helpLink} onClick={() => setAssetTypes(undefined)}>Use Settings</button>
+                  </>
+                ) : 'Starts from Settings and follows any change made there. Pick different types to keep this job on its own.'}
+              </span>
+            </div>
             <Switch
               label="Only apply new artwork"
               description="Skips posters already applied to an item, so Plex does not collect duplicate copies."
@@ -604,6 +656,7 @@ function DetailBlock({ title, action, children }: { title: string; action?: Reac
 
 interface JobDetailProps {
   job:         ScheduledJob
+  settingsTypes: ArtworkType[]
   now:         number
   starting:    boolean
   canMoveUp:   boolean
@@ -618,7 +671,7 @@ interface JobDetailProps {
 }
 
 /** Everything about the selected job: status, actions, schedule, last result, links, options, and run history. */
-function JobDetail({ job, now, starting, canMoveUp, canMoveDown, canStop, onEdit, onDelete, onToggle, onRunNow, onStop, onMove }: JobDetailProps) {
+function JobDetail({ job, settingsTypes, now, starting, canMoveUp, canMoveDown, canStop, onEdit, onDelete, onToggle, onRunNow, onStop, onMove }: JobDetailProps) {
   const titleId = useId()
   const enabledLabelId = useId()
   const status = jobStatus(job, starting)
@@ -734,6 +787,12 @@ function JobDetail({ job, now, starting, canMoveUp, canMoveDown, canStop, onEdit
         )}
         <div className={styles.detailRow}>
           <div className={styles.detailRowText}>
+            <span className={styles.detailRowLabel}>Artwork types</span>
+            <span className={styles.detailRowValue}>{describeJobTypes(job, settingsTypes)}</span>
+          </div>
+        </div>
+        <div className={styles.detailRow}>
+          <div className={styles.detailRowText}>
             <span className={styles.detailRowLabel}>Only apply new artwork</span>
             <span className={styles.detailRowValue}>{job.skipApplied === false ? 'Off: re-applies the whole set every run' : 'On: skips posters already applied'}</span>
           </div>
@@ -807,6 +866,7 @@ export default function SchedulerPage() {
   const [announcement, setAnnouncement] = useState('')
   const [loaded,      setLoaded]      = useState(false)
   const now = useNow()
+  const settingsTypes = useSettingsTypes()
   const { navigate } = useAppContext()
   const goLibrary = useNavStore(s => s.goLibrary)
   const lastStatuses = useRef(new Map<string, string | undefined>())
@@ -1028,6 +1088,7 @@ export default function SchedulerPage() {
               <JobDetail
                 key={selected.id}
                 job={selected}
+                settingsTypes={settingsTypes}
                 now={now}
                 starting={starting.has(selected.id)}
                 canMoveUp={selectedIndex > 0}
@@ -1048,6 +1109,7 @@ export default function SchedulerPage() {
       {editing !== null && (
         <JobForm
           initial={editing === 'new' ? undefined : editing}
+          settingsTypes={settingsTypes}
           onSave={saveJob}
           onClose={closeEditor}
         />

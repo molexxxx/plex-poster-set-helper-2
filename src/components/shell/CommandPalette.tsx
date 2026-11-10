@@ -67,7 +67,7 @@ const SETTINGS_ITEMS: Array<{ anchor: string; label: string; keywords: string; i
   { anchor: 'plex-server',    label: 'Plex server address',            keywords: 'server url address connect baseurl', icon: <Server size={16} /> },
   { anchor: 'libraries',      label: 'Libraries (turn on or off)',     keywords: 'libraries movies tv exclude include sections', icon: <SlidersHorizontal size={16} /> },
   { anchor: 'tmdb',           label: 'Title matching - TMDB key, anime list', keywords: 'tmdb api key matching hama tvdb imdb agent anime anidb fribb list update download', icon: <Film size={16} /> },
-  { anchor: 'mediux-filters', label: 'MediUX asset types',             keywords: 'posters backdrops title cards filters asset types', icon: <Filter size={16} /> },
+  { anchor: 'mediux-filters', label: 'Artwork types',                  keywords: 'posters backdrops title cards filters asset types mediux', icon: <Filter size={16} /> },
   { anchor: 'collections',    label: 'Show collections in the Library Browser', keywords: 'collections library browser show hide', icon: <Film size={16} /> },
   { anchor: 'quick-sync',     label: 'Schedule and Sync timing',       keywords: 'quick sync schedule default library browser timing', icon: <CalendarClock size={16} /> },
   { anchor: 'scraper',        label: 'Sets fetched at once',           keywords: 'scraper workers parallel speed concurrency downloads', icon: <Sliders size={16} /> },

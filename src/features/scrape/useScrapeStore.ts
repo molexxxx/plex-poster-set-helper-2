@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { PosterInfo } from '../../../electron/ipc/types'
+import type { ArtworkType, PosterInfo } from '../../../electron/ipc/types'
 import { uuid } from '../../utils/uuid'
 
 export type EntryStatus = 'idle' | 'scraping' | 'done' | 'error'
@@ -22,6 +22,8 @@ export interface QueueEntry {
 interface ScrapeStore {
   entries: QueueEntry[]
   isRunning: boolean
+  /** Artwork types shown and uploaded; null until read from Settings. */
+  types: ArtworkType[] | null
 
   addUrls:     (urls: string[]) => void
   removeEntry: (id: string) => void
@@ -32,6 +34,7 @@ interface ScrapeStore {
   clearAll:    () => void
 
   setRunning: (v: boolean) => void
+  setTypes:   (types: ArtworkType[]) => void
 }
 
 const SUPPORTED = /theposterdb\.com|mediux\.pro/i
@@ -64,6 +67,7 @@ function isSupported(url: string): boolean {
 export const useScrapeStore = create<ScrapeStore>((set, get) => ({
   entries: [],
   isRunning: false,
+  types: null,
 
   addUrls(rawUrls) {
     const existing = new Set(get().entries.map(e => e.url))
@@ -111,5 +115,9 @@ export const useScrapeStore = create<ScrapeStore>((set, get) => ({
 
   setRunning(v) {
     set({ isRunning: v })
+  },
+
+  setTypes(types) {
+    set({ types })
   },
 }))

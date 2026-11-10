@@ -811,43 +811,11 @@
   color: inherit;
 }
 
-/* Multi-select filter chips - all three are on by default. No enclosing track,
-   so they sit cleanly on the panel instead of inside a dark inset box. A chip
-   is filled-gold when its type is shown and dimmed when it's hidden. */
-.typeToggles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.typeToggle {
+/* Artwork type chips: equal thirds on a narrow panel, sized to content on a wider one (below). */
+.typeToggles > button {
   flex: 1;
   text-align: center;
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background: var(--color-bg-elevated);
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color var(--duration-fast), background var(--duration-fast), border-color var(--duration-fast);
 }
-
-.typeToggle:hover {
-  color: var(--color-text-primary);
-  border-color: rgba(255, 255, 255, 0.18);
-}
-
-.typeToggleOn,
-.typeToggleOn:hover {
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent-border);
-  color: var(--color-accent-hover);
-}
-
-.typeToggleOn:hover { background: var(--color-accent-soft-hover); }
 
 /* On a wider panel the dropdown and chips share one row, chips sized to content;
    on a narrow panel they stack and the chips fill the row as equal thirds. The
@@ -859,8 +827,8 @@
   /* The uploader dropdown: first in the row, or right after the source chips. */
   .filters > :first-child:not(.sourceToggles),
   .filters > .sourceToggles + * { flex: 1 1 auto; min-width: 0; }
-  .typeToggles { flex: 0 0 auto; flex-wrap: nowrap; }
-  .typeToggle { flex: 0 0 auto; }
+  .filters .typeToggles { flex: 0 0 auto; flex-wrap: nowrap; }
+  .typeToggles > button { flex: 0 0 auto; }
 }
 
 .panelBody {

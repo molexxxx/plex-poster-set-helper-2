@@ -4,12 +4,13 @@ import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
 import Select from '../../components/ui/Select'
 import Switch from '../../components/ui/Switch'
+import TypeToggles from '../../components/ui/TypeToggles'
 import type { MediuxUserSet, ScheduledJob } from '../../../electron/ipc/types'
 import type { FileType } from '../../utils/posterGroups'
 import { uuid } from '../../utils/uuid'
 import { errorMessage } from '../../utils/errorMessage'
 import {
-  QUICK_SCHEDULES, creatorSyncUrl, describeCron, describeQuickSync, planQuickSync, type QuickSyncRequest,
+  QUICK_SCHEDULES, artworkOverride, creatorSyncUrl, describeCron, describeQuickSync, planQuickSync, type QuickSyncRequest,
 } from '../../../electron/services/scheduleUtils'
 import styles from './Creators.module.css'
 
@@ -17,8 +18,6 @@ import styles from './Creators.module.css'
 export type SyncScope = { kind: 'creator' } | { kind: 'sets'; sets: MediuxUserSet[] }
 
 type Start = 'new' | 'everything'
-
-const TYPE_NAMES: Record<FileType, string> = { poster: 'posters', backdrop: 'backdrops', title_card: 'title cards' }
 
 interface Props {
   open: boolean
@@ -28,7 +27,9 @@ interface Props {
   /** Titles in the library this creator has art for, for the "everything now" scope line. */
   matchedTitles: number
   defaultCron: string
-  enabledTypes: Set<FileType>
+  /** Types picked in the Creators view; a new sync starts from them. */
+  pickedTypes: Set<FileType>
+  settingsTypes: FileType[]
   onClose: () => void
   onSaved: (message: string, jobId: string) => void
 }
@@ -37,18 +38,16 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function listWords(words: string[]): string {
-  if (words.length <= 1) return words.join('')
-  return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
-}
-
 /**
  * Sets up or edits a creator sync: when it runs, whether it starts from today's
- * uploads or applies the whole catalog now, and whether it only fills gaps.
+ * uploads or applies the whole catalog now, which artwork types it applies,
+ * and whether it only fills gaps.
  * Nothing is scheduled until the user confirms with the scope spelled out.
  */
-export default function CreatorSyncDialog({ open, username, scope, jobs, matchedTitles, defaultCron, enabledTypes, onClose, onSaved }: Props) {
+export default function CreatorSyncDialog({ open, username, scope, jobs, matchedTitles, defaultCron, pickedTypes, settingsTypes, onClose, onSaved }: Props) {
   const scheduleLabelId = useId()
+  const typesLabelId = useId()
+  const typesDescId = useId()
   const gapsLabelId = useId()
   const gapsDescId = useId()
   const startName = useId()
@@ -73,12 +72,12 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
   const [cronExpr, setCronExpr] = useState(existing?.cronExpr ?? defaultCron)
   const [fillGaps, setFillGaps] = useState(!!existing?.fillGaps)
   const [start, setStart] = useState<Start>(existing && !existing.since ? 'everything' : 'new')
+  const [assetTypes, setAssetTypes] = useState<FileType[] | undefined>(() => (existing ? existing.assetTypes : artworkOverride(pickedTypes, settingsTypes)))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const scheduleOptions = (QUICK_SCHEDULES.includes(cronExpr) ? QUICK_SCHEDULES : [...QUICK_SCHEDULES, cronExpr])
     .map(expr => ({ value: expr, label: describeCron(expr) }))
-  const types = listWords((['poster', 'backdrop', 'title_card'] as FileType[]).filter(t => enabledTypes.has(t)).map(t => TYPE_NAMES[t]))
   const since = existing?.since
   const setCount = scope.kind === 'sets' ? scope.sets.length : 0
 
@@ -87,8 +86,8 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
     setError(null)
     try {
       const overrides: QuickSyncRequest['overrides'] = isCreator
-        ? { cronExpr, fillGaps, since: start === 'new' ? since ?? new Date().toISOString() : undefined }
-        : { cronExpr, fillGaps }
+        ? { cronExpr, fillGaps, assetTypes, since: start === 'new' ? since ?? new Date().toISOString() : undefined }
+        : { cronExpr, fillGaps, assetTypes }
       const plan = planQuickSync(await window.api.scheduler.list(), { ...request, overrides }, uuid)
       const saved = plan.kind === 'exists' ? plan.job : await window.api.scheduler.save(plan.job)
       const when = describeCron(saved.cronExpr).toLowerCase()
@@ -155,6 +154,26 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
           </div>
         )}
 
+        <div className={styles.syncField}>
+          <span id={typesLabelId} className={styles.syncLabel}>Artwork types</span>
+          <TypeToggles
+            value={assetTypes ?? settingsTypes}
+            onChange={next => setAssetTypes(artworkOverride(next, settingsTypes))}
+            ariaLabelledBy={typesLabelId}
+            ariaDescribedBy={typesDescId}
+          />
+          <span id={typesDescId} className={styles.syncChoiceDesc}>
+            {assetTypes ? (
+              <>
+                Picked for this sync, so changes in Settings leave it alone.{' '}
+                <button type="button" className={styles.inlineAction} onClick={() => setAssetTypes(undefined)}>Use Settings</button>
+              </>
+            ) : settingsTypes.length
+              ? 'The types picked in Settings. The sync follows any change made there.'
+              : 'Every type is switched off in Settings, so the sync applies nothing until you pick some here.'}
+          </span>
+        </div>
+
         <div className={styles.syncRow}>
           <span className={styles.syncRowText}>
             <span id={gapsLabelId} className={styles.syncLabel}>Only fill gaps</span>
@@ -168,7 +187,6 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
         <div className={styles.syncNotes}>
           <Info size={14} className={styles.syncNotesIcon} aria-hidden />
           <ul className={styles.syncNotesList}>
-            <li>Applies {types || 'no art: every type is switched off in Settings'}{types ? ', the types picked in Settings' : ''}.</li>
             <li>A title&apos;s sets apply oldest first, so its newest set ends up on top{existing?.skipApplied !== false ? '; art already applied is skipped' : ''}.</li>
           </ul>
         </div>

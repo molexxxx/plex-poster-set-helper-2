@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AnimeListStatus, LogHistoryReq, LogHistoryPage, LogStatus, LogExportRes, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk, LinkedSetsReq, LinkedSetsRes, LinkSetReq, UnlinkSetReq } from './ipc/types'
+import type { AppConfig, ArtworkType, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AnimeListStatus, LogHistoryReq, LogHistoryPage, LogStatus, LogExportRes, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk, LinkedSetsReq, LinkedSetsRes, LinkSetReq, UnlinkSetReq } from './ipc/types'
 
 /** Typed IPC bridge exposed to the renderer as window.api. */
 const api = {
@@ -61,7 +61,7 @@ const api = {
   },
 
   scrape: {
-    url: (url: string) => ipcRenderer.invoke('scrape:url', { url }),
+    url: (url: string, types?: ArtworkType[]) => ipcRenderer.invoke('scrape:url', { url, types }),
     cancel: () => ipcRenderer.invoke('scrape:cancel'),
     onProgress: (cb: (progress: ScrapeProgress) => void) =>
     {

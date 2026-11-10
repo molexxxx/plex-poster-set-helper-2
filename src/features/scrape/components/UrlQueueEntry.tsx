@@ -8,7 +8,7 @@ import Badge from '../../../components/ui/Badge'
 import Spinner from '../../../components/ui/Spinner'
 import Button from '../../../components/ui/Button'
 import Lightbox, { type LightboxImage } from '../../../components/ui/Lightbox'
-import { groupPosters, SOURCE_SHORT } from '../../../utils/posterGroups'
+import { groupPosters, posterFileType, SOURCE_SHORT, type FileType } from '../../../utils/posterGroups'
 import { recordAppliedQuietly, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../../utils/appliedTracker'
 import { posterSlot, setRefOfUrl } from '../../../../electron/services/scheduleUtils'
 import { useScrapeStore } from '../useScrapeStore'
@@ -18,6 +18,8 @@ import styles from './UrlQueueEntry.module.css'
 
 interface Props {
   entry: QueueEntry
+  /** Artwork types shown and uploaded. */
+  types: Set<FileType>
   isRunning: boolean
   patchPoster: (entryId: string, posterUrl: string, patch: Partial<PosterResult>) => void
 }
@@ -276,13 +278,15 @@ function PosterThumb({
 
 
 /** One scrape-queue row: URL, status, actions, and the expandable poster grid. */
-export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) {
+export default function UrlQueueEntry({ entry, types, isRunning, patchPoster }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [lightbox, setLightbox] = useState<number | null>(null)
   const [appliedIdx, setAppliedIdx] = useState<AppliedIndex>({ setKeys: new Set(), titles: new Set(), posterUrls: new Set(), currentByItem: new Map(), currentPosterUrls: new Set() })
   const removeEntry = useScrapeStore(s => s.removeEntry)
 
-  const doneCount = entry.posters.filter(p => p.uploadStatus === 'done').length
+  const shown = useMemo(() => entry.posters.filter(p => types.has(posterFileType(p))), [entry.posters, types])
+  const hiddenCount = entry.posters.length - shown.length
+  const doneCount = shown.filter(p => p.uploadStatus === 'done').length
 
   // Set id for this entry, recorded on upload so the Library Browser
   // recognizes it; the scheduler reads it from the same helper.
@@ -295,7 +299,7 @@ export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) 
   }, [expanded, doneCount])
 
   // Grouped sections + a flat list (group order) for the lightbox
-  const groups = useMemo(() => groupPosters(entry.posters), [entry.posters])
+  const groups = useMemo(() => groupPosters(shown), [shown])
   const lightboxImages = useMemo<LightboxImage[]>(
     () => groups.flatMap(g => g.posters.map(p => ({
       url: p.url,
@@ -312,8 +316,8 @@ export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) 
 
   const source = entry.posters[0]?.source ?? sourceFromUrl(entry.url) ?? 'posterdb'
 
-  const posterCount = entry.posters.length
-  const errorCount  = entry.posters.filter(p =>
+  const posterCount = shown.length
+  const errorCount  = shown.filter(p =>
     p.uploadStatus === 'error' || p.uploadStatus === 'no_match'
   ).length
 
@@ -322,10 +326,10 @@ export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) 
   const allDone    = posterCount > 0 && doneCount === posterCount
 
   // Posters never applied yet (new title cards, changed art, etc.)
-  const unappliedCount = entry.posters.filter(p => p.uploadStatus !== 'done' && !appliedIdx.posterUrls.has(p.url)).length
+  const unappliedCount = shown.filter(p => p.uploadStatus !== 'done' && !appliedIdx.posterUrls.has(p.url)).length
 
   async function uploadAll() {
-    for (const p of entry.posters) {
+    for (const p of shown) {
       if (p.uploadStatus === 'idle' || p.uploadStatus === 'no_match' || p.uploadStatus === 'error') {
         await uploadPoster(entry.id, p, patchPoster, entrySetId)
       }
@@ -333,7 +337,7 @@ export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) 
   }
 
   async function uploadUnapplied() {
-    for (const p of entry.posters) {
+    for (const p of shown) {
       if (p.uploadStatus !== 'done' && !appliedIdx.posterUrls.has(p.url)) {
         await uploadPoster(entry.id, p, patchPoster, entrySetId)
       }
@@ -384,8 +388,13 @@ export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) 
               {hasErrors && <span className={styles.errBit}> · {errorCount} failed</span>}
             </span>
           )}
+          {entry.status === 'done' && posterCount > 0 && hiddenCount > 0 && (
+            <span className={styles.statusMuted} title="Switched off in Types to apply">&nbsp;· {hiddenCount} hidden</span>
+          )}
           {entry.status === 'done' && posterCount === 0 && (
-            <span className={styles.statusMuted}>No posters found</span>
+            <span className={styles.statusMuted}>
+              {hiddenCount > 0 ? `No posters of the types picked; ${hiddenCount} hidden` : 'No posters found'}
+            </span>
           )}
           {entry.status === 'error' && (
             <span className={styles.statusError} title={entry.error}>
@@ -449,7 +458,7 @@ export default function UrlQueueEntry({ entry, isRunning, patchPoster }: Props) 
 
       {/* Poster grid (expanded) */}
       <AnimatePresence initial={false}>
-        {expanded && entry.posters.length > 0 && (
+        {expanded && shown.length > 0 && (
           <motion.div
             className={styles.posterSection}
             initial={{ height: 0, opacity: 0 }}

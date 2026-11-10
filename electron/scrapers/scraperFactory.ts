@@ -4,8 +4,9 @@ import { MediuxScraper } from './mediuxScraper'
 import { BaseScraper } from './baseScraper'
 import { Logger } from '../services/logger'
 import { ConfigService } from '../services/config'
-import type { PosterInfo, PosterSetSummary, ScrapeProgress } from '../ipc/types'
+import type { ArtworkType, PosterInfo, PosterSetSummary, ScrapeProgress } from '../ipc/types'
 import { classifyUrl, type ScraperSource } from './urlSource'
+import { posterKind } from '../services/scheduleUtils'
 
 export { classifyUrl, type ScraperSource }
 
@@ -45,12 +46,15 @@ export const ScraperFactory = {
    * @param url - Page to scrape.
    * @param onProgress - Receives status transitions for the UI.
    * @param workerId - Worker slot shown in progress events.
+   * @param types - Artwork types to return from either site; unset returns the
+   *   types picked in Settings for MediUX and everything from ThePosterDB.
    * @returns The posters found, empty on failure or unsupported URLs.
    */
   async scrapeUrl(
     url: string,
     onProgress: ProgressCallback,
     workerId = 0,
+    types?: readonly ArtworkType[],
   ): Promise<PosterInfo[]> {
     if (_aborted) return []
 
@@ -65,7 +69,8 @@ export const ScraperFactory = {
     onProgress({ url, status: 'scraping', workerId })
 
     try {
-      const posters = await scraper.scrape(url)
+      const found = await scraper.scrape(url, types)
+      const posters = types ? found.filter(p => types.includes(posterKind(p))) : found
       onProgress({ url, status: 'done', posterCount: posters.length, workerId })
       return posters
     } catch (err) {

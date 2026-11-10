@@ -23,7 +23,7 @@ import type {
   CurrentArtReq, ClearCachesRes, AppliedRecord, PosterSetSummary,
   LinkedSetsReq, LinkSetReq, UnlinkSetReq, AnimeListStatus, LogHistoryReq,
 } from '../ipc/types'
-import { mergeAppliedRecords } from '../services/scheduleUtils'
+import { mergeAppliedRecords, parseArtworkTypes } from '../services/scheduleUtils'
 import { browseOutcome, type SourceResult } from '../services/browseSets'
 import { resetPosterdbCaches } from '../scrapers/posterdbScraper'
 
@@ -245,7 +245,7 @@ export const handlers = {
   },
 
   scrape: {
-    url: (req: ScrapeReq) => ScraperFactory.scrapeUrl(req.url, emitScrape, req.workerId),
+    url: (req: ScrapeReq) => ScraperFactory.scrapeUrl(req.url, emitScrape, req.workerId, parseArtworkTypes(req.types)),
     cancel: async () => {
       ScraperFactory.abort()
       await ScraperFactory.close()

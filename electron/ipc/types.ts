@@ -97,9 +97,14 @@ export interface ResetReq {
   deleteUploads?: boolean
 }
 
+/** Kinds of artwork a set can carry, as MediUX names them. */
+export type ArtworkType = 'poster' | 'backdrop' | 'title_card'
+
 export interface ScrapeReq {
   url: string
   workerId?: number
+  /** Types to return from either site; unset returns the types picked in Settings for MediUX and everything from ThePosterDB. */
+  types?: ArtworkType[]
 }
 
 export interface PosterInfo {
@@ -139,7 +144,8 @@ export interface AppConfig {
   token: string
   tvLibraries: string[]
   movieLibraries: string[]
-  mediuxFilters: Array<'poster' | 'backdrop' | 'title_card'>
+  /** Artwork types every apply starts with; a scheduled job or a page can pick its own. */
+  mediuxFilters: ArtworkType[]
   titleMappings: Record<string, string>
   maxWorkers: number
   bulkFiles: string[]
@@ -482,6 +488,8 @@ export interface ScheduledJob {
   skipApplied?: boolean
   /** Leave any slot that other art already fills, so this job only fills gaps. */
   fillGaps?: boolean
+  /** Artwork types this job applies from either site. Unset follows the types picked in Settings. */
+  assetTypes?: ArtworkType[]
   /** MediUX creator this job syncs, set for jobs created from the Creators view. */
   creator?: string
   /** ISO time; a creator sync applies only sets added or updated after it. Unset applies the whole catalog. */

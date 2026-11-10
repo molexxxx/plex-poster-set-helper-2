@@ -132,7 +132,7 @@ export function createWebClient(): Api {
     },
 
     scrape: {
-      url: (url) => apiFetch('/api/scrape/url', { method: 'POST', body: JSON.stringify({ url }) }),
+      url: (url, types) => apiFetch('/api/scrape/url', { method: 'POST', body: JSON.stringify({ url, types }) }),
       cancel: () => apiFetch('/api/scrape/cancel', { method: 'POST' }),
       onProgress: (cb: (progress: ScrapeProgress) => void) =>
         onSse('scrape:progress', (_, data) => cb(data as ScrapeProgress)),

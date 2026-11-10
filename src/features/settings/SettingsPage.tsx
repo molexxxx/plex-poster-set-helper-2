@@ -909,7 +909,7 @@ export default function SettingsPage() {
 
           {group === 'artwork' && (
             <>
-              <Block title="MediUX asset types" anchor="mediux-filters" description="Only these types are applied from MediUX sets, including scheduled syncs.">
+              <Block title="Artwork types" anchor="mediux-filters" description="The types every apply starts with, from MediUX and ThePosterDB. The Library Browser, Creators, and Manual Import can change them while you work, and a scheduled job can keep its own.">
                 {ASSET_TYPES.map(({ type, name, desc }) => {
                   const on = cfg.mediuxFilters.includes(type)
                   return (

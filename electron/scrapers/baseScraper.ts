@@ -105,7 +105,7 @@ export abstract class BaseScraper {
    * @param url - Page to scrape.
    * @returns The posters found, empty on failure.
    */
-  abstract scrape(url: string): Promise<PosterInfo[]>
+  abstract scrape(url: string, types?: readonly string[]): Promise<PosterInfo[]>
 
   /**
    * Returns the shared headless browser, launching it on first use. Parallel

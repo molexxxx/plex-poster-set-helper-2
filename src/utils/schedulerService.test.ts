@@ -558,3 +558,50 @@ describe('SchedulerService.stop', () =>
     expect(ScraperFactory.scrapeUrl).not.toHaveBeenCalled()
   })
 })
+
+describe('artwork types', () =>
+{
+  it('applies only the job\'s own types from a creator catalog, whatever Settings picks', async () =>
+  {
+    const creatorJob = job({ urls: [creatorSyncUrl('willtong93')], creator: 'willtong93', assetTypes: ['poster', 'backdrop'] })
+    state.config.scheduledJobs = [creatorJob]
+    state.config.mediuxFilters = ['poster', 'title_card']
+    vi.mocked(CreatorSetsService.catalog).mockResolvedValue({
+      capped: false,
+      sets: [userSet('20066', 'Show', [poster('main'), poster('bg', { season: 'Backdrop' }), poster('e1', { season: 1, episode: 1 })])],
+    })
+
+    await SchedulerService._execute(creatorJob, 'schedule')
+
+    expect(vi.mocked(PlexService.uploadPoster).mock.calls.map(c => c[0].imageUrl)).toEqual(['main', 'bg'])
+  })
+
+  it('scrapes a link with the job\'s own types', async () =>
+  {
+    const friends = job({ assetTypes: ['poster', 'backdrop'] })
+    state.config.scheduledJobs = [friends]
+    state.config.mediuxFilters = ['poster', 'backdrop', 'title_card']
+
+    await SchedulerService._execute(friends, 'manual')
+
+    expect(ScraperFactory.scrapeUrl).toHaveBeenCalledWith(SET_URL, expect.any(Function), 0, ['poster', 'backdrop'])
+  })
+
+  it('scrapes a link with the Settings types when the job has none', async () =>
+  {
+    state.config.scheduledJobs = [job()]
+    state.config.mediuxFilters = ['poster', 'title_card']
+
+    await SchedulerService._execute(job(), 'manual')
+
+    expect(ScraperFactory.scrapeUrl).toHaveBeenCalledWith(SET_URL, expect.any(Function), 0, ['poster', 'title_card'])
+  })
+
+  it('stores a job\'s own types and drops them when it goes back to Settings', () =>
+  {
+    SchedulerService.save(job({ assetTypes: ['title_card', 'poster'] }))
+    expect(storedJob().assetTypes).toEqual(['poster', 'title_card'])
+    SchedulerService.save(job())
+    expect(storedJob().assetTypes).toBeUndefined()
+  })
+})

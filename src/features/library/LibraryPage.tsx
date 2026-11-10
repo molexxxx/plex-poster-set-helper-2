@@ -9,6 +9,7 @@ import Checkbox from '../../components/ui/Checkbox'
 import Spinner from '../../components/ui/Spinner'
 import Lightbox, { type LightboxImage } from '../../components/ui/Lightbox'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
+import TypeToggles from '../../components/ui/TypeToggles'
 import { groupPosters, posterFileType, setKey, ALL_TYPES, SOURCE_LABEL, SOURCE_SHORT, defaultSetApplyScope, collectionName, variantKey, variantClusters, defaultVariant, resolveVariants, memberKey, moviesInLibrary, posterPageUrl, type ApplyContext, type FileType, type SetApplyScope, type SetSource } from '../../utils/posterGroups'
 import { useCreatorPrefs, type CreatorState } from '../../utils/creatorPrefs'
 import { arrangeSets, byPopularity, mergeLinkedSets, uploaderValue } from '../../utils/librarySets'
@@ -16,7 +17,7 @@ import { recordAppliedBatch, appliedKey, loadAppliedIndex, type AppliedIndex } f
 import { uuid } from '../../utils/uuid'
 import { errorMessage } from '../../utils/errorMessage'
 import {
-  DEFAULT_QUICK_CRON, appliedUploaders, coveringJob, describeCron, planQuickSync, scheduleCoverage,
+  DEFAULT_QUICK_CRON, appliedUploaders, artworkOverride, coveringJob, describeArtworkTypes, describeCron, planQuickSync, scheduleCoverage,
   type AppliedUploader,
 } from '../../../electron/services/scheduleUtils'
 import { useAppContext } from '../../app/AppContext'
@@ -856,6 +857,9 @@ function SetsPanel({ item, onClose, onItemPoster }: {
   const [posterdbMore, setPosterdbMore] = useState<string | null>(null)
   const [creatorError, setCreatorError] = useState<string | null>(null)
   const [types, setTypes]       = useState<Set<FileType>>(new Set(ALL_TYPES))
+  // The Settings choice the toggles start from; a job scheduled from here keeps
+  // following it unless the toggles were changed.
+  const [settingsTypes, setSettingsTypes] = useState<FileType[]>(ALL_TYPES)
   const [applyMap, setApplyMap] = useState<Record<string, ApplyState>>({})
   // Per-set apply scope: movies and collection poster are chosen independently.
   const [collectionScope, setCollectionScope] = useState<Record<string, SetApplyScope>>({})
@@ -951,6 +955,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
         cronExpr: quickCron,
         // Creator-wide syncs are MediUX feeds; a ThePosterDB uploader has none.
         creator: s.source === 'mediux' ? s.uploader : undefined,
+        assetTypes: artworkOverride(types, settingsTypes),
       }, uuid)
       if (plan.kind !== 'exists') await window.api.scheduler.save(plan.job)
       setSchedJobs(await window.api.scheduler.list())
@@ -969,6 +974,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
   useEffect(() => {
     window.api.config.get().then(c => {
       if (c.mediuxFilters?.length) setTypes(new Set(c.mediuxFilters as FileType[]))
+      if (c.mediuxFilters) setSettingsTypes(c.mediuxFilters)
       setHasTmdbKey(Boolean(c.tmdbApiKey?.trim()))
       setQuickCron(c.schedulerQuickCron || DEFAULT_QUICK_CRON)
       const w = clampPanelWidth(c.libraryPanelWidth ?? PANEL_WIDTH_DEFAULT)
@@ -1292,14 +1298,6 @@ function SetsPanel({ item, onClose, onItemPoster }: {
     () => arrangeSets(allSets, { source, uploader, types, showHidden, stateOf }),
     [allSets, source, uploader, types, showHidden, stateOf],
   )
-
-  function toggleType(t: FileType) {
-    setTypes(prev => {
-      const next = new Set(prev)
-      if (next.has(t)) next.delete(t); else next.add(t)
-      return next.size ? next : prev   // keep at least one
-    })
-  }
 
   // True when a collection-member poster targets the currently viewed item
   // (exact TMDB match preferred; title/year as a fallback when ids are absent).
@@ -1684,17 +1682,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
               ...uploaders.map(u => ({ value: u.value, label: u.label })),
             ]}
           />
-          <div className={styles.typeToggles}>
-            {ALL_TYPES.map(t => (
-              <button
-                key={t}
-                className={`${styles.typeToggle} ${types.has(t) ? styles.typeToggleOn : ''}`}
-                onClick={() => toggleType(t)}
-              >
-                {t === 'title_card' ? 'Title Cards' : t === 'backdrop' ? 'Backdrops' : 'Posters'}
-              </button>
-            ))}
-          </div>
+          <TypeToggles value={types} onChange={setTypes} label="Artwork types to show and apply" className={styles.typeToggles} />
         </div>
       )}
 
@@ -1870,7 +1858,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
               onSchedule={() => scheduleSet(s)}
               scheduledBy={scheduledBy ? `${scheduledBy.name} · ${describeCron(scheduledBy.cronExpr)}` : undefined}
               onOpenSchedule={scheduledBy ? () => openScheduledJob(scheduledBy.id) : undefined}
-              scheduleHint={describeCron(quickCron)}
+              scheduleHint={artworkOverride(types, settingsTypes) ? `${describeCron(quickCron)}, ${describeArtworkTypes(types)} only` : describeCron(quickCron)}
               scheduleError={scheduleError?.setId === sKey ? scheduleError.message : undefined}
               scheduling={schedulingId === sKey}
               collectionMovies={moviesInLib}
