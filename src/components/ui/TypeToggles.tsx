@@ -1,5 +1,6 @@
 import type { ArtworkType } from '../../../electron/ipc/types'
 import { ARTWORK_TYPES } from '../../../electron/services/scheduleUtils'
+import { toggleFileType } from '../../utils/posterGroups'
 import styles from './TypeToggles.module.css'
 
 const LABELS: Record<ArtworkType, string> = { poster: 'Posters', backdrop: 'Backdrops', title_card: 'Title cards' }
@@ -20,10 +21,8 @@ export default function TypeToggles({ value, onChange, label = 'Artwork types', 
   const on = new Set(value)
 
   function toggle(type: ArtworkType) {
-    const next = new Set(on)
-    if (next.has(type)) next.delete(type)
-    else next.add(type)
-    if (next.size) onChange(next)
+    const next = toggleFileType(on, type)
+    if (next) onChange(next)
   }
 
   return (

@@ -40,6 +40,43 @@ export function posterFileType(p: PosterInfo): FileType {
   return posterKind(p)
 }
 
+/**
+ * Splits posters into the ones of the picked types and a count of the rest.
+ *
+ * @param posters - Posters to split, kept in order.
+ * @param types - Types picked to show and apply.
+ * @returns The posters of those types and how many were left out.
+ */
+export function filterByTypes<T extends PosterInfo>(posters: T[], types: ReadonlySet<FileType>): { shown: T[]; hidden: number } {
+  const shown = posters.filter(p => types.has(posterKind(p)))
+  return { shown, hidden: posters.length - shown.length }
+}
+
+/**
+ * Types to apply one hand-picked file with: its own, so it applies whatever
+ * the type toggles or Settings say.
+ *
+ * @param p - The file.
+ * @returns A set holding only the file's type.
+ */
+export function singleFileTypes(p: PosterInfo): Set<FileType> {
+  return new Set([posterKind(p)])
+}
+
+/**
+ * Flips one type in a choice, keeping at least one type on.
+ *
+ * @param on - Types currently on.
+ * @param type - Type to flip.
+ * @returns The new choice, or null when the flip would leave nothing on.
+ */
+export function toggleFileType(on: Iterable<FileType>, type: FileType): Set<FileType> | null {
+  const next = new Set(on)
+  if (next.has(type)) next.delete(type)
+  else next.add(type)
+  return next.size ? next : null
+}
+
 export interface PosterGroup<T extends PosterInfo = PosterInfo> {
   label: string
   kind: FileType

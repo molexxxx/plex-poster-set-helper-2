@@ -1858,7 +1858,7 @@ function SetsPanel({ item, onClose, onItemPoster }: {
               onSchedule={() => scheduleSet(s)}
               scheduledBy={scheduledBy ? `${scheduledBy.name} · ${describeCron(scheduledBy.cronExpr)}` : undefined}
               onOpenSchedule={scheduledBy ? () => openScheduledJob(scheduledBy.id) : undefined}
-              scheduleHint={artworkOverride(types, settingsTypes) ? `${describeCron(quickCron)}, ${describeArtworkTypes(types)} only` : describeCron(quickCron)}
+              scheduleHint={artworkOverride(types, settingsTypes) ? `${describeCron(quickCron)}, ${types.size === ALL_TYPES.length ? 'every artwork type' : `${describeArtworkTypes(types)} only`}` : describeCron(quickCron)}
               scheduleError={scheduleError?.setId === sKey ? scheduleError.message : undefined}
               scheduling={schedulingId === sKey}
               collectionMovies={moviesInLib}

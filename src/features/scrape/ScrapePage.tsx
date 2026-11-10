@@ -12,7 +12,8 @@ import { useScrapeStore } from './useScrapeStore'
 import UrlQueueEntry from './components/UrlQueueEntry'
 import type { QueueEntry, PosterResult } from './useScrapeStore'
 import type { PosterInfo, ScrapeProgress } from '../../../electron/ipc/types'
-import { ARTWORK_TYPES, posterKind } from '../../../electron/services/scheduleUtils'
+import { ARTWORK_TYPES } from '../../../electron/services/scheduleUtils'
+import { filterByTypes } from '../../utils/posterGroups'
 import styles from './ScrapePage.module.css'
 
 
@@ -158,7 +159,7 @@ export default function ScrapePage() {
   const idleCount    = entries.filter(e => e.status === 'idle').length
   const doneCount    = entries.filter(e => e.status === 'done').length
   const errorCount   = entries.filter(e => e.status === 'error').length
-  const totalPosters = entries.reduce((n, e) => n + e.posters.filter(p => shownTypes.has(posterKind(p))).length, 0)
+  const totalPosters = entries.reduce((n, e) => n + filterByTypes(e.posters, shownTypes).shown.length, 0)
 
   return (
     <div className={styles.page}>

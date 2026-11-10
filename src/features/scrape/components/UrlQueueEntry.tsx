@@ -8,7 +8,7 @@ import Badge from '../../../components/ui/Badge'
 import Spinner from '../../../components/ui/Spinner'
 import Button from '../../../components/ui/Button'
 import Lightbox, { type LightboxImage } from '../../../components/ui/Lightbox'
-import { groupPosters, posterFileType, SOURCE_SHORT, type FileType } from '../../../utils/posterGroups'
+import { filterByTypes, groupPosters, SOURCE_SHORT, type FileType } from '../../../utils/posterGroups'
 import { recordAppliedQuietly, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../../utils/appliedTracker'
 import { posterSlot, setRefOfUrl } from '../../../../electron/services/scheduleUtils'
 import { useScrapeStore } from '../useScrapeStore'
@@ -284,8 +284,7 @@ export default function UrlQueueEntry({ entry, types, isRunning, patchPoster }: 
   const [appliedIdx, setAppliedIdx] = useState<AppliedIndex>({ setKeys: new Set(), titles: new Set(), posterUrls: new Set(), currentByItem: new Map(), currentPosterUrls: new Set() })
   const removeEntry = useScrapeStore(s => s.removeEntry)
 
-  const shown = useMemo(() => entry.posters.filter(p => types.has(posterFileType(p))), [entry.posters, types])
-  const hiddenCount = entry.posters.length - shown.length
+  const { shown, hidden: hiddenCount } = useMemo(() => filterByTypes(entry.posters, types), [entry.posters, types])
   const doneCount = shown.filter(p => p.uploadStatus === 'done').length
 
   // Set id for this entry, recorded on upload so the Library Browser

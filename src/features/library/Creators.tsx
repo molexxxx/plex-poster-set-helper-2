@@ -13,7 +13,7 @@ import Segmented from '../../components/ui/Segmented'
 import TypeToggles from '../../components/ui/TypeToggles'
 import type { CreatorCrawlStatus, MediuxUserSet, PosterInfo, ScheduledJob, UserSetsChunk, UserSetsSnapshot } from '../../../electron/ipc/types'
 import {
-  ALL_TYPES, SOURCE_LABEL, collectionName, groupPosters, posterFileType, posterPageUrl, resolveVariants, setKey, type FileType,
+  ALL_TYPES, SOURCE_LABEL, collectionName, groupPosters, posterFileType, posterPageUrl, resolveVariants, setKey, singleFileTypes, type FileType,
 } from '../../utils/posterGroups'
 import { useCreatorPrefs, parseCreatorInput, type CreatorState } from '../../utils/creatorPrefs'
 import { recordApplied, recordAppliedQuietly, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../utils/appliedTracker'
@@ -661,7 +661,7 @@ function CreatorCatalog({ username, creator, appliedIdx, jobs, coverage, quickCr
       setApplyMap(m => ({ ...m, [k]: { status: 'error', done: 0, total: 1, error: file.isCollection ? 'No matching Plex collection' : 'Not in your library' } }))
       return
     }
-    const { done, appliedUrls, appliedSlots, lastError } = await applyPosters(target.key, [file], new Set([posterFileType(file)]), () => {})
+    const { done, appliedUrls, appliedSlots, lastError } = await applyPosters(target.key, [file], singleFileTypes(file), () => {})
     if (done) {
       void recordAppliedQuietly({
         itemKey: target.key, title: target.title, year: target.year, type: target.type, source: 'mediux', thumb: file.thumbUrl ?? file.url,
