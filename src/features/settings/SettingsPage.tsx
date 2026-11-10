@@ -298,6 +298,9 @@ export default function SettingsPage() {
   const [confirm, setConfirm]               = useState<'signout' | 'caches' | 'logs' | null>(null)
   const [logStatus, setLogStatus]           = useState<LogStatus | null>(null)
   const [logsCleared, setLogsCleared]       = useState(false)
+  const [logsSaved, setLogsSaved]           = useState(false)
+  const [logFilesNote, setLogFilesNote]     = useState<{ text: string; error: boolean } | null>(null)
+  const logFilesNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [cachesCleared, setCachesCleared]   = useState(false)
   const [clearingCaches, setClearingCaches] = useState(false)
   const [announcement, setAnnouncement]     = useState('')
@@ -573,7 +576,7 @@ export default function SettingsPage() {
     }
     catch (err)
     {
-      announce(`The logs could not be cleared: ${err instanceof Error ? err.message : String(err)}`)
+      showLogFilesNote(`The logs could not be cleared: ${err instanceof Error ? err.message : String(err)}`, true)
     }
   }
 
@@ -591,16 +594,27 @@ export default function SettingsPage() {
     }
   }
 
+  function showLogFilesNote(text: string, error: boolean)
+  {
+    if (logFilesNoteTimer.current) clearTimeout(logFilesNoteTimer.current)
+    setLogFilesNote({ text, error })
+    announce(text)
+    logFilesNoteTimer.current = setTimeout(() => setLogFilesNote(null), error ? 12000 : 6000)
+  }
+
   async function saveLogCopy()
   {
     try
     {
       const res = await window.api.log.exportCopy()
-      if (res.saved && res.path) announce(`Saved to ${res.path}`)
+      if (!res.saved || !res.path) return
+      setLogsSaved(true)
+      setTimeout(() => setLogsSaved(false), 2500)
+      showLogFilesNote(`Saved to ${res.path}`, false)
     }
     catch (err)
     {
-      announce(`The logs could not be saved: ${err instanceof Error ? err.message : String(err)}`)
+      showLogFilesNote(`The logs could not be saved: ${err instanceof Error ? err.message : String(err)}`, true)
     }
   }
 
@@ -1197,17 +1211,19 @@ export default function SettingsPage() {
                 </Row>
                 <Row
                   label="Log files"
-                  description={isWeb
-                    ? 'Download a copy to attach to a bug report, or clear every saved file.'
-                    : 'Open the folder, save a copy to attach to a bug report, or clear every saved file.'}
+                  description={logFilesNote
+                    ? <span className={logFilesNote.error ? styles.rowError : undefined}>{logFilesNote.text}</span>
+                    : isWeb
+                      ? 'Download a copy to attach to a bug report, or clear every saved file.'
+                      : 'Open the folder, save a copy to attach to a bug report, or clear every saved file.'}
                 >
                   {!isWeb && (
                     <Button variant="secondary" size="sm" icon={<FolderOpen size={13} />} onClick={() => void window.api.app.openLogFolder()}>
                       Open folder
                     </Button>
                   )}
-                  <Button variant="secondary" size="sm" icon={<Download size={13} />} onClick={() => void saveLogCopy()}>
-                    {isWeb ? 'Download' : 'Save a copy…'}
+                  <Button variant="secondary" size="sm" icon={logsSaved ? <CheckCircle2 size={13} /> : <Download size={13} />} onClick={() => void saveLogCopy()}>
+                    {logsSaved ? 'Saved' : isWeb ? 'Download' : 'Save a copy…'}
                   </Button>
                   <Button variant="destructive" size="sm" icon={logsCleared ? <CheckCircle2 size={13} /> : <Trash2 size={13} />} onClick={() => setConfirm('logs')}>
                     {logsCleared ? 'Cleared' : 'Clear logs'}

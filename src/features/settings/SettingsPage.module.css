@@ -173,6 +173,10 @@
   max-width: 75ch;
 }
 
+.rowError {
+  color: var(--color-accent-error);
+}
+
 .rowControl {
   display: flex;
   align-items: center;

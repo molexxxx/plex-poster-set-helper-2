@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  AppWindow, CheckCircle2, ChevronDown, ClipboardList, Copy, Download, FolderOpen, Maximize2, Search, Trash2, X,
+  AlertTriangle, AppWindow, CheckCircle2, ChevronDown, ClipboardList, Copy, Download, FolderOpen, Maximize2, Search, Trash2, X,
 } from 'lucide-react'
 import Segmented from '../../components/ui/Segmented'
 import Select from '../../components/ui/Select'
@@ -20,6 +20,11 @@ import styles from './LogViewer.module.css'
 const PAGE = 1000
 const MAX_ROWS = 20000
 const NEAR_BOTTOM = 40
+const NOTICE_MS = 5000
+const NOTICE_LONG_MS = 12000
+
+/** done confirms an action; warn confirms one the user should follow up on; error reports a failure. */
+type NoticeTone = 'done' | 'warn' | 'error'
 
 const SEVERITY_OPTIONS: Array<{ value: Severity; label: string }> = [
   { value: 'all', label: 'All' },
@@ -63,7 +68,9 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
   const [copied, setCopied] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const [announcement, setAnnouncement] = useState('')
+  const [notice, setNotice] = useState<{ text: string; tone: NoticeTone } | null>(null)
   const [isWeb, setIsWeb] = useState(false)
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const dayLabelId = useId()
   const nextId = useRef(1)
@@ -95,6 +102,24 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
   const refreshStatus = useCallback(() =>
   {
     window.api.log.status().then(setStatus).catch(() => { /* the day picker keeps its last list */ })
+  }, [])
+
+  const notify = useCallback((text: string, tone: NoticeTone = 'done') =>
+  {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current)
+    setNotice({ text, tone })
+    noticeTimer.current = setTimeout(() => setNotice(null), tone === 'done' ? NOTICE_MS : NOTICE_LONG_MS)
+  }, [])
+
+  function dismissNotice()
+  {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current)
+    setNotice(null)
+  }
+
+  useEffect(() => () =>
+  {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current)
   }, [])
 
   useEffect(() =>
@@ -227,7 +252,7 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
     }
     catch (err)
     {
-      announce(`Earlier lines could not be loaded: ${errorText(err)}`)
+      notify(`Earlier lines could not be loaded: ${errorText(err)}`, 'error')
     }
     finally
     {
@@ -240,7 +265,7 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
     const ok = await copyText(visible.map(formatLogLine).join('\n'))
     if (!ok)
     {
-      announce('Copying was blocked by the browser')
+      notify('Copying was blocked by the browser. Select the lines and press Ctrl+C instead.', 'error')
       return
     }
     setCopied(true)
@@ -253,11 +278,12 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
     try
     {
       const ok = await copyText(await window.api.log.diagnostics())
-      announce(ok ? 'Diagnostics copied. Read them over before posting them publicly.' : 'Copying was blocked by the browser')
+      if (ok) notify('Diagnostics copied. Check them before posting publicly: error lines can include your Plex server address and folder paths.', 'warn')
+      else notify('Copying was blocked by the browser.', 'error')
     }
     catch (err)
     {
-      announce(`Diagnostics could not be read: ${errorText(err)}`)
+      notify(`Diagnostics could not be read: ${errorText(err)}`, 'error')
     }
   }
 
@@ -266,11 +292,11 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
     try
     {
       const res = await window.api.log.exportCopy(day === 'latest' ? undefined : { day })
-      if (res.saved && res.path) announce(`Saved to ${res.path}`)
+      if (res.saved && res.path) notify(`Saved to ${res.path}`)
     }
     catch (err)
     {
-      announce(`The logs could not be saved: ${errorText(err)}`)
+      notify(`The logs could not be saved: ${errorText(err)}`, 'error')
     }
   }
 
@@ -280,14 +306,14 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
     try
     {
       await window.api.log.clear()
-      announce('Logs cleared')
+      notify('Logs cleared')
       if (day !== 'latest') setDay('latest')
       reload()
       if (pickDays) refreshStatus()
     }
     catch (err)
     {
-      announce(`The logs could not be cleared: ${errorText(err)}`)
+      notify(`The logs could not be cleared: ${errorText(err)}`, 'error')
     }
   }
 
@@ -454,6 +480,20 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
                 </div>
               )
             })
+          )}
+        </div>
+
+        <div className={styles.noticeSlot} role="status" aria-live="polite">
+          {notice && (
+            <div className={styles.notice} data-tone={notice.tone}>
+              {notice.tone === 'done'
+                ? <CheckCircle2 size={14} aria-hidden />
+                : <AlertTriangle size={14} aria-hidden />}
+              <span className={styles.noticeText}>{notice.text}</span>
+              <button type="button" className={styles.noticeClose} onClick={dismissNotice} aria-label="Dismiss">
+                <X size={12} aria-hidden />
+              </button>
+            </div>
           )}
         </div>
 
