@@ -20,6 +20,7 @@ import type {
   BrowserSource, NavDockMode, SchedulerEngineStatus, AnimeListStatus,
 } from '../../../electron/ipc/types'
 import styles from './SettingsPage.module.css'
+import { copyText } from '../../utils/clipboard'
 
 type GroupId = 'plex' | 'artwork' | 'app' | 'advanced'
 
@@ -556,7 +557,7 @@ export default function SettingsPage() {
   async function copyPath() {
     if (!browserStatus?.executablePath) return
     try {
-      await navigator.clipboard.writeText(browserStatus.executablePath)
+      if (!(await copyText(browserStatus.executablePath))) return
       setCopiedPath(true)
       announce('Path copied')
       setTimeout(() => setCopiedPath(false), 1800)
@@ -719,7 +720,7 @@ export default function SettingsPage() {
                           variant="secondary" size="sm"
                           icon={copiedAuth ? <CheckCircle2 size={13} /> : <Copy size={13} />}
                           onClick={async () => {
-                            try { await navigator.clipboard.writeText(authStatus.authUrl!); setCopiedAuth(true); setTimeout(() => setCopiedAuth(false), 1800) } catch { /* clipboard may be blocked */ }
+                            try { if (!(await copyText(authStatus.authUrl!))) return; setCopiedAuth(true); setTimeout(() => setCopiedAuth(false), 1800) } catch { /* clipboard may be blocked */ }
                           }}
                         >
                           {copiedAuth ? 'Copied' : 'Copy link'}

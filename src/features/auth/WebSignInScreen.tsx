@@ -3,6 +3,7 @@ import { LogIn, Copy, ExternalLink, CheckCircle2, AlertCircle } from 'lucide-rea
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import type { PlexAuthStatus } from '../../../electron/ipc/types'
+import { copyText } from '../../utils/clipboard'
 import styles from './WebSignInScreen.module.css'
 
 interface Props {
@@ -93,7 +94,7 @@ export default function WebSignInScreen({ onAuthorized }: Props) {
                     className={styles.authCopyBtn}
                     onClick={async () => {
                       try {
-                        await navigator.clipboard.writeText(status.authUrl!)
+                        if (!(await copyText(status.authUrl!))) return
                         setCopied(true)
                         setTimeout(() => setCopied(false), 1800)
                       } catch { /* clipboard may be blocked */ }

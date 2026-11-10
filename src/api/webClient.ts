@@ -1,4 +1,5 @@
 import type { Api } from '../../electron/preload'
+import { copyText } from '../utils/clipboard'
 import type {
   AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress,
   AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AnimeListStatus, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState,
@@ -177,7 +178,7 @@ export function createWebClient(): Api {
       updateAnimeList: (): Promise<AnimeListStatus> => apiFetch('/api/app/anime-list/update', { method: 'POST' }),
       openLogFolder: async () => {
         const res = await apiFetch<{ path: string }>('/api/app/log-path')
-        await navigator.clipboard.writeText(res.path).catch(() => {})
+        await copyText(res.path)
         return res.path
       },
       onUpdateAvailable: (cb: (info: UpdateInfo) => void) =>

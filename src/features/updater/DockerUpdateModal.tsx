@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Copy, Check, Container, Boxes, Terminal } from 'lucide-react'
 import Modal from '../../components/ui/Modal'
+import { copyText } from '../../utils/clipboard'
 import styles from './DockerUpdateModal.module.css'
 
 const GUIDE_URL = 'https://github.com/molexxxx/plex-poster-set-helper-2/blob/main/docker/README.md#updating-to-a-new-version'
@@ -31,7 +32,7 @@ function CmdBlock({ lines }: { lines: string[] }) {
   const [copied, setCopied] = useState(false)
   async function copy() {
     try {
-      await navigator.clipboard.writeText(lines.join('\n'))
+      if (!(await copyText(lines.join('\n')))) return
       setCopied(true)
       setTimeout(() => setCopied(false), 1600)
     } catch { /* clipboard blocked on http - the text stays selectable */ }

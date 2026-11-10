@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, AlertCircle, KeyRound, ExternalLink, ArrowRight, Copy, RotateCcw, Globe } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import type { BrowserInstallError, BrowserInstallState, BrowserStatus, SystemBrowser } from '../../../electron/ipc/types'
+import { copyText } from '../../utils/clipboard'
 import styles from './SetupScreen.module.css'
 
 interface Props
@@ -205,7 +206,7 @@ export default function SetupScreen({ onComplete }: Props)
     if (!error?.command) return
     try
     {
-      await navigator.clipboard.writeText(error.command)
+      if (!(await copyText(error.command))) return
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     }
