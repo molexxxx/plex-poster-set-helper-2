@@ -4,6 +4,31 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.16.0
+
+### Logs that survive a restart
+The log drawer used to show only the last 600 lines from the current launch. Quitting, an update restart, or a container restart emptied it, and a long overnight run did not fit even without one. The files on disk rotated by size, so nobody could tell how many days they held, and nothing in the app read them.
+
+- Logs are saved one file per day and kept for **14 days** by default. **Settings → Advanced → Logs and cached data** offers 1, 3, 7, 14, 30, or 90 days and shows how far back they go and how much space they use. They never grow past 100 MB in all; the oldest day goes first.
+- The drawer reads that history, with a heading for each day, a divider where each launch begins, and **Load earlier lines** at the top. It still follows new lines while you're at the bottom.
+- Every line used to appear twice in the drawer, the second copy without a time. Each line now shows once.
+- Plex tokens and API keys in URLs are blanked before anything is written.
+
+### Finding and sharing what went wrong
+- **All**, **Warnings and errors**, and **Errors** replace the seven level buttons, and a search field (Ctrl+F while the logs have focus) finds text in any line.
+- Lines can be selected and copied. **Copy** copies the lines shown, and **Copy diagnostics** copies the app version, runtime, and the newest warnings and errors for a bug report.
+- **Save a copy** on desktop and **Download logs** in Docker save the logs as a text file.
+- Upload lines name the title ("Upload to "Severance (2022)" failed") instead of a Plex ID.
+- **Clear logs** asks first and removes every log file, not only the newest.
+
+### A full Logs page and a log window
+- The expand button in the drawer, or **Open the Logs page** in the command palette, opens a full-height view with a day picker.
+- **Open in new window** puts the logs in a window of their own on desktop, which reopens where you left it, or in a new browser tab in Docker.
+- The drawer is easier to read and use: higher-contrast text, plain level names (JOB for scheduled runs, DETAIL for site reads), a height capped at 60% of the window and saved per browser, resizing from the keyboard, Escape to close, and no motion when reduced motion is on.
+
+### Copy buttons in the Docker web page
+Copy buttons in the Docker web page did nothing when it was opened over plain HTTP, which is the usual setup: the sign-in link, the commands in the update dialog, the setup command, and the browser path. They now copy.
+
 ## What's new in v2.15.1
 
 ### Anime list updates in Settings
