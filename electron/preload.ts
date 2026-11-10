@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AnimeListStatus, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk, LinkedSetsReq, LinkedSetsRes, LinkSetReq, UnlinkSetReq } from './ipc/types'
+import type { AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress, AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AnimeListStatus, LogHistoryReq, LogHistoryPage, LogStatus, LogExportRes, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState, SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq, CurrentArtReq, UserSetsChunk, LinkedSetsReq, LinkedSetsRes, LinkSetReq, UnlinkSetReq } from './ipc/types'
 
 /** Typed IPC bridge exposed to the renderer as window.api. */
 const api = {
@@ -175,8 +175,12 @@ const api = {
   },
 
   log: {
-    getHistory: (): Promise<LogEntry[]> => ipcRenderer.invoke('log:getHistory'),
+    getHistory: (req?: LogHistoryReq): Promise<LogHistoryPage> => ipcRenderer.invoke('log:getHistory', req),
+    status: (): Promise<LogStatus> => ipcRenderer.invoke('log:status'),
     clear: (): Promise<void> => ipcRenderer.invoke('log:clear'),
+    diagnostics: (): Promise<string> => ipcRenderer.invoke('log:diagnostics'),
+    exportCopy: (req?: { day?: string }): Promise<LogExportRes> => ipcRenderer.invoke('log:export', req),
+    openWindow: (): Promise<void> => ipcRenderer.invoke('log:openWindow'),
     onEntry: (cb: (entry: LogEntry) => void) =>
     {
       const handler = (_: unknown, data: LogEntry) => cb(data)

@@ -14,13 +14,14 @@ import { useUpdater } from '../updater/UpdaterContext'
 import DockerUpdateModal from '../updater/DockerUpdateModal'
 import { useNavStore } from '../../app/navStore'
 import { DEFAULT_QUICK_CRON, QUICK_SCHEDULES, describeCron } from '../../../electron/services/scheduleUtils'
+import { DEFAULT_LOG_RETENTION_DAYS, LOG_MAX_BYTES, LOG_RETENTION_OPTIONS, formatBytes } from '../../../electron/services/logFormat'
 import { useAppContext } from '../../app/AppContext'
 import type {
   AppConfig, AppEnv, Library, PlexAuthStatus, BrowserStatus, BrowserActionResult, BrowserInstallError,
-  BrowserSource, NavDockMode, SchedulerEngineStatus, AnimeListStatus,
+  BrowserSource, NavDockMode, SchedulerEngineStatus, AnimeListStatus, LogStatus,
 } from '../../../electron/ipc/types'
-import styles from './SettingsPage.module.css'
 import { copyText } from '../../utils/clipboard'
+import styles from './SettingsPage.module.css'
 
 type GroupId = 'plex' | 'artwork' | 'app' | 'advanced'
 
@@ -56,6 +57,24 @@ const WORKER_OPTIONS = Array.from({ length: 8 }, (_, i) => {
   const n = i + 1
   return { value: String(n), label: n === 1 ? '1 (gentlest)' : n === 8 ? '8 (fastest)' : String(n) }
 })
+
+const RETENTION_OPTIONS = LOG_RETENTION_OPTIONS.map(n => ({ value: String(n), label: n === 1 ? '1 day' : `${n} days` }))
+
+/**
+ * Describes the log retention row: how logs are kept and what is on disk now.
+ *
+ * @param status - The saved log files, or null while they load.
+ * @returns The row description.
+ */
+function logRetentionText(status: LogStatus | null): string
+{
+  const lead = `Saved one file per day, up to ${formatBytes(LOG_MAX_BYTES)} in all. Older days are deleted automatically.`
+  if (!status) return lead
+  if (!status.days.length) return `${lead} Nothing is saved yet.`
+  const [y, m, d] = status.days[status.days.length - 1].day.split('-').map(Number)
+  const since = new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return `${lead} Kept since ${since}, ${formatBytes(status.totalBytes)} now.`
+}
 
 const ASSET_TYPES = [
   { type: 'poster',     name: 'Posters',     desc: 'Movie, show, season, and collection covers' },
@@ -276,7 +295,8 @@ export default function SettingsPage() {
   const [autoStart, setAutoStart] = useState(false)
   const [engine, setEngine]       = useState<SchedulerEngineStatus>({ external: false })
 
-  const [confirm, setConfirm]               = useState<'signout' | 'caches' | null>(null)
+  const [confirm, setConfirm]               = useState<'signout' | 'caches' | 'logs' | null>(null)
+  const [logStatus, setLogStatus]           = useState<LogStatus | null>(null)
   const [logsCleared, setLogsCleared]       = useState(false)
   const [cachesCleared, setCachesCleared]   = useState(false)
   const [clearingCaches, setClearingCaches] = useState(false)
@@ -366,6 +386,21 @@ export default function SettingsPage() {
     window.api.app.animeListStatus()
       .then(status => { if (live) setAnimeList(status) })
       .catch(() => { if (live) setAnimeList(null) })
+    return () => { live = false }
+  }, [group])
+
+  const loadLogStatus = useCallback(() =>
+  {
+    window.api.log.status().then(setLogStatus).catch(() => { /* the row keeps its last status */ })
+  }, [])
+
+  useEffect(() =>
+  {
+    if (group !== 'advanced') return
+    let live = true
+    window.api.log.status()
+      .then(status => { if (live) setLogStatus(status) })
+      .catch(() => { /* the row keeps its last status */ })
     return () => { live = false }
   }, [group])
 
@@ -525,11 +560,48 @@ export default function SettingsPage() {
     }
   }
 
-  async function clearLogs() {
-    await window.api.log.clear()
-    setLogsCleared(true)
-    announce('Logs cleared')
-    setTimeout(() => setLogsCleared(false), 2500)
+  async function clearLogs()
+  {
+    setConfirm(null)
+    try
+    {
+      await window.api.log.clear()
+      setLogsCleared(true)
+      announce('Logs cleared')
+      setTimeout(() => setLogsCleared(false), 2500)
+      loadLogStatus()
+    }
+    catch (err)
+    {
+      announce(`The logs could not be cleared: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  async function setLogRetention(days: number)
+  {
+    setCfg(prev => prev ? { ...prev, logRetentionDays: days } : prev)
+    try
+    {
+      await window.api.config.set({ logRetentionDays: days })
+      loadLogStatus()
+    }
+    catch
+    {
+      /* the next status read shows what was kept */
+    }
+  }
+
+  async function saveLogCopy()
+  {
+    try
+    {
+      const res = await window.api.log.exportCopy()
+      if (res.saved && res.path) announce(`Saved to ${res.path}`)
+    }
+    catch (err)
+    {
+      announce(`The logs could not be saved: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   async function clearCaches() {
@@ -1111,11 +1183,33 @@ export default function SettingsPage() {
               </Block>
 
               <Block title="Logs and cached data" anchor="logs">
-                <Row label="Log files" description="Logs rotate at 10 MB and keep the 3 most recent files.">
-                  <Button variant="secondary" size="sm" icon={<FolderOpen size={13} />} onClick={() => void window.api.app.openLogFolder()}>
-                    {isWeb ? 'Copy log path' : 'Open folder'}
+                <Row label="Keep logs for" description={logRetentionText(logStatus)}>
+                  {({ labelId, descId }) => (
+                    <div className={styles.selectWrap} aria-describedby={descId}>
+                      <Select
+                        options={RETENTION_OPTIONS}
+                        value={String(cfg.logRetentionDays ?? DEFAULT_LOG_RETENTION_DAYS)}
+                        onChange={v => void setLogRetention(Number(v))}
+                        ariaLabelledBy={labelId}
+                      />
+                    </div>
+                  )}
+                </Row>
+                <Row
+                  label="Log files"
+                  description={isWeb
+                    ? 'Download a copy to attach to a bug report, or clear every saved file.'
+                    : 'Open the folder, save a copy to attach to a bug report, or clear every saved file.'}
+                >
+                  {!isWeb && (
+                    <Button variant="secondary" size="sm" icon={<FolderOpen size={13} />} onClick={() => void window.api.app.openLogFolder()}>
+                      Open folder
+                    </Button>
+                  )}
+                  <Button variant="secondary" size="sm" icon={<Download size={13} />} onClick={() => void saveLogCopy()}>
+                    {isWeb ? 'Download' : 'Save a copy…'}
                   </Button>
-                  <Button variant="destructive" size="sm" icon={logsCleared ? <CheckCircle2 size={13} /> : <Trash2 size={13} />} onClick={clearLogs}>
+                  <Button variant="destructive" size="sm" icon={logsCleared ? <CheckCircle2 size={13} /> : <Trash2 size={13} />} onClick={() => setConfirm('logs')}>
                     {logsCleared ? 'Cleared' : 'Clear logs'}
                   </Button>
                 </Row>
@@ -1144,6 +1238,14 @@ export default function SettingsPage() {
         body="The app stops reading your libraries and applying art until you sign in again, and scheduled jobs cannot apply art in the meantime. Your library choices, schedules, and history are kept."
         confirmLabel="Sign out"
         onConfirm={() => void signOut()}
+        onCancel={() => setConfirm(null)}
+      />
+      <ConfirmDialog
+        open={confirm === 'logs'}
+        title="Clear all logs?"
+        body={`Every saved log file is deleted${logStatus ? `, ${formatBytes(logStatus.totalBytes)} in all` : ''}. Logs are what a bug report needs, so save a copy first if something went wrong.`}
+        confirmLabel="Clear logs"
+        onConfirm={() => void clearLogs()}
         onCancel={() => setConfirm(null)}
       />
       <ConfirmDialog

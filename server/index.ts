@@ -54,7 +54,7 @@ function requireAuth(req: FastifyRequest, reply: FastifyReply): boolean {
 
 export async function startServer() {
   await ConfigService.init()
-  Logger.init(null)
+  Logger.init({ retentionDays: ConfigService.get().logRetentionDays })
   PlaywrightService.setupEnv()
   SchedulerService.init(null)
   SchedulerService.startEngineHeartbeat()
@@ -326,7 +326,19 @@ export async function startServer() {
     handlers.browser.useExecutable(((req.body ?? {}) as { path?: string | null }).path ?? null))
 
   // Log
-  app.get('/api/log/history', async () => handlers.log.getHistory())
+  app.get('/api/log/history', async (req) => {
+    const q = req.query as { day?: string; cursor?: string; limit?: string }
+    return handlers.log.getHistory({ day: q.day, cursor: q.cursor, limit: q.limit ? Number(q.limit) : undefined })
+  })
+  app.get('/api/log/status', async () => handlers.log.status())
+  app.get('/api/log/diagnostics', async (_req, reply) => reply.type('text/plain; charset=utf-8').send(handlers.log.diagnostics()))
+  app.get('/api/log/export', async (req, reply) => {
+    const q = req.query as { day?: string }
+    return reply
+      .type('text/plain; charset=utf-8')
+      .header('Content-Disposition', `attachment; filename="${Logger.exportFileName(q.day)}"`)
+      .send(Logger.exportText(q.day))
+  })
   app.post('/api/log/clear', async () => { handlers.log.clear(); return { ok: true } })
 
   // Static files

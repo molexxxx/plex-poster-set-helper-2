@@ -149,12 +149,14 @@ export interface AppConfig {
   scraperBatchDelay: number
   scraperPageWaitMin: number
   scraperPageWaitMax: number
-  logAppend: boolean
   clientIdentifier: string
   plexAccountName?: string
   plexAccountEmail?: string
   plexAccountThumb?: string
-  logDrawerHeight: number
+  /** Days of log files to keep (default 14). */
+  logRetentionDays?: number
+  /** Where the pop-out log window last sat on screen. */
+  logWindowBounds?: { x: number; y: number; width: number; height: number }
   /** Library Browser Sets panel width in pixels. */
   libraryPanelWidth?: number
   /** Friendly name of the connected Plex server. */
@@ -243,6 +245,42 @@ export interface LogEntry {
   module: string
   message: string
   meta?: Record<string, unknown>
+  /** Set on the first line a process writes, so viewers can show where each launch begins. */
+  marker?: 'start'
+}
+
+/** Which saved log lines to read. */
+export interface LogHistoryReq {
+  /** One day (YYYY-MM-DD, the app's local date); omitted reads the newest lines across days. */
+  day?: string
+  /** Read the lines before this position, from a previous page's `cursor`. */
+  cursor?: string
+  /** Most lines to return (default 1000, at most 5000). */
+  limit?: number
+}
+
+/** A page of saved log lines, oldest first. */
+export interface LogHistoryPage {
+  entries: LogEntry[]
+  /** Pass back as `cursor` to read the lines before these; absent when there are none. */
+  cursor?: string
+}
+
+/** The saved log files and the limits they are kept to. */
+export interface LogStatus {
+  /** Kept days, newest first, with the size of each day's file in bytes. */
+  days: Array<{ day: string; bytes: number }>
+  /** Size of every log file, older-format files included. */
+  totalBytes: number
+  retentionDays: number
+  /** Total size the files are trimmed to, oldest day first. */
+  maxBytes: number
+}
+
+/** Outcome of saving a copy of the logs. */
+export interface LogExportRes {
+  saved: boolean
+  path?: string
 }
 
 export interface UpdateInfo {
@@ -849,8 +887,12 @@ export type IpcChannels = {
   'app:updateAvailable': { event: UpdateInfo }
   'app:downloadProgress': { event: UpdateProgress }
   'app:updateReady': { event: void }
-  'log:getHistory': { req: void; res: LogEntry[] }
+  'log:getHistory': { req: LogHistoryReq | undefined; res: LogHistoryPage }
+  'log:status': { req: void; res: LogStatus }
   'log:clear': { req: void; res: void }
+  'log:diagnostics': { req: void; res: string }
+  'log:export': { req: { day?: string } | undefined; res: LogExportRes }
+  'log:openWindow': { req: void; res: void }
   'log:stream': { event: LogEntry }
   'scrape:progress': { event: ScrapeProgress }
   'auth:statusChange': { event: PlexAuthStatus }

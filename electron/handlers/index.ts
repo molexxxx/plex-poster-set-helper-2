@@ -21,7 +21,7 @@ import type {
   UserSetsSnapshot, CollectionsReq, CollectionSetsReq,
   CreatorSearchReq, MediuxUserSet, AppEnv, UpdateInfo,
   CurrentArtReq, ClearCachesRes, AppliedRecord, PosterSetSummary,
-  LinkedSetsReq, LinkSetReq, UnlinkSetReq, AnimeListStatus,
+  LinkedSetsReq, LinkSetReq, UnlinkSetReq, AnimeListStatus, LogHistoryReq,
 } from '../ipc/types'
 import { mergeAppliedRecords } from '../services/scheduleUtils'
 import { browseOutcome, type SourceResult } from '../services/browseSets'
@@ -254,7 +254,10 @@ export const handlers = {
 
   config: {
     get: () => ConfigService.get(),
-    set: (partial: Parameters<typeof ConfigService.set>[0]) => ConfigService.set(partial),
+    set: (partial: Parameters<typeof ConfigService.set>[0]) => {
+      ConfigService.set(partial)
+      if (partial && 'logRetentionDays' in partial) Logger.setRetention(partial.logRetentionDays)
+    },
   },
 
   bulk: {
@@ -418,7 +421,9 @@ export const handlers = {
   },
 
   log: {
-    getHistory: () => Logger.getHistory(),
+    getHistory: (req?: LogHistoryReq) => Logger.history(req ?? {}),
+    status: () => Logger.status(),
     clear: () => Logger.clear(),
+    diagnostics: () => Logger.diagnostics(),
   },
 }

@@ -74,7 +74,7 @@ const SETTINGS_ITEMS: Array<{ anchor: string; label: string; keywords: string; i
   { anchor: 'browser',        label: 'Browser engine (Chromium)',      keywords: 'browser chromium playwright install engine chrome edge', icon: <Globe size={16} /> },
   { anchor: 'general',        label: 'Window - dock, tray, launch at login', keywords: 'navigation dock status bar floating small screen tray notification launch login startup general', icon: <Wrench size={16} /> },
   { anchor: 'application',    label: 'Version and updates',            keywords: 'version update application about', icon: <Package size={16} /> },
-  { anchor: 'logs',           label: 'Logs and cached data',           keywords: 'logs clear cache cached data folder', icon: <FolderOpen size={16} /> },
+  { anchor: 'logs',           label: 'Logs and cached data',           keywords: 'logs clear cache cached data folder retention keep days history', icon: <FolderOpen size={16} /> },
   { anchor: 'legacy',         label: 'Show legacy tools',              keywords: 'legacy manual import scrape bulk title mappings older tools navigation', icon: <Wrench size={16} /> },
 ]
 
@@ -208,6 +208,8 @@ export default function CommandPalette({ open, onClose, onNavigate, onToggleLogs
 
     // Quick actions
     list.push({ id: 'act:logs', group: 'Quick action', defaultVisible: true, label: 'Toggle Logs', keywords: 'logs console output drawer', icon: <ScrollText size={16} />, run: () => { onToggleLogs(); onClose() } })
+    list.push({ id: 'act:logspage', group: 'Quick action', label: 'Open the Logs page', keywords: 'logs full page history days search errors', icon: <ScrollText size={16} />, run: () => { onNavigate('logs'); onClose() } })
+    list.push({ id: 'act:logswindow', group: 'Quick action', label: 'Open Logs in a new window', keywords: 'logs pop out popout window tab second monitor', icon: <ScrollText size={16} />, run: () => { void window.api.log.openWindow(); onClose() } })
     if (!plexConnected) {
       list.push({ id: 'act:connect', group: 'Quick action', defaultVisible: true, label: 'Connect to Plex', keywords: 'plex sign in auth login server connect', icon: <PlugZap size={16} />, run: () => { useNavStore.getState().goSettings('plex-account'); onNavigate('settings'); onClose() } })
     }

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Tray, Menu, Notification, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Tray, Menu, Notification, dialog, screen } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import path from 'path'
 import fs from 'fs'
@@ -27,6 +27,8 @@ import { CreatorSetsService } from './services/creatorSetsService'
 const isDev = !app.isPackaged && process.env.PLEX_HELPER_PROD !== '1'
 
 let mainWindow: BrowserWindow | null = null
+let logWindow: BrowserWindow | null = null
+let windowIconPath: string | undefined
 let tray: Tray | null = null
 let forceQuit = false
 let trayAvailable = false
@@ -191,6 +193,7 @@ function hideToTray(appIconPath: string) {
  * @returns The created window.
  */
 function createWindow(appIconPath: string) {
+  windowIconPath = appIconPath
   const launchedAtLogin = app.getLoginItemSettings().wasOpenedAtLogin
   const startHidden = launchedAtLogin && trayAvailable
 
@@ -302,6 +305,62 @@ function createWindow(appIconPath: string) {
   return mainWindow
 }
 
+/**
+ * Opens the pop-out log window, or brings it forward when it is already open.
+ * It loads the renderer at #logs-window and reopens where it last sat, as long
+ * as that spot is still on a connected display.
+ */
+function openLogWindow()
+{
+  if (logWindow && !logWindow.isDestroyed())
+  {
+    if (logWindow.isMinimized()) logWindow.restore()
+    logWindow.show()
+    logWindow.focus()
+    return
+  }
+  const saved = ConfigService.get().logWindowBounds
+  const onScreen = !!saved && screen.getAllDisplays().some(d =>
+  {
+    const a = d.workArea
+    return saved.x < a.x + a.width && saved.x + saved.width > a.x && saved.y >= a.y && saved.y < a.y + a.height
+  })
+  const win = new BrowserWindow({
+    width: saved?.width ?? 1100,
+    height: saved?.height ?? 720,
+    ...(onScreen && saved ? { x: saved.x, y: saved.y } : {}),
+    minWidth: 560,
+    minHeight: 360,
+    title: 'Logs - Plex Poster Set Helper 2',
+    backgroundColor: '#0d0f14',
+    show: false,
+    autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
+    titleBarOverlay: { color: '#13161d', symbolColor: '#8b93b0', height: 36 },
+    icon: windowIconPath,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      spellcheck: false,
+    },
+  })
+  logWindow = win
+  if (isDev) win.loadURL('http://localhost:5173/#logs-window')
+  else win.loadFile(resolveIndexHtml(), { hash: 'logs-window' })
+  win.once('ready-to-show', () => win.show())
+  win.webContents.once('did-finish-load', () =>
+  {
+    if (!win.isDestroyed() && !win.isVisible()) win.show()
+  })
+  win.on('close', () => ConfigService.set({ logWindowBounds: win.getNormalBounds() }))
+  win.on('closed', () =>
+  {
+    if (logWindow === win) logWindow = null
+  })
+}
+
 /** Initialises scheduler and the Playwright environment (call after createWindow + IPC). */
 async function initServices() {
   PlaywrightService.setupEnv()
@@ -340,7 +399,7 @@ function registerIpcHandlers() {
   registerBulkHandlers(ipcMain)
   registerAuthHandlers(ipcMain, mainWindow!)
   registerAppHandlers(ipcMain)
-  registerLogHandlers(ipcMain)
+  registerLogHandlers(ipcMain, openLogWindow)
   registerSchedulerHandlers(ipcMain)
   registerBrowserHandlers(ipcMain)
   registerLibraryHandlers(ipcMain, mainWindow!)
@@ -367,7 +426,16 @@ app.whenReady().then(async () => {
 
     createWindow(appIcon)
     bootLog('window created')
-    Logger.init(mainWindow)
+    Logger.init({
+      retentionDays: ConfigService.get().logRetentionDays,
+      broadcast: entry =>
+      {
+        for (const win of BrowserWindow.getAllWindows())
+        {
+          if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send('log:stream', entry)
+        }
+      },
+    })
     registerIpcHandlers()
     if (mainWindow) {
       wireSchedulerEvents(mainWindow)

@@ -87,7 +87,7 @@ body:
     attributes:
       label: Log lines
       description: |
-        Paste the relevant lines from the log drawer or `app.log`. **Open Log Folder** in the command palette (Ctrl+F) opens the folder on desktop. In Docker, use `docker logs plex-poster-helper-2` or `/config/app/logs/app.log`.
+        Choose **Copy diagnostics** in the log menu (the **...** button in the log drawer) and paste it here, then add the relevant lines. Select lines in the drawer to copy them, or use **Copy** for everything shown. Logs are saved one file per day as `app-YYYY-MM-DD.log`: **Save a copy** (desktop) or **Download logs** (Docker) in the same menu gives you a file to attach. In Docker they are also in `docker logs plex-poster-helper-2` and `/config/app/logs/`.
       render: text
 
   - type: textarea

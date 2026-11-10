@@ -2,7 +2,7 @@ import type { Api } from '../../electron/preload'
 import { copyText } from '../utils/clipboard'
 import type {
   AppConfig, ScrapeProgress, LogEntry, PlexAuthStatus, UpdateInfo, UpdateProgress,
-  AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AnimeListStatus, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState,
+  AppEnv, ScheduledJob, SchedulerEngineStatus, CronPreview, ClearCachesRes, AnimeListStatus, LogHistoryReq, LogHistoryPage, LogStatus, LogExportRes, AppliedRecord, BrowserStatus, BrowserActionResult, BrowserInstallState,
   SectionItemsReq, BrowseSetsReq, UserSetsReq, CreatorSearchReq, CollectionsReq, CollectionSetsReq,
   CurrentArtReq, CurrentArtRes, UserSetsChunk, LinkedSetsReq, LinkedSetsRes, LinkSetReq, UnlinkSetReq,
 } from '../../electron/ipc/types'
@@ -236,8 +236,31 @@ export function createWebClient(): Api {
     },
 
     log: {
-      getHistory: (): Promise<LogEntry[]> => apiFetch('/api/log/history'),
+      getHistory: (req?: LogHistoryReq): Promise<LogHistoryPage> => {
+        const q = new URLSearchParams()
+        if (req?.day) q.set('day', req.day)
+        if (req?.cursor) q.set('cursor', req.cursor)
+        if (req?.limit) q.set('limit', String(req.limit))
+        const qs = q.toString()
+        return apiFetch(`/api/log/history${qs ? `?${qs}` : ''}`)
+      },
+      status: (): Promise<LogStatus> => apiFetch('/api/log/status'),
       clear: () => apiFetch('/api/log/clear', { method: 'POST' }),
+      diagnostics: async (): Promise<string> => {
+        const res = await fetch('/api/log/diagnostics', { credentials: 'include' })
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`)
+        return res.text()
+      },
+      exportCopy: async (req?: { day?: string }): Promise<LogExportRes> => {
+        const link = document.createElement('a')
+        link.href = `/api/log/export${req?.day ? `?day=${encodeURIComponent(req.day)}` : ''}`
+        link.download = ''
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        return { saved: true }
+      },
+      openWindow: async () => { window.open('/#logs-window', '_blank', 'noopener') },
       onEntry: (cb: (entry: LogEntry) => void) =>
         onSse('log:stream', (_, data) => cb(data as LogEntry)),
     },

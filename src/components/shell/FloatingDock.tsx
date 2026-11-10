@@ -11,11 +11,13 @@ interface DockButtonProps {
   label: string
   /** This item owns the current section/state (amber glyph, lit backplate, dot). */
   active?: boolean
+  /** Set for a button that opens and closes a panel instead of going to a page. */
+  expanded?: boolean
   onClick: () => void
 }
 
 /** A fixed dock tile. Hover/active states are pure fades - no movement, scale, or sliding. */
-function DockButton({ icon, label, active, onClick }: DockButtonProps) {
+function DockButton({ icon, label, active, expanded, onClick }: DockButtonProps) {
   const [showLabel, setShowLabel] = useState(false)
   return (
     <button
@@ -25,7 +27,8 @@ function DockButton({ icon, label, active, onClick }: DockButtonProps) {
       onMouseEnter={() => setShowLabel(true)}
       onMouseLeave={() => setShowLabel(false)}
       aria-label={label}
-      aria-current={active ? 'page' : undefined}
+      aria-expanded={expanded}
+      aria-current={active && expanded === undefined ? 'page' : undefined}
       onFocus={() => setShowLabel(true)}
       onBlur={() => setShowLabel(false)}
     >
@@ -90,7 +93,8 @@ export default function FloatingDock({ activeTab, logOpen, onNavigate, onToggleL
         <DockButton
           icon={<ScrollText size={iconSize} />}
           label="Logs"
-          active={logOpen}
+          active={logOpen || activeTab === 'logs'}
+          expanded={activeTab === 'logs' ? undefined : logOpen}
           onClick={onToggleLogs}
         />
         <DockButton

@@ -13,6 +13,7 @@ import SchedulerPage from '../features/scheduler/SchedulerPage'
 import MappingsPage from '../features/mappings/MappingsPage'
 import ResetPage from '../features/reset/ResetPage'
 import SettingsPage from '../features/settings/SettingsPage'
+import LogsPage from '../features/logs/LogsPage'
 import SetupScreen from '../features/setup/SetupScreen'
 import WebSignInScreen from '../features/auth/WebSignInScreen'
 import { UpdaterProvider } from '../features/updater/UpdaterContext'
@@ -22,7 +23,7 @@ import { AppContext } from './AppContext'
 import styles from './App.module.css'
 import type { AppConfig, NavDockMode } from '../../electron/ipc/types'
 
-export type NavTab = 'library' | 'scheduler' | 'mappings' | 'manual' | 'reset' | 'settings'
+export type NavTab = 'library' | 'scheduler' | 'mappings' | 'manual' | 'reset' | 'settings' | 'logs'
 
 const IS_MAC = /mac/i.test(navigator.platform)
 
@@ -74,6 +75,7 @@ const PAGE_MAP: Record<NavTab, React.ReactNode> = {
   manual:    <ManualPage />,
   reset:     <ResetPage />,
   settings:  <SettingsPage />,
+  logs:      <LogsPage />,
 }
 
 /** Root component: gates on first-run browser setup, then renders the app shell. */
@@ -97,7 +99,13 @@ export default function App() {
   const smoothScroll = isWeb === false && !reducedMotion
 
   function navigate(tab: NavTab) {
+    if (tab === 'logs') setLogOpen(false)
     setActiveTab(tab)
+  }
+
+  function toggleLogs() {
+    if (activeTab === 'logs') return
+    setLogOpen(v => !v)
   }
 
   function setNavDock(mode: NavDockMode) {
@@ -165,6 +173,7 @@ export default function App() {
   // Global Ctrl/Cmd+F toggles the command palette (search).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (e.defaultPrevented) return
       if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
         e.preventDefault()
         setPaletteOpen(v => !v)
@@ -217,7 +226,7 @@ export default function App() {
     >
       <AmbientBackground />
 
-      <TitleBar section={NAV_ENTRIES.find(e => e.id === activeTab)?.label} />
+      <TitleBar section={activeTab === 'logs' ? 'Logs' : NAV_ENTRIES.find(e => e.id === activeTab)?.label} />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
         <main
@@ -240,20 +249,20 @@ export default function App() {
             activeTab={activeTab}
             logOpen={logOpen}
             onNavigate={navigate}
-            onToggleLogs={() => setLogOpen(v => !v)}
+            onToggleLogs={toggleLogs}
             onOpenPalette={() => setPaletteOpen(true)}
             isMac={IS_MAC}
           />
         )}
       </div>
 
-      <LogDrawer open={logOpen} onClose={() => setLogOpen(false)} />
+      <LogDrawer open={logOpen && activeTab !== 'logs'} onClose={() => setLogOpen(false)} onExpand={() => navigate('logs')} />
 
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         onNavigate={navigate}
-        onToggleLogs={() => setLogOpen(v => !v)}
+        onToggleLogs={toggleLogs}
         plexConnected={plexConnected}
         isMac={IS_MAC}
       />
@@ -267,7 +276,7 @@ export default function App() {
             activeTab={activeTab}
             logOpen={logOpen}
             onNavigate={navigate}
-            onToggleLogs={() => setLogOpen(v => !v)}
+            onToggleLogs={toggleLogs}
             onOpenPalette={() => setPaletteOpen(true)}
             isMac={IS_MAC}
           />
