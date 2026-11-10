@@ -75,6 +75,8 @@ export interface UploadReq {
   episode?: number
   /** When true, itemKey is a Plex Collection ratingKey (not a movie/show). */
   isCollection?: boolean
+  /** Title shown in log lines, such as "The Bear (2022)". */
+  title?: string
 }
 
 export interface UploadRes {

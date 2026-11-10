@@ -69,7 +69,7 @@ export async function applyPosters(
   let lastError: string | undefined
   for (const p of list) {
     try {
-      const res = await window.api.plex.uploadPoster(targetKey, p.url, p.source, p.season, p.episode, p.isCollection) as { success: boolean; error?: string }
+      const res = await window.api.plex.uploadPoster(targetKey, p.url, p.source, p.season, p.episode, p.isCollection, p.year ? `${p.title} (${p.year})` : p.title) as { success: boolean; error?: string }
       if (res.success) { done++; appliedUrls.push(p.url); appliedSlots.push(posterSlot(p)) } else { failed++; lastError = res.error }
     } catch (err) { failed++; lastError = err instanceof Error ? err.message : String(err) }
     onProgress(done, list.length)

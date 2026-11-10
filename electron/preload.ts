@@ -24,8 +24,9 @@ const api = {
       season?: number | 'Cover' | 'Backdrop',
       episode?: number,
       isCollection?: boolean,
+      title?: string,
     ) =>
-      ipcRenderer.invoke('plex:uploadPoster', { itemKey, imageUrl, source, season, episode, isCollection }),
+      ipcRenderer.invoke('plex:uploadPoster', { itemKey, imageUrl, source, season, episode, isCollection, title }),
     getLabeledItems: (label: string) =>
       ipcRenderer.invoke('plex:getLabeledItems', { label }),
     resetPoster: (itemKey: string, hierarchical?: boolean, deleteUploads?: boolean) =>

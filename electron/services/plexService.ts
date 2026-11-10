@@ -1171,8 +1171,9 @@ export const PlexService = {
   async uploadPoster(req: UploadReq): Promise<UploadRes> {
     if (!_conn) return { success: false, error: 'Not connected to Plex' }
     const { baseUrl, token } = _conn
-    const { itemKey, imageUrl, source, season, episode, isCollection } = req
+    const { itemKey, imageUrl, source, season, episode, isCollection, title } = req
     const labelTag = source === 'mediux' ? 'MediUX' : 'ThePosterDB'
+    const named = title ? `"${title}"` : `item ${itemKey}`
 
     try {
       let target: { key: string; kind: 'poster' | 'art' }
@@ -1182,7 +1183,7 @@ export const PlexService = {
       } else {
         const resolved = await PlexService.resolveTarget(itemKey, season, episode)
         if (resolved.kind === 'skip') {
-          Logger.scrape('Plex', `Skipped upload - ${resolved.reason} (key ${itemKey})`)
+          Logger.scrape('Plex', `Skipped upload to ${named} - ${resolved.reason}`)
           return { success: false, error: resolved.reason, skipped: true }
         }
         target = resolved
@@ -1212,12 +1213,13 @@ export const PlexService = {
       const where = isCollection
         ? 'collection'
         : target.key === itemKey
-          ? 'show' : `S${season ?? '?'}${episode != null ? `E${episode}` : ''}`
-      Logger.success('Plex', `${target.kind} uploaded → ${where} (key ${target.key}) [${source}]`)
+          ? 'title' : `S${season ?? '?'}${episode != null ? `E${episode}` : ''}`
+      const art = target.kind === 'art' ? 'Backdrop' : 'Poster'
+      Logger.success('Plex', `${art} applied to ${named} (${where}) from ${labelTag}`, { key: target.key })
       return { success: true }
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err)
-      Logger.error('Plex', `Upload failed - key ${itemKey}: ${error}`)
+      Logger.error('Plex', `Upload to ${named} failed: ${error}`, { key: itemKey })
       return { success: false, error }
     }
   },

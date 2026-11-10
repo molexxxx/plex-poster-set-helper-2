@@ -91,7 +91,7 @@ async function uploadPoster(
         return
       }
       patchPoster(entryId, poster.url, { uploadStatus: 'uploading' })
-      const res = await window.api.plex.uploadPoster(coll.key, poster.url, poster.source, poster.season, poster.episode, true)
+      const res = await window.api.plex.uploadPoster(coll.key, poster.url, poster.source, poster.season, poster.episode, true, coll.title)
       if (res.success) {
         void recordAppliedQuietly({
           itemKey: coll.key,
@@ -121,7 +121,7 @@ async function uploadPoster(
       return
     }
     patchPoster(entryId, poster.url, { uploadStatus: 'uploading' })
-    const res = await window.api.plex.uploadPoster(item.key, poster.url, poster.source, poster.season, poster.episode)
+    const res = await window.api.plex.uploadPoster(item.key, poster.url, poster.source, poster.season, poster.episode, undefined, item.title)
     if (res.success) {
       // Track it so it appears in Reset Posters and the "in library" marker.
       // Recording the setId keeps it interchangeable with the Library Browser.

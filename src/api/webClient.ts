@@ -92,8 +92,8 @@ export function createWebClient(): Api {
         apiFetch('/api/plex/find-item', { method: 'POST', body: JSON.stringify({ title, year, libraries: libraries ?? [], tmdbId }) }),
       findCollection: (title) =>
         apiFetch('/api/plex/find-collection', { method: 'POST', body: JSON.stringify({ title }) }),
-      uploadPoster: (itemKey, imageUrl, source, season, episode, isCollection) =>
-        apiFetch('/api/plex/upload-poster', { method: 'POST', body: JSON.stringify({ itemKey, imageUrl, source, season, episode, isCollection }) }),
+      uploadPoster: (itemKey, imageUrl, source, season, episode, isCollection, title) =>
+        apiFetch('/api/plex/upload-poster', { method: 'POST', body: JSON.stringify({ itemKey, imageUrl, source, season, episode, isCollection, title }) }),
       getLabeledItems: (label) =>
         apiFetch('/api/plex/labeled-items', { method: 'POST', body: JSON.stringify({ label }) }),
       resetPoster: (itemKey, hierarchical, deleteUploads) =>

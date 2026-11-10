@@ -482,6 +482,7 @@ export const SchedulerService = {
         season: poster.season,
         episode: poster.episode,
         isCollection: poster.isCollection,
+        title: targetLabel,
       })
       if (res.skipped) {
         // The matched item has no such season or episode. Counted rather than

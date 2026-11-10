@@ -191,7 +191,7 @@ export default function BulkPage() {
               ? (await window.api.plex.findCollection(poster.title))?.key
               : (await window.api.plex.findItem(poster.title, poster.year, undefined, poster.tmdbId))?.key
             if (!targetKey) continue
-            const res = await window.api.plex.uploadPoster(targetKey, poster.url, poster.source, poster.season, poster.episode, poster.isCollection) as { success: boolean; error?: string }
+            const res = await window.api.plex.uploadPoster(targetKey, poster.url, poster.source, poster.season, poster.episode, poster.isCollection, poster.title) as { success: boolean; error?: string }
             if (res.success) uploaded++
           } catch {
             // per-poster errors are silent - just skip
