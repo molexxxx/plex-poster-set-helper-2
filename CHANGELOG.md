@@ -4,6 +4,15 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.16.1
+
+### Log actions say what happened
+**Copy diagnostics**, **Save a copy**, **Clear logs**, and **Load earlier lines** reported their result only to screen readers, so clicking them looked like nothing happened. They now show a notice at the bottom of the logs that you can dismiss: green when done, red when something failed.
+
+Copy diagnostics shows its notice in amber with a reminder to read the text before posting it publicly. Tokens and API keys are blanked, but error lines can still include your Plex server address and folder paths.
+
+In Settings, **Save a copy** now shows "Saved" when it finishes, and a failed save or clear shows its reason under **Log files**.
+
 ## What's new in v2.16.0
 
 ### Logs that survive a restart
