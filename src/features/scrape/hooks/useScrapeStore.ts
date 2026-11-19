@@ -5,12 +5,14 @@ import { uuid } from '../../../utils/uuid'
 export type EntryStatus = 'idle' | 'scraping' | 'done' | 'error'
 export type UploadStatus = 'idle' | 'matching' | 'uploading' | 'done' | 'error' | 'no_match'
 
-export interface PosterResult extends PosterInfo {
+export interface PosterResult extends PosterInfo
+{
   uploadStatus: UploadStatus
   uploadError?: string
 }
 
-export interface QueueEntry {
+export interface QueueEntry
+{
   id: string
   url: string
   status: EntryStatus
@@ -19,7 +21,8 @@ export interface QueueEntry {
   workerId?: number
 }
 
-interface ScrapeStore {
+interface ScrapeStore
+{
   entries: QueueEntry[]
   isRunning: boolean
   /** Artwork types shown and uploaded; null until read from Settings. */
@@ -45,7 +48,8 @@ const SUPPORTED = /theposterdb\.com|mediux\.pro/i
  * @param raw - URL as typed or pasted.
  * @returns The normalised URL.
  */
-function normaliseUrl(raw: string): string {
+function normaliseUrl(raw: string): string
+{
   return raw.trim().replace(/\/$/, '')
 }
 
@@ -55,10 +59,14 @@ function normaliseUrl(raw: string): string {
  * @param url - URL to test.
  * @returns true for theposterdb.com and mediux.pro hosts.
  */
-function isSupported(url: string): boolean {
-  try {
+function isSupported(url: string): boolean
+{
+  try
+  {
     return SUPPORTED.test(new URL(url).hostname)
-  } catch {
+  }
+  catch
+  {
     return false
   }
 }
@@ -69,7 +77,8 @@ export const useScrapeStore = create<ScrapeStore>((set, get) => ({
   isRunning: false,
   types: null,
 
-  addUrls(rawUrls) {
+  addUrls(rawUrls)
+  {
     const existing = new Set(get().entries.map(e => e.url))
     const toAdd: QueueEntry[] = rawUrls
       .map(normaliseUrl)
@@ -83,23 +92,28 @@ export const useScrapeStore = create<ScrapeStore>((set, get) => ({
     if (toAdd.length) set(s => ({ entries: [...s.entries, ...toAdd] }))
   },
 
-  removeEntry(id) {
+  removeEntry(id)
+  {
     set(s => ({ entries: s.entries.filter(e => e.id !== id) }))
   },
 
-  setEntries(entries) {
+  setEntries(entries)
+  {
     set({ entries })
   },
 
-  patchEntry(id, patch) {
+  patchEntry(id, patch)
+  {
     set(s => ({
       entries: s.entries.map(e => e.id === id ? { ...e, ...patch } : e),
     }))
   },
 
-  patchPoster(entryId, posterUrl, patch) {
+  patchPoster(entryId, posterUrl, patch)
+  {
     set(s => ({
-      entries: s.entries.map(e => {
+      entries: s.entries.map(e =>
+      {
         if (e.id !== entryId) return e
         return {
           ...e,
@@ -109,15 +123,18 @@ export const useScrapeStore = create<ScrapeStore>((set, get) => ({
     }))
   },
 
-  clearAll() {
+  clearAll()
+  {
     set({ entries: [], isRunning: false })
   },
 
-  setRunning(v) {
+  setRunning(v)
+  {
     set({ isRunning: v })
   },
 
-  setTypes(types) {
+  setTypes(types)
+  {
     set({ types })
   },
 }))

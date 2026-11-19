@@ -13,7 +13,8 @@ const SOURCES = [
 ] as const
 
 
-interface UrlInputProps {
+interface UrlInputProps
+{
   /** A run is in progress, so nothing can be added. */
   disabled: boolean
   /** Receives the URLs in the box when they are added to the queue. */
@@ -22,20 +23,25 @@ interface UrlInputProps {
 
 
 /** The box URLs are typed or pasted into, with links to the artwork sites and Add to Queue. */
-export default function UrlInput({ disabled, onAdd }: UrlInputProps) {
+export default function UrlInput({ disabled, onAdd }: UrlInputProps)
+{
   const { env } = useUpdater()
   const [inputValue, setInputValue] = useState('')
 
-  function handleAdd() {
+  function handleAdd()
+  {
     const urls = parseUrlList(inputValue)
-    if (urls.length) {
+    if (urls.length)
+    {
       onAdd(urls)
       setInputValue('')
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>)
+  {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey))
+    {
       e.preventDefault()
       handleAdd()
     }
@@ -48,8 +54,10 @@ export default function UrlInput({ disabled, onAdd }: UrlInputProps) {
    * browser where openExternal is a no-op, so there we let the anchor's native
    * target="_blank" open a new tab instead.
    */
-  function openSource(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
-    if (!env?.container) {
+  function openSource(e: React.MouseEvent<HTMLAnchorElement>, url: string)
+  {
+    if (!env?.container)
+    {
       e.preventDefault()
       window.api.app.openExternal(url)
     }

@@ -7,7 +7,8 @@ import { uploadPoster, type PatchPoster } from '../uploadPoster'
 import type { PosterResult, QueueEntry } from './useScrapeStore'
 
 /** How each poster stands against what is applied in the library. */
-export interface PosterMarks {
+export interface PosterMarks
+{
   applied: (p: PosterResult) => boolean
   downloaded: (p: PosterResult) => boolean
   inLibrary: (p: PosterResult) => boolean
@@ -24,7 +25,8 @@ export interface PosterMarks {
  * @returns The shown posters and their groups, the row's counts, lightbox
  *   images, each poster's marks, and `uploadAll` / `uploadUnapplied`.
  */
-export function useEntryUploads(entry: QueueEntry, types: Set<FileType>, patchPoster: PatchPoster, expanded: boolean) {
+export function useEntryUploads(entry: QueueEntry, types: Set<FileType>, patchPoster: PatchPoster, expanded: boolean)
+{
   const [appliedIdx, setAppliedIdx] = useState<AppliedIndex>({ setKeys: new Set(), titles: new Set(), posterUrls: new Set(), currentByItem: new Map(), currentPosterUrls: new Set() })
 
   const { shown, hidden: hiddenCount } = useMemo(() => filterByTypes(entry.posters, types), [entry.posters, types])
@@ -35,7 +37,8 @@ export function useEntryUploads(entry: QueueEntry, types: Set<FileType>, patchPo
   const entrySetId = setRefOfUrl(entry.url)?.id
 
   // Reloads when expanded and whenever an upload completes so it stays live.
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!expanded) return
     loadAppliedIndex().then(setAppliedIdx)
   }, [expanded, doneCount])
@@ -68,17 +71,23 @@ export function useEntryUploads(entry: QueueEntry, types: Set<FileType>, patchPo
   // Posters never applied yet (new title cards, changed art, etc.)
   const unappliedCount = shown.filter(p => p.uploadStatus !== 'done' && !appliedIdx.posterUrls.has(p.url)).length
 
-  async function uploadAll() {
-    for (const p of shown) {
-      if (p.uploadStatus === 'idle' || p.uploadStatus === 'no_match' || p.uploadStatus === 'error') {
+  async function uploadAll()
+  {
+    for (const p of shown)
+    {
+      if (p.uploadStatus === 'idle' || p.uploadStatus === 'no_match' || p.uploadStatus === 'error')
+      {
         await uploadPoster(entry.id, p, patchPoster, entrySetId)
       }
     }
   }
 
-  async function uploadUnapplied() {
-    for (const p of shown) {
-      if (p.uploadStatus !== 'done' && !appliedIdx.posterUrls.has(p.url)) {
+  async function uploadUnapplied()
+  {
+    for (const p of shown)
+    {
+      if (p.uploadStatus !== 'done' && !appliedIdx.posterUrls.has(p.url))
+      {
         await uploadPoster(entry.id, p, patchPoster, entrySetId)
       }
     }

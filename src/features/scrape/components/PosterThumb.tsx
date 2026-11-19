@@ -27,7 +27,8 @@ export default function PosterThumb({
   setId?: string
   /** Backdrops and title cards, shown 16:9 instead of 2:3. */
   wide?: boolean
-}) {
+})
+{
   const [imgError, setImgError] = useState(false)
   const us = poster.uploadStatus
 
@@ -58,8 +59,10 @@ export default function PosterThumb({
     <div
       className={wide ? `${styles.thumb} ${styles.thumbWide}` : styles.thumb}
       title={thumbTitle}
-      onClick={() => {
-        if (us === 'idle' || us === 'error' || us === 'no_match') {
+      onClick={() =>
+      {
+        if (us === 'idle' || us === 'error' || us === 'no_match')
+        {
           uploadPoster(entryId, poster, patchPoster, setId)
         }
       }}

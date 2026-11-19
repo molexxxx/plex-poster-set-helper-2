@@ -16,7 +16,8 @@ import styles from './ScrapePage.module.css'
 
 
 /** Manual scrape page: URL queue with a concurrency-pooled runner and live progress. */
-export default function ScrapePage() {
+export default function ScrapePage()
+{
   const { plexConnected } = useAppContext()
   const { entries, isRunning, addUrls, setEntries, patchPoster, clearAll, types, setTypes } =
     useScrapeStore()

@@ -7,7 +7,8 @@ import type { ArtworkType } from '../../../../electron/ipc/types'
 import styles from './QueueControls.module.css'
 
 
-interface QueueControlsProps {
+interface QueueControlsProps
+{
   isRunning: boolean
   idleCount: number
   doneCount: number
@@ -27,7 +28,8 @@ interface QueueControlsProps {
 /** The bar above the queue: Run or Cancel, Clear All, the types to apply, and the run's counts. */
 export default function QueueControls({
   isRunning, idleCount, doneCount, errorCount, totalPosters, shownTypes, typesReady, onRun, onCancel, onClear, onTypesChange,
-}: QueueControlsProps) {
+}: QueueControlsProps)
+{
   const typesLabelId = useId()
 
   return (

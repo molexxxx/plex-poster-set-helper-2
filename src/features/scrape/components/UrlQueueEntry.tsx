@@ -15,7 +15,8 @@ import EntryPosterGroups from './EntryPosterGroups'
 import styles from './UrlQueueEntry.module.css'
 
 
-interface Props {
+interface Props
+{
   entry: QueueEntry
   /** Artwork types shown and uploaded. */
   types: Set<FileType>
@@ -25,7 +26,8 @@ interface Props {
 
 
 /** One scrape-queue row: URL, status, actions, and the expandable poster grid. */
-export default function UrlQueueEntry({ entry, types, isRunning, patchPoster }: Props) {
+export default function UrlQueueEntry({ entry, types, isRunning, patchPoster }: Props)
+{
   const [expanded, setExpanded] = useState(false)
   const [lightbox, setLightbox] = useState<number | null>(null)
   const removeEntry = useScrapeStore(s => s.removeEntry)

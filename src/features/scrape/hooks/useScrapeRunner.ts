@@ -16,24 +16,29 @@ const MAX_WORKERS = 2
  * @returns `runQueue` to scrape every idle entry, and `cancelRun` to stop and
  *   put entries still scraping back in the queue.
  */
-export function useScrapeRunner() {
+export function useScrapeRunner()
+{
   const { entries, patchEntry, setRunning, setTypes } = useScrapeStore()
   const abortRef = useRef(false)
   const runningRef = useRef(false)
 
   // The page starts from the types picked in Settings, once per session.
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (useScrapeStore.getState().types) return
     window.api.config.get()
       .then(c => { if (!useScrapeStore.getState().types) setTypes(c.mediuxFilters?.length ? c.mediuxFilters : [...ARTWORK_TYPES]) })
       .catch(() => setTypes([...ARTWORK_TYPES]))
   }, [setTypes])
 
-  useEffect(() => {
-    const off = window.api.scrape.onProgress((prog: ScrapeProgress) => {
+  useEffect(() =>
+  {
+    const off = window.api.scrape.onProgress((prog: ScrapeProgress) =>
+    {
       const match = entries.find(e => e.url === prog.url)
       if (!match) return
-      if (prog.status === 'error') {
+      if (prog.status === 'error')
+      {
         patchEntry(match.id, { status: 'error', error: prog.error })
       }
     })
@@ -42,14 +47,16 @@ export function useScrapeRunner() {
   }, [entries])
 
 
-  const runQueue = useCallback(async () => {
+  const runQueue = useCallback(async () =>
+  {
     if (runningRef.current) return
     abortRef.current = false
     runningRef.current = true
     setRunning(true)
 
     const idle = useScrapeStore.getState().entries.filter(e => e.status === 'idle')
-    if (!idle.length) {
+    if (!idle.length)
+    {
       setRunning(false)
       runningRef.current = false
       return
@@ -58,10 +65,12 @@ export function useScrapeRunner() {
     // Simple concurrency pool - emit at most MAX_WORKERS concurrent invocations
     let cursor = 0
 
-    async function runOne(entry: QueueEntry) {
+    async function runOne(entry: QueueEntry)
+    {
       if (abortRef.current) return
       patchEntry(entry.id, { status: 'scraping', posters: [] })
-      try {
+      try
+      {
         // Every type is read so the type toggles can change what applies without a rescrape.
         const results = await window.api.scrape.url(entry.url, [...ARTWORK_TYPES]) as PosterInfo[]
         if (abortRef.current) return
@@ -69,7 +78,9 @@ export function useScrapeRunner() {
           status: 'done',
           posters: results.map((p): PosterResult => ({ ...p, uploadStatus: 'idle' })),
         })
-      } catch (err) {
+      }
+      catch (err)
+      {
         patchEntry(entry.id, {
           status: 'error',
           error: err instanceof Error ? err.message : String(err),
@@ -77,8 +88,10 @@ export function useScrapeRunner() {
       }
     }
 
-    async function worker() {
-      while (cursor < idle.length && !abortRef.current) {
+    async function worker()
+    {
+      while (cursor < idle.length && !abortRef.current)
+      {
         const entry = idle[cursor++]
         await runOne(entry)
       }
@@ -91,12 +104,15 @@ export function useScrapeRunner() {
     setRunning(false)
   }, [patchEntry, setRunning])
 
-  const cancelRun = useCallback(async () => {
+  const cancelRun = useCallback(async () =>
+  {
     abortRef.current = true
     await window.api.scrape.cancel()
     // Reset any mid-scrape entries back to idle
-    useScrapeStore.getState().entries.forEach(e => {
-      if (e.status === 'scraping') {
+    useScrapeStore.getState().entries.forEach(e =>
+    {
+      if (e.status === 'scraping')
+      {
         useScrapeStore.getState().patchEntry(e.id, { status: 'idle' })
       }
     })

@@ -4,14 +4,16 @@ import Button from '../../../components/ui/Button'
 import styles from './RunGate.module.css'
 
 
-interface RunGateProps {
+interface RunGateProps
+{
   idleCount: number
   onRun: () => void
 }
 
 
 /** The banner saying how many queued URLs are ready to scrape, with Run Queue. */
-export default function RunGate({ idleCount, onRun }: RunGateProps) {
+export default function RunGate({ idleCount, onRun }: RunGateProps)
+{
   return (
     <motion.div
       className={styles.runGate}

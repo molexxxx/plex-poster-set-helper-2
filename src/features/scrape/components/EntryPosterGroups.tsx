@@ -5,7 +5,8 @@ import type { PatchPoster } from '../uploadPoster'
 import PosterThumb from './PosterThumb'
 import styles from './EntryPosterGroups.module.css'
 
-interface EntryPosterGroupsProps {
+interface EntryPosterGroupsProps
+{
   groups: PosterGroup<PosterResult>[]
   entryId: string
   setId?: string
@@ -16,11 +17,13 @@ interface EntryPosterGroupsProps {
 }
 
 /** A queue entry's posters in their groups (show, seasons, backdrops, title cards), each a grid of thumbnails. */
-export default function EntryPosterGroups({ groups, entryId, setId, patchPoster, marks, onView }: EntryPosterGroupsProps) {
+export default function EntryPosterGroups({ groups, entryId, setId, patchPoster, marks, onView }: EntryPosterGroupsProps)
+{
   let flat = -1
   return (
     <>
-      {groups.map(g => {
+      {groups.map(g =>
+      {
         const wide = g.kind === 'title_card' || g.kind === 'backdrop'
         return (
           <div key={g.label} className={styles.posterGroup}>
@@ -28,7 +31,8 @@ export default function EntryPosterGroups({ groups, entryId, setId, patchPoster,
               {g.label}<span className={styles.posterGroupCount}>{g.posters.length}</span>
             </div>
             <div className={`${styles.posterGrid} ${wide ? styles.posterGridWide : ''}`}>
-              {g.posters.map(p => {
+              {g.posters.map(p =>
+              {
                 flat++
                 const idx = flat
                 return (
