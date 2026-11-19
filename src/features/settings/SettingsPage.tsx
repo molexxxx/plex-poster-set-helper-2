@@ -458,6 +458,8 @@ export default function SettingsPage() {
           setServerConnected(true)
           setServerName(s.serverName)
           loadLibraries()
+        } else if (s.serverError) {
+          setTestMsg({ ok: false, msg: s.serverError })
         }
       }
       if (s.status === 'idle') {

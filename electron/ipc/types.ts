@@ -8,6 +8,10 @@ export interface ConnectRes {
   serverName?: string
   libraryCount?: number
   error?: string
+  /** Set when no answer came back at all, as opposed to Plex answering with an error. */
+  unreachable?: boolean
+  /** The HTTP status when Plex answered with an error. */
+  status?: number
 }
 
 export interface Library {
@@ -348,6 +352,8 @@ export interface PlexAuthStatus {
   error?: string
   /** Set when auto-connect succeeds at auth time. */
   serverName?: string
+  /** Set when sign-in worked but no server address answered. */
+  serverError?: string
 }
 
 export type BrowserSource = 'managed' | 'bundled' | 'system' | 'custom'

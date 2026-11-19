@@ -6,6 +6,8 @@ import { appliedByItem, scheduleCoverage } from './scheduleUtils'
 import { mappedPlexTitle, normTitle, pickLibraryMatch, pickMappedItem } from './libraryMatch'
 import { applyGridQuery, historyKeysFor, needsHistoryOnly, toLightItem, type LightItem } from './libraryGrid'
 import { ShowStatusService, type ShowStatus } from './showStatusService'
+import { describeNetworkError, findServer, plexServerHeaders } from './plexConnections'
+import { isWebMode } from '../runtime/runtime'
 import type {
   ConnectReq, ConnectRes, Library,
   FindItemReq, PlexItem, UploadReq, UploadRes,
@@ -57,18 +59,15 @@ const KEY_BATCH = 100
 const EPISODE_PAGE = 500
 const EPISODE_PAGE_CAP = 40
 
-/**
- * Builds the standard X-Plex-* headers for Plex Media Server requests.
- *
- * @param token - Plex auth token.
- * @returns Header map to spread into fetch options.
- */
-function plexHeaders(token: string): Record<string, string> {
-  return {
-    'X-Plex-Token': token,
-    'X-Plex-Client-Identifier': ConfigService.get().clientIdentifier,
-    'X-Plex-Product': 'Plex Poster Set Helper 2',
-    'Accept': 'application/json',
+/** A non-2xx answer from Plex Media Server, as opposed to no answer at all. */
+class PlexHttpError extends Error
+{
+  readonly status: number
+
+  constructor(status: number, message: string)
+  {
+    super(message)
+    this.status = status
   }
 }
 
@@ -91,11 +90,11 @@ async function plexFetch(
   const res = await fetch(url, {
     ...options,
     headers: {
-      ...plexHeaders(token),
+      ...plexServerHeaders(token),
       ...(options?.headers as Record<string, string> ?? {}),
     },
   })
-  if (!res.ok) throw new Error(`Plex ${res.status} ${res.statusText} - ${path}`)
+  if (!res.ok) throw new PlexHttpError(res.status, `Plex ${res.status} ${res.statusText} - ${path}`)
   const text = await res.text()
   if (!text.trim()) return {}
   try { return JSON.parse(text) } catch { return text }
@@ -131,9 +130,54 @@ function extractGuids(
   return out
 }
 
-function thumbUrl(baseUrl: string, token: string, thumbPath: string | undefined, w = 240, h = 360): string | undefined {
+/**
+ * Builds a display URL for a Plex image. The desktop window loads it straight
+ * from the server. The web UI loads it through this app instead, because the
+ * browser may not reach the address the app uses, such as a Docker bridge IP
+ * or a LAN address seen from outside the LAN.
+ *
+ * @param baseUrl - Server base URL.
+ * @param token - Plex auth token.
+ * @param thumbPath - Server-relative image path from Plex metadata.
+ * @param w - Output width in pixels.
+ * @param h - Output height in pixels.
+ * @returns The URL, or undefined when the item has no image.
+ */
+function thumbUrl(baseUrl: string, token: string, thumbPath: string | undefined, w = 240, h = 360): string | undefined
+{
   if (!thumbPath) return undefined
+  if (isWebMode()) return `/api/plex/photo?width=${w}&height=${h}&url=${encodeURIComponent(thumbPath)}`
   return `${baseUrl.replace(/\/$/, '')}/photo/:/transcode?width=${w}&height=${h}&minSize=1&upscale=1&url=${encodeURIComponent(thumbPath)}&X-Plex-Token=${token}`
+}
+
+/**
+ * Clamps a requested image dimension.
+ *
+ * @param value - Requested size in pixels.
+ * @param fallback - Size used when the request is missing or invalid.
+ * @returns A whole number of pixels between 1 and 2000.
+ */
+function photoSize(value: number, fallback: number): number
+{
+  return Number.isFinite(value) && value >= 1 ? Math.min(Math.round(value), 2000) : fallback
+}
+
+/**
+ * Returns the host and port of an address for messages.
+ *
+ * @param url - Server address.
+ * @returns The host, or the address as given when it does not parse.
+ */
+function hostOf(url: string): string
+{
+  try
+  {
+    return new URL(url).host || url
+  }
+  catch
+  {
+    return url
+  }
 }
 
 /**
@@ -397,19 +441,28 @@ export const PlexService = {
    * @param req - Server base URL and token.
    * @returns Success flag with server name and library count, or an error message.
    */
-  async connect(req: ConnectReq): Promise<ConnectRes> {
-    try {
+  async connect(req: ConnectReq): Promise<ConnectRes>
+  {
+    try
+    {
       const data = await plexFetch(req.baseUrl, req.token, '/') as { MediaContainer?: { friendlyName?: string } }
       const serverName = data?.MediaContainer?.friendlyName ?? 'Plex Server'
       const libraries = await PlexService.fetchLibraries(req.baseUrl, req.token)
       _conn = { baseUrl: req.baseUrl, token: req.token, serverName, libraries }
       Logger.success('Plex', `Connected to "${serverName}" - ${libraries.length} libraries`)
       return { success: true, serverName, libraryCount: libraries.length }
-    } catch (err) {
-      const error = err instanceof Error ? err.message : String(err)
-      Logger.error('Plex', `Connection failed: ${error}`)
+    }
+    catch (err)
+    {
       _conn = null
-      return { success: false, error }
+      if (err instanceof PlexHttpError)
+      {
+        Logger.error('Plex', `Connection failed: ${err.message}`)
+        return { success: false, error: err.message, unreachable: false, status: err.status }
+      }
+      const error = `Could not reach ${hostOf(req.baseUrl)}: ${describeNetworkError(err, req.baseUrl)}`
+      Logger.error('Plex', `Connection failed: ${error}`)
+      return { success: false, error, unreachable: true }
     }
   },
 
@@ -1091,10 +1144,7 @@ export const PlexService = {
         ) as { MediaContainer?: { Metadata?: unknown[] } }
         for (const m of data?.MediaContainer?.Metadata ?? []) {
           const item = mapMetadata(m, lib.title, lib.type as 'movie' | 'show')
-          // Build a full, token-bearing transcode URL so thumbs load in the UI
-          if (item.thumb) {
-            item.thumb = `${baseUrl.replace(/\/$/, '')}/photo/:/transcode?width=120&height=180&minSize=1&upscale=1&url=${encodeURIComponent(item.thumb)}&X-Plex-Token=${token}`
-          }
+          item.thumb = thumbUrl(baseUrl, token, item.thumb, 120, 180)
           items.push(item)
         }
       } catch {
@@ -1330,21 +1380,71 @@ export const PlexService = {
   },
 
   /**
-   * Auto-reconnects from saved config; clears the token if the server rejects
-   * it (401).
+   * Fetches a resized Plex image for the web UI, which loads images through
+   * this app rather than from the server address directly.
+   *
+   * @param path - Server-relative image path, such as /library/metadata/1/thumb/2.
+   * @param width - Output width in pixels.
+   * @param height - Output height in pixels.
+   * @returns The image and its type, or the HTTP status to answer with.
+   */
+  async fetchPhoto(path: string, width: number, height: number): Promise<{ status: number; contentType?: string; body?: Buffer }>
+  {
+    if (!_conn) return { status: 503 }
+    if (!path.startsWith('/') || path.startsWith('//')) return { status: 400 }
+    const { baseUrl, token } = _conn
+    const url = `${baseUrl.replace(/\/$/, '')}/photo/:/transcode?width=${photoSize(width, 240)}&height=${photoSize(height, 360)}&minSize=1&upscale=1&url=${encodeURIComponent(path)}`
+    try
+    {
+      const res = await fetch(url, {
+        headers: { ...plexServerHeaders(token), Accept: 'image/*' },
+        signal: AbortSignal.timeout(30_000),
+      })
+      if (!res.ok) return { status: res.status === 404 ? 404 : 502 }
+      return {
+        status: 200,
+        contentType: res.headers.get('content-type') ?? 'image/jpeg',
+        body: Buffer.from(await res.arrayBuffer()),
+      }
+    }
+    catch
+    {
+      return { status: 502 }
+    }
+  },
+
+  /**
+   * Reconnects from saved config at startup and before scheduled runs. When
+   * the saved address gets no answer at all, the server is looked up on
+   * plex.tv again and an address that answers replaces it, so a changed IP or
+   * a stale address picked at sign-in heals itself. A token the server rejects
+   * (401) is cleared so the UI asks for sign-in again.
    *
    * @returns Success flag with the server name, or tokenInvalid when re-auth is needed.
    */
-  async tryRestoreFromConfig(): Promise<{ success: boolean; serverName?: string; tokenInvalid?: boolean }> {
+  async tryRestoreFromConfig(): Promise<{ success: boolean; serverName?: string; tokenInvalid?: boolean }>
+  {
     const cfg = ConfigService.get()
     if (!cfg.baseUrl || !cfg.token) return { success: false }
     const result = await PlexService.connect({ baseUrl: cfg.baseUrl, token: cfg.token })
-    if (!result.success && result.error?.includes('401')) {
-      // Token was revoked (e.g. password change) - clear it so the UI prompts re-auth
+    if (result.success) return { success: true, serverName: result.serverName }
+    if (result.status === 401)
+    {
       ConfigService.set({ token: '', plexAccountName: '', plexAccountEmail: '', plexAccountThumb: '' })
       Logger.warn('Plex', 'Stored token rejected (401) - cleared. Please sign in again.')
       return { success: false, tokenInvalid: true }
     }
-    return { success: result.success, serverName: result.serverName }
+    if (!result.unreachable) return { success: false }
+
+    const found = await findServer(cfg.token, { serverName: cfg.plexServerName || undefined })
+    if (!found.server) return { success: false }
+    const moved = await PlexService.connect({ baseUrl: found.server.url, token: cfg.token })
+    if (!moved.success) return { success: false }
+    ConfigService.set({ baseUrl: found.server.url, plexServerName: moved.serverName ?? found.server.serverName })
+    if (found.server.url !== cfg.baseUrl)
+    {
+      Logger.info('Plex', `${cfg.baseUrl} did not answer; switched the server address to ${found.server.url}`)
+    }
+    return { success: true, serverName: moved.serverName }
   },
 }

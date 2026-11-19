@@ -195,6 +195,18 @@ export async function startServer() {
   app.post('/api/plex/reset-poster', async (req) => handlers.plex.resetPoster(req.body as Parameters<typeof handlers.plex.resetPoster>[0]))
   app.post('/api/plex/clean-bundles', async () => handlers.plex.cleanBundles())
   app.get('/api/plex/stats', async () => handlers.plex.getStats())
+  // Posters load through here so the browser never needs a route to the Plex
+  // address the container uses. A library grid loads many at once, so the cap is higher.
+  app.get('/api/plex/photo', { config: { rateLimit: { max: 10_000 } } }, async (req, reply) =>
+  {
+    const q = req.query as { url?: string; width?: string; height?: string }
+    const photo = await PlexService.fetchPhoto(q.url ?? '', Number(q.width), Number(q.height))
+    if (!photo.body) return reply.code(photo.status).send()
+    return reply
+      .header('Content-Type', photo.contentType ?? 'image/jpeg')
+      .header('Cache-Control', 'private, max-age=3600')
+      .send(photo.body)
+  })
 
   // Library
   app.get('/api/library/sections', async () => handlers.library.sections())

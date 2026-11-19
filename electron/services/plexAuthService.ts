@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 import { ConfigService } from './config'
 import { Logger } from './logger'
 import { PlexService } from './plexService'
+import { findServer, plexTvHeaders } from './plexConnections'
 import type { PlexAuthStatus } from '../ipc/types'
 import { isWebMode } from '../runtime/runtime'
 
@@ -10,78 +11,38 @@ const POLL_INTERVAL_MS = 2000
 const POLL_MAX_ATTEMPTS = 150
 
 /**
- * Builds the standard X-Plex-* headers for plex.tv API requests.
+ * Connects to the user's server after sign-in. The saved address is kept when
+ * it still answers; otherwise every address plex.tv lists is tried. An address
+ * that does not answer is never saved, so settings keep what worked before.
  *
- * @param clientId - Stable per-install client identifier.
- * @returns Header map to spread into fetch options.
+ * @param token - The new account token.
+ * @returns The connected server's name, or why no address answered.
  */
-function clientHeaders(clientId: string): Record<string, string> {
-  return {
-    'X-Plex-Product': 'Plex Poster Set Helper 2',
-    'X-Plex-Client-Identifier': clientId,
-    'X-Plex-Device': 'Desktop',
-    'X-Plex-Device-Name': 'Plex Poster Set Helper 2',
-    'X-Plex-Version': '2.0.0',
-    'Accept': 'application/json',
+async function connectAfterSignIn(token: string): Promise<{ serverName?: string; serverError?: string }>
+{
+  const found = await findServer(token, { savedUrl: ConfigService.get().baseUrl })
+  if (found.listError) Logger.warn('PlexAuth', `Could not read your server list from plex.tv: ${found.listError}`)
+  for (const failure of found.failures)
+  {
+    Logger.info('PlexAuth', `No answer from ${failure.url}: ${failure.reason}`)
   }
-}
-
-/**
- * Tests whether a connection URI points at a plain address.
- *
- * @param uri - Connection URI from plex.tv resources.
- * @returns true when the host is localhost or a literal IPv4 address.
- */
-function isPlainIp(uri: string): boolean {
-  try {
-    const host = new URL(uri).hostname
-    return host === 'localhost' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host)
-  } catch { return false }
-}
-
-/**
- * Discovers the user's primary owned Plex server from plex.tv resources and
- * picks the best connection URI.
- *
- * @param token - Authenticated Plex token.
- * @param hdrs - X-Plex headers from clientHeaders().
- * @returns The server's name and URI, or null when none is found.
- */
-async function discoverPrimaryServer(
-  token: string,
-  hdrs: Record<string, string>,
-): Promise<{ name: string; url: string } | null> {
-  try {
-    const res = await fetch(
-      `${PLEX_TV}/api/v2/resources?includeHttps=1&includeIPv6=1&includeRelay=1`,
-      { headers: { ...hdrs, 'X-Plex-Token': token } },
-    )
-    if (!res.ok) return null
-
-    const resources = await res.json() as Array<{
-      name: string
-      provides: string
-      owned: boolean
-      connections: Array<{ uri: string; local: boolean; relay: boolean; protocol: string }>
-    }>
-
-    const servers = resources.filter(r => r.provides?.includes('server') && r.owned)
-    if (!servers.length) return null
-
-    const conns = servers[0].connections
-    // Prefer: local plain-IP HTTP > local plain-IP HTTPS > local HTTP > local HTTPS > non-relay > any
-    const best =
-      conns.find(c => c.local && !c.relay && c.protocol === 'http'  && isPlainIp(c.uri)) ??
-      conns.find(c => c.local && !c.relay && c.protocol === 'https' && isPlainIp(c.uri)) ??
-      conns.find(c => c.local && !c.relay && c.protocol === 'http') ??
-      conns.find(c => c.local && !c.relay) ??
-      conns.find(c => !c.relay) ??
-      conns[0]
-
-    return best ? { name: servers[0].name, url: best.uri } : null
-  } catch {
-    return null
+  if (!found.server)
+  {
+    const serverError = found.listed.length
+      ? `${found.listed[0]} did not answer at any address Plex lists for it. Enter the address you reach it at on this network.`
+      : found.listError
+        ? 'Could not get your server list from plex.tv. Enter your server address.'
+        : 'No Plex server you own was found on this account. Enter your server address.'
+    Logger.warn('PlexAuth', serverError)
+    return { serverError }
   }
+  Logger.info('PlexAuth', `Found "${found.server.serverName}" at ${found.server.url}`)
+  const result = await PlexService.connect({ baseUrl: found.server.url, token })
+  if (!result.success) return { serverError: result.error }
+  const serverName = result.serverName ?? found.server.serverName
+  ConfigService.set({ baseUrl: found.server.url, plexServerName: serverName })
+  Logger.success('PlexAuth', `Auto-connected to "${serverName}"`)
+  return { serverName }
 }
 
 let _pollTimer: ReturnType<typeof setInterval> | null = null
@@ -114,7 +75,7 @@ export const PlexAuthService = {
     if (_activeSignIn) throw new Error('Sign-in already in progress')
 
     const clientId = ConfigService.get().clientIdentifier
-    const hdrs = clientHeaders(clientId)
+    const hdrs = plexTvHeaders(clientId)
 
     onStatus({ status: 'waiting' })
 
@@ -166,7 +127,7 @@ export const PlexAuthService = {
           const data = await checkRes.json() as { authToken?: string }
           if (data.authToken) {
             stopPoll()
-            await PlexAuthService._finalise(data.authToken, clientId, hdrs, onStatus)
+            await PlexAuthService._finalize(data.authToken, hdrs, onStatus)
             resolve(data.authToken)
           }
         } catch {
@@ -188,25 +149,26 @@ export const PlexAuthService = {
   },
 
   /**
-   * Finalises auth: saves the token, fetches account info, and auto-discovers
-   * the server.
+   * Finalizes auth: saves the token, fetches account info, and connects to
+   * the user's server.
    *
    * @param token - Token returned by the PIN poll.
-   * @param clientId - Stable per-install client identifier.
-   * @param hdrs - X-Plex headers from clientHeaders().
+   * @param hdrs - X-Plex headers from plexTvHeaders().
    * @param onStatus - Receives the final authorized status.
    */
-  async _finalise(
+  async _finalize(
     token: string,
-    clientId: string,
     hdrs: Record<string, string>,
     onStatus: (status: PlexAuthStatus) => void,
-  ) {
-    try {
+  )
+  {
+    try
+    {
       const userRes = await fetch(`${PLEX_TV}/api/v2/user`, {
         headers: { ...hdrs, 'X-Plex-Token': token },
       })
-      if (userRes.ok) {
+      if (userRes.ok)
+      {
         const user = await userRes.json() as {
           username?: string; friendlyName?: string; email?: string; thumb?: string
         }
@@ -217,37 +179,30 @@ export const PlexAuthService = {
           plexAccountThumb: user.thumb ?? '',
         })
         Logger.success('PlexAuth', `Authenticated as ${user.username ?? user.friendlyName ?? 'unknown'}`)
-      } else {
+      }
+      else
+      {
         ConfigService.set({ token })
         Logger.success('PlexAuth', 'Authenticated (user info unavailable)')
       }
-    } catch {
+    }
+    catch
+    {
       ConfigService.set({ token })
       Logger.success('PlexAuth', 'Authenticated (user info fetch failed)')
     }
 
-    let serverName: string | undefined
-    try {
-      const discovered = await discoverPrimaryServer(token, hdrs)
-      if (discovered) {
-        Logger.info('PlexAuth', `Discovered server "${discovered.name}" at ${discovered.url}`)
-        const result = await PlexService.connect({ baseUrl: discovered.url, token })
-        if (result.success) {
-          serverName = result.serverName
-          ConfigService.set({ baseUrl: discovered.url, plexServerName: result.serverName ?? discovered.name })
-          Logger.success('PlexAuth', `Auto-connected to "${result.serverName}"`)
-        } else {
-          // Discovery found it but couldn't connect - save URL for user to retry
-          ConfigService.set({ baseUrl: discovered.url })
-          Logger.warn('PlexAuth', `Auto-connect failed: ${result.error}`)
-        }
-      }
-    } catch {
-      // Server discovery is best-effort - never block auth
+    let server: { serverName?: string; serverError?: string }
+    try
+    {
+      server = await connectAfterSignIn(token)
+    }
+    catch (err)
+    {
+      server = { serverError: err instanceof Error ? err.message : String(err) }
     }
 
-    onStatus({ status: 'authorized', token, serverName })
-    void clientId
+    onStatus({ status: 'authorized', token, serverName: server.serverName, serverError: server.serverError })
   },
 
   /** Cancels an in-progress sign-in poll. */

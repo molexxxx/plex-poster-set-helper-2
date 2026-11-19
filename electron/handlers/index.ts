@@ -274,14 +274,6 @@ export const handlers = {
       try {
         const waiting = await PlexAuthService.beginSignIn(_win ?? null, emitAuth)
         void PlexAuthService.waitForActiveSignIn()
-          .then(token => {
-            const cfg = ConfigService.get()
-            if (cfg.baseUrl) {
-              PlexService.connect({ baseUrl: cfg.baseUrl, token }).catch(err => {
-                Logger.warn('Auth', `Auto-connect after sign-in failed: ${err instanceof Error ? err.message : err}`)
-              })
-            }
-          })
           .catch(err => {
             const error = err instanceof Error ? err.message : String(err)
             if (error !== 'Sign-in cancelled') {

@@ -5,8 +5,11 @@ import type { AppConfig } from '../ipc/types'
 import { getUserDataPath, getLogPath } from '../runtime/paths'
 import { isWebMode } from '../runtime/runtime'
 
+/** The server address a fresh install starts with. */
+export const DEFAULT_SERVER_URL = 'http://localhost:32400'
+
 const DEFAULTS: AppConfig = {
-  baseUrl: 'http://localhost:32400',
+  baseUrl: DEFAULT_SERVER_URL,
   token: '',
   tvLibraries: [],
   movieLibraries: [],
