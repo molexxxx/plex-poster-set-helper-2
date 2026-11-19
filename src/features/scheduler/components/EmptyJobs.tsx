@@ -4,7 +4,8 @@ import Button from '../../../components/ui/Button'
 import shared from '../schedulerShared.module.css'
 import styles from './EmptyJobs.module.css'
 /** First-run panel: what a job does, and the three ways to make one. */
-export default function EmptyJobs({ onNew, onOpenCreators, onOpenLibrary }: { onNew: () => void; onOpenCreators: () => void; onOpenLibrary: () => void }) {
+export default function EmptyJobs({ onNew, onOpenCreators, onOpenLibrary }: { onNew: () => void; onOpenCreators: () => void; onOpenLibrary: () => void })
+{
   const titleId = useId()
   return (
     <section className={shared.block} aria-labelledby={titleId}>

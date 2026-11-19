@@ -16,7 +16,8 @@ import listStyles from './components/JobList.module.css'
 import shared from './schedulerShared.module.css'
 import styles from './SchedulerPage.module.css'
 /** Scheduler: a queue of jobs that apply MediUX and ThePosterDB art to Plex on a schedule, with the selected job beside it. */
-export default function SchedulerPage() {
+export default function SchedulerPage()
+{
   const [selectedId,  setSelectedId]  = useState<string | null>(null)
   const [editing,     setEditing]     = useState<ScheduledJob | 'new' | null>(null)
   const [deleting,    setDeleting]    = useState<ScheduledJob | null>(null)
@@ -30,9 +31,11 @@ export default function SchedulerPage() {
   const selected = jobs.find(j => j.id === selectedId) ?? jobs[0] ?? null
 
   /** Selects a job and brings it into view in the list. */
-  const reveal = useCallback((id: string) => {
+  const reveal = useCallback((id: string) =>
+  {
     setSelectedId(id)
-    setTimeout(() => {
+    setTimeout(() =>
+    {
       const el = listRef.current?.querySelector<HTMLElement>(`[data-job-id="${id}"]`)
       if (!el) return
       el.scrollIntoView({ block: 'nearest' })
@@ -45,21 +48,24 @@ export default function SchedulerPage() {
   // Command-palette deep link: select the requested job.
   const schedulerJobId = useNavStore(s => s.schedulerJobId)
   const clearScheduler  = useNavStore(s => s.clearScheduler)
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!schedulerJobId || jobs.length === 0) return
     const id = schedulerJobId
     const t = setTimeout(() => { reveal(id); clearScheduler() }, 60)
     return () => clearTimeout(t)
   }, [schedulerJobId, jobs.length, clearScheduler, reveal])
 
-  async function saveJob(job: ScheduledJob, runAfterSave: boolean) {
+  async function saveJob(job: ScheduledJob, runAfterSave: boolean)
+  {
     const saved = await window.api.scheduler.save(job)
     setEditing(null)
     setSelectedId(saved.id)
     if (runAfterSave) void runNow(saved.id)
   }
 
-  function confirmDelete() {
+  function confirmDelete()
+  {
     const job = deleting
     setDeleting(null)
     if (job) void attempt(() => window.api.scheduler.delete(job.id))

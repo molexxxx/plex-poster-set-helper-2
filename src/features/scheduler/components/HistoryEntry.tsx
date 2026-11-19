@@ -8,7 +8,8 @@ import DetailList from './DetailList'
 import shared from '../schedulerShared.module.css'
 import styles from './HistoryEntry.module.css'
 /** One past run, with its error written out and its per-title details on request. */
-export default function HistoryEntry({ run }: { run: JobRun }) {
+export default function HistoryEntry({ run }: { run: JobRun })
+{
   const [open, setOpen] = useState(false)
   const detailsId = useId()
   const summary = describeRun(run)

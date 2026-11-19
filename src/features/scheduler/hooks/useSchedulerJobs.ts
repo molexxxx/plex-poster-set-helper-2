@@ -21,26 +21,33 @@ export function useSchedulerJobs()
   const [loaded,      setLoaded]      = useState(false)
   const lastStatuses = useRef(new Map<string, string | undefined>())
 
-  const attempt = useCallback(async (action: () => Promise<unknown>) => {
+  const attempt = useCallback(async (action: () => Promise<unknown>) =>
+  {
     setActionError(null)
-    try {
+    try
+    {
       await action()
-    } catch (err) {
+    }
+    catch (err)
+    {
       setActionError(errorMessage(err))
     }
   }, [])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async () =>
+  {
     const [list, eng] = await Promise.all([window.api.scheduler.list(), window.api.scheduler.engineStatus()])
     setJobs(list)
     setEngine(eng)
   }, [])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     void attempt(load).finally(() => setLoaded(true))
     const off = window.api.scheduler.onChange((updated: ScheduledJob[]) => setJobs(updated))
     // The engine heartbeat can come and go while this page is open, and each job's next run moves on once it fires.
-    const poll = setInterval(() => {
+    const poll = setInterval(() =>
+    {
       void window.api.scheduler.engineStatus().then(setEngine).catch(() => {})
       void window.api.scheduler.list().then(setJobs).catch(() => {})
     }, 30_000)
@@ -48,11 +55,14 @@ export function useSchedulerJobs()
   }, [load, attempt])
 
   // Announce runs that finish while the page is open.
-  useEffect(() => {
+  useEffect(() =>
+  {
     const seen = lastStatuses.current
-    for (const job of jobs) {
+    for (const job of jobs)
+    {
       const before = seen.get(job.id)
-      if (before === 'running' && job.lastStatus !== 'running') {
+      if (before === 'running' && job.lastStatus !== 'running')
+      {
         const run = job.history?.[0]
         setAnnouncement(`${job.name}: ${run ? describeRun(run) : 'finished'}`)
       }
@@ -60,13 +70,15 @@ export function useSchedulerJobs()
     }
   }, [jobs])
 
-  async function runNow(id: string) {
+  async function runNow(id: string)
+  {
     setStarting(prev => new Set(prev).add(id))
     await attempt(() => window.api.scheduler.runNow(id))
     setStarting(prev => { const s = new Set(prev); s.delete(id); return s })
   }
 
-  function moveJob(id: string, delta: -1 | 1) {
+  function moveJob(id: string, delta: -1 | 1)
+  {
     const ids = jobs.map(j => j.id)
     const from = ids.indexOf(id)
     const to = from + delta

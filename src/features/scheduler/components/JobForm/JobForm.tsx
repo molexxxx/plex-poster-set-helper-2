@@ -12,7 +12,8 @@ import LinksSection from './LinksSection'
 import ScheduleSection from './ScheduleSection'
 import ApplyOptionsSection from './ApplyOptionsSection'
 import styles from './JobForm.module.css'
-interface JobFormProps {
+interface JobFormProps
+{
   initial?: ScheduledJob
   settingsTypes: ArtworkType[]
   onSave:  (job: ScheduledJob, runAfterSave: boolean) => Promise<void>
@@ -20,7 +21,8 @@ interface JobFormProps {
 }
 
 /** Dialog for creating or editing a scheduled job. */
-export default function JobForm({ initial, settingsTypes, onSave, onClose }: JobFormProps) {
+export default function JobForm({ initial, settingsTypes, onSave, onClose }: JobFormProps)
+{
   const draft = useJobDraft(initial)
   const { name, urlInfo, cronExpr, enabled, skipApplied, fillGaps, assetTypes, valid, dirty } = draft
   const [saving,      setSaving]      = useState(false)
@@ -34,25 +36,30 @@ export default function JobForm({ initial, settingsTypes, onSave, onClose }: Job
   const confirmOpenRef = useRef(false)
   useEffect(() => { confirmOpenRef.current = confirmDiscard }, [confirmDiscard])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     openerRef.current = document.activeElement
     nameRef.current?.focus()
-    return () => {
+    return () =>
+    {
       const opener = openerRef.current
       if (opener instanceof HTMLElement && document.contains(opener)) opener.focus()
     }
   }, [])
 
-  const requestClose = useCallback(() => {
+  const requestClose = useCallback(() =>
+  {
     if (dirty) setConfirmDiscard(true)
     else onClose()
   }, [dirty, onClose])
 
-  async function submit(runAfterSave: boolean) {
+  async function submit(runAfterSave: boolean)
+  {
     if (!valid || saving) return
     setSaving(true)
     setError(null)
-    try {
+    try
+    {
       await onSave({
         ...initial,
         id: initial?.id ?? uuid(),
@@ -64,7 +71,9 @@ export default function JobForm({ initial, settingsTypes, onSave, onClose }: Job
         fillGaps,
         assetTypes,
       }, runAfterSave)
-    } catch (err) {
+    }
+    catch (err)
+    {
       setError(errorMessage(err))
       setSaving(false)
     }
@@ -72,14 +81,19 @@ export default function JobForm({ initial, settingsTypes, onSave, onClose }: Job
 
   const submitRef = useRef(submit)
   useEffect(() => { submitRef.current = submit })
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+  useEffect(() =>
+  {
+    const onKey = (e: KeyboardEvent) =>
+    {
       if (confirmOpenRef.current) return
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape')
+      {
         if (dialogRef.current?.querySelector('[role="listbox"]')) return
         e.preventDefault()
         requestClose()
-      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      }
+      else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey))
+      {
         void submitRef.current(false)
       }
     }

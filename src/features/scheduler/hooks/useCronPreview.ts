@@ -6,11 +6,14 @@ import type { CronPreview } from '../../../../electron/ipc/types'
  * @param expr - Cron expression.
  * @returns The latest preview, and whether it belongs to `expr` yet.
  */
-export function useCronPreview(expr: string): { preview: CronPreview | null; current: boolean } {
+export function useCronPreview(expr: string): { preview: CronPreview | null; current: boolean }
+{
   const [result, setResult] = useState<{ expr: string; preview: CronPreview } | null>(null)
-  useEffect(() => {
+  useEffect(() =>
+  {
     let cancelled = false
-    const t = setTimeout(() => {
+    const t = setTimeout(() =>
+    {
       window.api.scheduler.preview(expr)
         .then(preview => { if (!cancelled) setResult({ expr, preview }) })
         .catch(() => { /* preview is advisory; the save call validates */ })

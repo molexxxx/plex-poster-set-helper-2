@@ -29,7 +29,8 @@ export default function ScheduleSection({ draft }: { draft: JobDraft })
   const { schedule, update, cronExpr, preview, current, cronError, enabled, setEnabled } = draft
   const [dayHint, setDayHint] = useState(false)
   const ids = { schedule: useId(), every: useId(), minute: useId(), day: useId(), time: useId(), custom: useId(), customHelp: useId() }
-  function toggleDay(i: number) {
+  function toggleDay(i: number)
+  {
     const days = schedule.days.includes(i) ? schedule.days.filter(d => d !== i) : [...schedule.days, i]
     setDayHint(days.length === 0)
     if (days.length) update({ days })
@@ -41,7 +42,8 @@ export default function ScheduleSection({ draft }: { draft: JobDraft })
       type="time"
       className={`${form.input} ${form.timeInput}`}
       value={`${pad2(schedule.hour)}:${pad2(schedule.minute)}`}
-      onChange={e => {
+      onChange={e =>
+      {
         const [h, m] = e.target.value.split(':').map(Number)
         if (!Number.isNaN(h) && !Number.isNaN(m)) update({ hour: h, minute: m })
       }}

@@ -43,12 +43,14 @@ export default function LinksSection({ draft, nameRef }: LinksSectionProps)
           aria-invalid={urlInfo.unsupported.length > 0 || undefined}
           className={`${form.textarea} ${urlInfo.unsupported.length ? form.inputInvalid : ''}`}
           value={urls}
-          onChange={e => {
+          onChange={e =>
+          {
             const v = e.target.value
             setUrls(v)
             // Keep an auto-generated "Sync @user (N sets)" name counting the list; a custom name does not match.
             const setCount = v.split('\n').map(l => l.trim()).filter(u => /\/sets\/\d+/.test(u)).length
-            setName(prev => {
+            setName(prev =>
+            {
               const m = prev.match(/^(Sync @\S+) \(\d+ sets?\)$/)
               return m ? `${m[1]} (${setCount} ${setCount === 1 ? 'set' : 'sets'})` : prev
             })

@@ -6,9 +6,11 @@ import { ARTWORK_TYPES } from '../../../../electron/services/scheduleUtils'
  *
  * @returns The types, every type until Settings has loaded.
  */
-export function useSettingsTypes(): ArtworkType[] {
+export function useSettingsTypes(): ArtworkType[]
+{
   const [types, setTypes] = useState<ArtworkType[]>([...ARTWORK_TYPES])
-  useEffect(() => {
+  useEffect(() =>
+  {
     let cancelled = false
     window.api.config.get()
       .then(c => { if (!cancelled && c.mediuxFilters) setTypes(c.mediuxFilters) })

@@ -1,5 +1,6 @@
 /** Moves Tab focus around inside a container instead of out of it. */
-export function trapTab(e: React.KeyboardEvent, container: HTMLElement | null) {
+export function trapTab(e: React.KeyboardEvent, container: HTMLElement | null)
+{
   if (e.key !== 'Tab' || !container) return
   const focusable = [...container.querySelectorAll<HTMLElement>(
     'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',

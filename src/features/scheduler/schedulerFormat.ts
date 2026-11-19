@@ -17,7 +17,8 @@ const STATUS_LABEL: Record<Exclude<RowStatus, 'queued'>, string> = {
  * @param settingsTypes - Types picked in Settings.
  * @returns A line such as "Posters and backdrops, picked for this job".
  */
-export function describeJobTypes(job: ScheduledJob, settingsTypes: ArtworkType[]): string {
+export function describeJobTypes(job: ScheduledJob, settingsTypes: ArtworkType[]): string
+{
   return job.assetTypes
     ? `${capitalize(describeArtworkTypes(job.assetTypes))}, picked for this job`
     : `${capitalize(describeArtworkTypes(settingsTypes))}, as set in Settings`
@@ -29,12 +30,14 @@ export function describeJobTypes(job: ScheduledJob, settingsTypes: ArtworkType[]
  * @param iso - ISO timestamp.
  * @returns A label such as "Sun, Oct 11, 3:00 AM".
  */
-export function formatWhen(iso: string): string {
+export function formatWhen(iso: string): string
+{
   return new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
 /** "1st", "2nd", "3rd", "4th". */
-export function ordinal(n: number): string {
+export function ordinal(n: number): string
+{
   const rem100 = n % 100
   if (rem100 >= 11 && rem100 <= 13) return `${n}th`
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
@@ -46,7 +49,8 @@ export function ordinal(n: number): string {
  * @param job - The job.
  * @returns A label such as "@willtong93 · MediUX creator" or "2 sets · ThePosterDB and MediUX".
  */
-export function jobIdentity(job: ScheduledJob): string {
+export function jobIdentity(job: ScheduledJob): string
+{
   const creators = [...new Set(job.urls.map(creatorOfUrl).filter((c): c is string => !!c))]
   if (job.creator && creators.length <= 1) return `@${job.creator} · MediUX creator`
   if (creators.length === 1 && job.urls.length === 1) return `@${creators[0]} · MediUX creator`
@@ -57,7 +61,8 @@ export function jobIdentity(job: ScheduledJob): string {
 }
 
 /** Status shown for a job in the list and the detail header. */
-export function jobStatus(job: ScheduledJob, starting: boolean): RowStatus | undefined {
+export function jobStatus(job: ScheduledJob, starting: boolean): RowStatus | undefined
+{
   if (starting || job.lastStatus === 'running') return 'running'
   if (job.queued) return 'queued'
   if (!job.enabled) return 'paused'
@@ -65,7 +70,8 @@ export function jobStatus(job: ScheduledJob, starting: boolean): RowStatus | und
 }
 
 /** Label for a status chip. */
-export function statusLabel(job: ScheduledJob, status: RowStatus): string {
+export function statusLabel(job: ScheduledJob, status: RowStatus): string
+{
   if (status !== 'queued') return STATUS_LABEL[status]
   return `Queued · ${job.queuePosition && job.queuePosition > 1 ? `${ordinal(job.queuePosition)} in line` : 'next'}`
 }

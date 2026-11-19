@@ -2,7 +2,8 @@ import { CheckCircle2, AlertCircle, AlertTriangle, Loader2, Hourglass, Square, C
 import type { RowStatus } from '../schedulerFormat'
 import styles from './StatusIcon.module.css'
 /** Icon for a run or job status. */
-export default function StatusIcon({ status, size = 13 }: { status?: RowStatus; size?: number }) {
+export default function StatusIcon({ status, size = 13 }: { status?: RowStatus; size?: number })
+{
   if (status === 'running') return <Loader2 size={size} className={styles.iconSpin} aria-hidden />
   if (status === 'queued') return <Hourglass size={size} className={styles.iconMuted} aria-hidden />
   if (status === 'paused') return <CircleSlash size={size} className={styles.iconMuted} aria-hidden />

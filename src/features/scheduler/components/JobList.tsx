@@ -29,7 +29,8 @@ export default function JobList({ jobs, selected, starting, now, listRef, setSel
 {
   const troubled = jobs.filter(j => j.enabled && (j.lastStatus === 'error' || j.lastStatus === 'partial'))
 
-  function onListKey(e: React.KeyboardEvent) {
+  function onListKey(e: React.KeyboardEvent)
+  {
     if (!jobs.length || !selected) return
     const i = jobs.findIndex(j => j.id === selected.id)
     const next = e.key === 'ArrowDown' ? Math.min(i + 1, jobs.length - 1)
@@ -71,7 +72,8 @@ export default function JobList({ jobs, selected, starting, now, listRef, setSel
       )}
 
       <div ref={listRef} className={styles.jobList} role="listbox" aria-label="Scheduled jobs, in run order" onKeyDown={onListKey}>
-        {jobs.map((job, index) => {
+        {jobs.map((job, index) =>
+        {
           const status = jobStatus(job, starting.has(job.id))
           const isSelected = selected?.id === job.id
           const timing = status === 'running' ? 'Running now'

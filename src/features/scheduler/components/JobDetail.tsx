@@ -12,7 +12,8 @@ import DetailBlock from './DetailBlock'
 import HistoryEntry from './HistoryEntry'
 import shared from '../schedulerShared.module.css'
 import styles from './JobDetail.module.css'
-interface JobDetailProps {
+interface JobDetailProps
+{
   job:         ScheduledJob
   settingsTypes: ArtworkType[]
   now:         number
@@ -29,7 +30,8 @@ interface JobDetailProps {
 }
 
 /** Everything about the selected job: status, actions, schedule, last result, links, options, and run history. */
-export default function JobDetail({ job, settingsTypes, now, starting, canMoveUp, canMoveDown, canStop, onEdit, onDelete, onToggle, onRunNow, onStop, onMove }: JobDetailProps) {
+export default function JobDetail({ job, settingsTypes, now, starting, canMoveUp, canMoveDown, canStop, onEdit, onDelete, onToggle, onRunNow, onStop, onMove }: JobDetailProps)
+{
   const titleId = useId()
   const enabledLabelId = useId()
   const status = jobStatus(job, starting)
