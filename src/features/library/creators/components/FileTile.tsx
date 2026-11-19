@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AlertCircle, CheckCircle2, Loader2, Upload } from 'lucide-react'
-import type { MediuxUserSet, PosterInfo } from '../../../../electron/ipc/types'
-import type { ApplyState } from '../libraryShared'
+import type { MediuxUserSet, PosterInfo } from '../../../../../electron/ipc/types'
+import type { ApplyState } from '../../libraryShared'
 import shared from './catalogShared.module.css'
 import styles from './tiles.module.css'
 /** A single poster, backdrop, or title card, with Apply on the art. */

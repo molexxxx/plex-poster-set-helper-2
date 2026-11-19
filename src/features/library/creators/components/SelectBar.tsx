@@ -1,9 +1,9 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { CalendarClock } from 'lucide-react'
-import Button from '../../../components/ui/Button'
-import type { MediuxUserSet } from '../../../../electron/ipc/types'
+import Button from '../../../../components/ui/Button'
+import type { MediuxUserSet } from '../../../../../electron/ipc/types'
 import type { SyncScope } from './CreatorSyncDialog'
-import { plural } from './catalogUtils'
+import { plural } from '../catalogUtils'
 import shared from './catalogShared.module.css'
 import styles from './SelectBar.module.css'
 

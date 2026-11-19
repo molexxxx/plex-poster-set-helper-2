@@ -1,9 +1,9 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import { ListChecks, Loader2, Search, X } from 'lucide-react'
-import Button from '../../../components/ui/Button'
-import Segmented from '../../../components/ui/Segmented'
-import type { MediuxUserSet, ScheduledJob } from '../../../../electron/ipc/types'
-import { count, type LibraryFilter, type Tab } from './catalogUtils'
+import Button from '../../../../components/ui/Button'
+import Segmented from '../../../../components/ui/Segmented'
+import type { MediuxUserSet, ScheduledJob } from '../../../../../electron/ipc/types'
+import { count, type LibraryFilter, type Tab } from '../catalogUtils'
 import shared from './catalogShared.module.css'
 import styles from './CatalogToolbar.module.css'
 

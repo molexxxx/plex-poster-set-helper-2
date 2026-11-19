@@ -3,8 +3,8 @@ import { useCreatorPrefs } from '../../../utils/creatorPrefs'
 import { appliedKey } from '../../../utils/appliedTracker'
 import { errorMessage } from '../../../utils/errorMessage'
 import { useCreatorsData } from './hooks/useCreatorsData'
-import CreatorRail from './CreatorRail'
-import CreatorCatalog from './CreatorCatalog'
+import CreatorRail from './components/CreatorRail'
+import CreatorCatalog from './components/CreatorCatalog'
 import styles from './CreatorsView.module.css'
 
 /** The creator last shown, so the view reopens on it. */
