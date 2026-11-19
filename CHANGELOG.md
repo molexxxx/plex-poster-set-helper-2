@@ -4,6 +4,14 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.17.4
+
+### Collection sets get the longer MediUX wait
+v2.17.3 gave MediUX title pages a minute and a second try but missed one more page that collection sets need. A collection set, like "Toy Story Collection", is read again from its own page to learn which poster belongs to which movie. That read still gave up after 25 seconds, and since those pages are rarely ready on MediUX's side it often did, so the set's posters could not be matched to the right movies.
+
+- That read now gets the same minute and second try.
+- A first try that times out and then succeeds no longer leaves an "HTTP fetch failed" warning in the log. Only a page that still cannot be read is logged as a warning.
+
 ## What's new in v2.17.3
 
 ### MediUX searches stop failing and hanging
