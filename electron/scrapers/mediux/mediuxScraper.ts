@@ -1,4 +1,4 @@
-import { BaseScraper, USER_AGENTS, pick, sleep, sleepConfig, mapPool, withTimeout } from '../baseScraper'
+import { BaseScraper, USER_AGENTS, pick, sleep, sleepConfig, mapPool, withTimeout, waitAtMost } from '../baseScraper'
 import { Logger } from '../../services/logger'
 import { errorWithCause, isTimeoutError } from '../../services/readableError'
 import { splitTrailingYear } from '../../services/titleParse'
@@ -33,6 +33,14 @@ const PAGE_TIMEOUT_MS = 60_000
 const PAGE_RETRY_TIMEOUT_MS = 30_000
 /** Longest wait for a loaded browser page to hand over its script tags. */
 const SCRIPTS_READ_TIMEOUT_MS = 20_000
+/**
+ * How long after a browse starts it may keep reading collection sets' own
+ * pages and scanning a collection's member movies. A franchise title can list
+ * 20 or more collection sets, each a slow read the first time, so a set still
+ * unread by then is shown as its title page lists it and the browse answers
+ * inside the library's 3-minute limit.
+ */
+const ENRICH_WINDOW_MS = 120_000
 /** Creator pages fetched concurrently during a catalog crawl. */
 const USER_CRAWL_BATCH = 4
 /**
@@ -116,51 +124,71 @@ export class MediuxScraper extends BaseScraper
    * already resolve fine).
    *
    * @param sets - Sets from a boxset page.
+   * @param until - Time after which no further set page is read; a set not
+   *   read by then is returned as it is, and reads already running finish on
+   *   their own. Unset waits for every read.
    * @returns The same sets, with collection sets replaced by enriched copies.
    */
-  private async _enrichCollectionSets(sets: MediuxSet[]): Promise<MediuxSet[]>
+  private async _enrichCollectionSets(sets: MediuxSet[], until = Number.POSITIVE_INFINITY): Promise<MediuxSet[]>
   {
+    const enriched = new Array<MediuxSet | undefined>(sets.length)
     // Each set's /sets/{id} re-fetch is independent, so fan them out with a small
     // concurrency cap instead of one slow round-trip after another.
-    return mapPool(sets, 4, async s =>
+    const reads = mapPool(sets, 4, async (s, i) =>
     {
-      if (this._aborted) return s
-      const posters = (s.files ?? []).filter(f => (f.fileType ?? '').toLowerCase().includes('poster'))
-      // Movie/show browse pages strip per-file movie_id and the set-level
-      // collection ref, leaving only file titles. Treat a set as a collection
-      // set (worth re-fetching for its per-movie metadata) when it has the
-      // collection object, is named "... Collection", or its poster titles
-      // resolve to more than one dated movie.
-      const datedMovies = new Set(
-        posters
-          .map(f => parseTitleYear(f.title))
-          .filter((p): p is { title: string; year?: number } => !!p && p.year != null)
-          .map(p => `${p.title.toLowerCase()}|${p.year}`),
-      )
-      const looksLikeCollection =
-        !!s.collection ||
-        /\bcollection\b/i.test(s.set_name ?? s.name ?? '') ||
-        datedMovies.size > 1
-      const needsEnrich = looksLikeCollection && posters.length > 1 && !posters.some(f => f.movie_id)
-      if (!needsEnrich) return s
-      try
-      {
-        const full = await this._fetchPage(`https://mediux.pro/sets/${s.id}`)
-        const found = full.sets.find(x => String(x.id) === String(s.id))
-        const fullSet = found && keepDownloads(found, s)
-        if (fullSet?.files?.some(f => f.movie_id))
-        {
-          Logger.scrape('MediUX', `Enriched collection set ${s.id} (${s.collection?.collection_name}) via /sets/${s.id}`)
-          return fullSet
-        }
-        return fullSet ?? s
-      }
-      catch (err)
-      {
-        Logger.warn('MediUX', `Could not read collection set ${s.id} for its per-movie details, so its posters may not match the right movies: ${err instanceof Error ? err.message : err}`)
-        return s
-      }
+      enriched[i] = Date.now() < until ? await this._enrichSet(s) : s
     })
+    if (Number.isFinite(until)) await waitAtMost(reads, Math.max(0, until - Date.now()))
+    else await reads
+    return sets.map((s, i) => enriched[i] ?? s)
+  }
+
+  /**
+   * Re-fetches one set from its own page when it looks like a collection set
+   * that came back without per-movie metadata.
+   *
+   * @param s - A set as a title or boxset page listed it.
+   * @returns The enriched copy, or the set unchanged when it needs none or its page cannot be read.
+   */
+  private async _enrichSet(s: MediuxSet): Promise<MediuxSet>
+  {
+    if (this._aborted) return s
+    const posters = (s.files ?? []).filter(f => (f.fileType ?? '').toLowerCase().includes('poster'))
+    // Movie/show browse pages strip per-file movie_id and the set-level
+    // collection ref, leaving only file titles. Treat a set as a collection
+    // set (worth re-fetching for its per-movie metadata) when it has the
+    // collection object, is named "... Collection", or its poster titles
+    // resolve to more than one dated movie.
+    const datedMovies = new Set(
+      posters
+        .map(f => parseTitleYear(f.title))
+        .filter((p): p is { title: string; year?: number } => !!p && p.year != null)
+        .map(p => `${p.title.toLowerCase()}|${p.year}`),
+    )
+    const looksLikeCollection =
+      !!s.collection ||
+      /\bcollection\b/i.test(s.set_name ?? s.name ?? '') ||
+      datedMovies.size > 1
+    const needsEnrich = looksLikeCollection && posters.length > 1 && !posters.some(f => f.movie_id)
+    if (!needsEnrich) return s
+    try
+    {
+      const full = await this._fetchPage(`https://mediux.pro/sets/${s.id}`)
+      const found = full.sets.find(x => String(x.id) === String(s.id))
+      const fullSet = found && keepDownloads(found, s)
+      if (fullSet?.files?.some(f => f.movie_id))
+      {
+        const name = fullSet.collection?.collection_name ?? fullSet.set_name ?? fullSet.name
+        Logger.scrape('MediUX', `Enriched collection set ${s.id}${name ? ` (${name})` : ''} via /sets/${s.id}`)
+        return fullSet
+      }
+      return fullSet ?? s
+    }
+    catch (err)
+    {
+      Logger.warn('MediUX', `Could not read collection set ${s.id} for its per-movie details, so its posters may not match the right movies: ${err instanceof Error ? err.message : err}`)
+      return s
+    }
   }
 
   /**
@@ -175,6 +203,7 @@ export class MediuxScraper extends BaseScraper
    */
   async browseSets(tmdbId: string, type: 'movie' | 'show'): Promise<PosterSetSummary[]>
   {
+    const started = Date.now()
     const url = `https://mediux.pro/${type === 'movie' ? 'movies' : 'shows'}/${tmdbId}`
     Logger.scrape('MediUX', `Browsing sets: ${url}`)
 
@@ -220,7 +249,7 @@ export class MediuxScraper extends BaseScraper
     // Recover per-movie metadata for any collection set that came back stripped,
     // so its posters can be told apart and routed to the right movie. No-op for
     // ordinary sets and for collection sets that already carry movie_id.
-    sets = await this._enrichCollectionSets(sets)
+    sets = await this._enrichCollectionSets(sets, started + ENRICH_WINDOW_MS)
 
     const summaries = rankByDownloads(sets.map(s => ({ ...setToSummary(s, allTypes, fallback), downloads: setDownloads(s) })))
     Logger.scrape('MediUX', `Browse: ${summaries.length} set(s) for ${type} ${tmdbId}`)
@@ -229,7 +258,8 @@ export class MediuxScraper extends BaseScraper
 
   /**
    * Finds MediUX sets with collection-level art for a Plex Collection.
-   * Tries the TMDB collection page first, then scans member movies' set lists.
+   * Tries the TMDB collection page first, then scans member movies' set lists
+   * until the browse's reading window has passed.
    */
   async browseCollectionSets(
     collectionTitle: string,
@@ -237,6 +267,7 @@ export class MediuxScraper extends BaseScraper
     childTmdbIds: string[],
   ): Promise<PosterSetSummary[]>
   {
+    const until = Date.now() + ENRICH_WINDOW_MS
     const allTypes = new Set(['poster', 'backdrop', 'title_card'])
     const collNorm = normalizeCollectionName(collectionTitle)
 
@@ -281,7 +312,7 @@ export class MediuxScraper extends BaseScraper
     const finalize = async (): Promise<PosterSetSummary[]> =>
     {
       const pending = [...rawById.values()].filter(s => !enrichedById.has(String(s.id)))
-      for (const s of await this._enrichCollectionSets(pending)) enrichedById.set(String(s.id), s)
+      for (const s of await this._enrichCollectionSets(pending, until)) enrichedById.set(String(s.id), s)
       if (!enrichedById.size) return []
       return filterSummaries([...enrichedById.values()])
     }
@@ -305,7 +336,7 @@ export class MediuxScraper extends BaseScraper
     const maxChildScans = tmdbCollectionId ? 2 : 3
     for (const id of childTmdbIds.slice(0, maxChildScans))
     {
-      if (this._aborted) break
+      if (this._aborted || Date.now() >= until) break
       await fetchInto(`https://mediux.pro/movies/${id}`, 60_000)
       const partial = await finalize()
       if (partial.length)
@@ -336,6 +367,7 @@ export class MediuxScraper extends BaseScraper
    */
   async linkSets(url: string): Promise<PosterSetSummary[]>
   {
+    const started = Date.now()
     const titlePage = /\/(movies|shows)\/(\d+)/.exec(url)
     if (titlePage) return this.browseSets(titlePage[2], titlePage[1] === 'movies' ? 'movie' : 'show')
     if (/\/user\//.test(url)) throw new Error('A creator page lists every set they made; open it from the Creators tab, or link one set, a boxset, or a title page here')
@@ -353,7 +385,7 @@ export class MediuxScraper extends BaseScraper
     }
     if (!result.sets.length) throw new Error('No set data found at that link')
     const own = set ? result.sets.filter(s => String(s.id) === set[1]) : result.sets
-    const sets = await this._enrichCollectionSets(own.length ? own : result.sets)
+    const sets = await this._enrichCollectionSets(own.length ? own : result.sets, started + ENRICH_WINDOW_MS)
     const allTypes = new Set(['poster', 'backdrop', 'title_card'])
     return sets.map(s => ({
       ...setToSummary(s, allTypes, { ...result.fallback, ...deriveSetFallback(s) }),

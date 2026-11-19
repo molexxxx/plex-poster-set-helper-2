@@ -48,6 +48,34 @@ function titlePage(sets: Array<{ id: number; name: string }>): string
   return pageWith(flightScript(sets))
 }
 
+/** A collection set as a title page lists it, or with the per-movie ids its own page adds. */
+function collectionSet(id: number, withMovies = false): object
+{
+  const poster = (file: string, title: string, movie?: { id: number; title: string; release_date: string }) =>
+    ({ id: `${id}${file}`, fileType: 'poster', title, ...(movie ? { movie_id: movie } : {}) })
+  return {
+    id, set_name: 'Toy Story Collection', user_created: { username: 'alice' },
+    ...(withMovies ? { collection: { id: 10194, collection_name: 'Toy Story Collection' } } : {}),
+    files: withMovies
+      ? [
+          poster('a', 'Toy Story (1995)', { id: 862, title: 'Toy Story', release_date: '1995-11-22' }),
+          poster('b', 'Toy Story 2 (1999)', { id: 863, title: 'Toy Story 2', release_date: '1999-11-24' }),
+        ]
+      : [poster('a', 'Toy Story (1995)'), poster('b', 'Toy Story 2 (1999)')],
+  }
+}
+
+/** A promise the test settles by hand. */
+function deferred()
+{
+  let resolve!: () => void
+  const promise = new Promise<void>(res =>
+  {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 function response(html: string)
 {
   return { ok: true, status: 200, text: async () => html }
@@ -101,24 +129,10 @@ describe('MediuxScraper.browseSets', () =>
 
   it('asks again for a collection set page that runs out of time', async () =>
   {
-    const poster = (id: string, title: string, movie?: { id: number; title: string; release_date: string }) =>
-      ({ id, fileType: 'poster', title, ...(movie ? { movie_id: movie } : {}) })
-    const stripped = {
-      id: 9, set_name: 'Toy Story Collection', user_created: { username: 'alice' },
-      files: [poster('a', 'Toy Story (1995)'), poster('b', 'Toy Story 2 (1999)')],
-    }
-    const full = {
-      ...stripped,
-      collection: { id: 10194, collection_name: 'Toy Story Collection' },
-      files: [
-        poster('a', 'Toy Story (1995)', { id: 862, title: 'Toy Story', release_date: '1995-11-22' }),
-        poster('b', 'Toy Story 2 (1999)', { id: 863, title: 'Toy Story 2', release_date: '1999-11-24' }),
-      ],
-    }
     fetchMock
-      .mockResolvedValueOnce(response(pageWith(rawFlightScript([stripped]))))
+      .mockResolvedValueOnce(response(pageWith(rawFlightScript([collectionSet(9)]))))
       .mockRejectedValueOnce(timedOut())
-      .mockResolvedValueOnce(response(pageWith(rawFlightScript([full]))))
+      .mockResolvedValueOnce(response(pageWith(rawFlightScript([collectionSet(9, true)]))))
     const { scraper, newContext } = scraperWithBrowser()
 
     const sets = await scraper.browseSets('862', 'movie')
@@ -129,6 +143,72 @@ describe('MediuxScraper.browseSets', () =>
     expect(sets[0].posters.map(p => p.tmdbId)).toEqual(['862', '863'])
     expect(newContext).not.toHaveBeenCalled()
     expect(Logger.warn).not.toHaveBeenCalled()
+  })
+
+  it('shows a collection set as listed when its page has not answered within two minutes', async () =>
+  {
+    const held = deferred()
+    fetchMock.mockImplementation(async (url: string) =>
+    {
+      if (!url.includes('/sets/')) return response(pageWith(rawFlightScript([collectionSet(9)])))
+      await held.promise
+      return response(pageWith(rawFlightScript([collectionSet(9, true)])))
+    })
+    const { scraper } = scraperWithBrowser()
+
+    vi.useFakeTimers()
+    try
+    {
+      const browsing = scraper.browseSets('862', 'movie')
+      await vi.advanceTimersByTimeAsync(119_000)
+      let answered = false
+      void browsing.then(() =>
+      {
+        answered = true
+      })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(answered).toBe(false)
+      await vi.advanceTimersByTimeAsync(1_000)
+      const sets = await browsing
+      expect(sets[0].posters.map(p => p.tmdbId)).toEqual([undefined, undefined])
+      held.resolve()
+      await vi.advanceTimersByTimeAsync(0)
+    }
+    finally
+    {
+      vi.useRealTimers()
+    }
+  })
+
+  it('starts no collection set reads once the two minutes have passed', async () =>
+  {
+    const held = deferred()
+    const ids = [1, 2, 3, 4, 5, 6]
+    fetchMock.mockImplementation(async (url: string) =>
+    {
+      if (!url.includes('/sets/')) return response(pageWith(rawFlightScript(ids.map(id => collectionSet(id)))))
+      await held.promise
+      return response(pageWith(rawFlightScript([collectionSet(Number(url.split('/').pop()), true)])))
+    })
+    const { scraper } = scraperWithBrowser()
+
+    vi.useFakeTimers()
+    try
+    {
+      const browsing = scraper.browseSets('862', 'movie')
+      await vi.advanceTimersByTimeAsync(120_000)
+      const sets = await browsing
+      expect(sets).toHaveLength(6)
+      expect(fetchMock).toHaveBeenCalledTimes(5)
+
+      held.resolve()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(fetchMock).toHaveBeenCalledTimes(5)
+    }
+    finally
+    {
+      vi.useRealTimers()
+    }
   })
 
   it('says MediUX was slow when both tries run out of time, without a browser load', async () =>
