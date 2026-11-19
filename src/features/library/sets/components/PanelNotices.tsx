@@ -8,6 +8,9 @@ import { SOURCES } from '../setsPanelUtils'
 import shared from '../../libraryShared.module.css'
 import styles from './PanelNotices.module.css'
 
+/** Added to the searching notice once MediUX has run long. */
+const SLOW_MEDIUX_NOTE = 'MediUX can take up to a minute for a title it has not served lately.'
+
 interface PanelNoticesProps
 {
   item: LibraryItem
@@ -26,16 +29,17 @@ interface PanelNoticesProps
 /** The notes above the sets: loading, sites still searching or that failed, unreadable links, and why nothing shows. */
 export default function PanelNotices({ item, isCollectionItem, browse, links, creatorError, hasTmdbKey, allSets, visibleSets, hiddenCount }: PanelNoticesProps)
 {
-  const { loading, pending, sourceErrors, error, tmdbMissing, sets, posterdbMore } = browse
+  const { loading, pending, slow, sourceErrors, error, tmdbMissing, sets, posterdbMore } = browse
   const { linkErrors, unlink, updateLinkUi } = links
+  const slowNote = slow && pending.has('mediux') ? ` ${SLOW_MEDIUX_NOTE}` : ''
   return (
     <>
-      {loading && <div className={styles.panelLoading}><Spinner size="sm" /> <span>{isCollectionItem ? 'Finding collection sets on MediUX and ThePosterDB…' : 'Finding sets on MediUX and ThePosterDB…'}</span></div>}
+      {loading && <div className={styles.panelLoading}><Spinner size="sm" /> <span>{isCollectionItem ? 'Finding collection sets on MediUX and ThePosterDB…' : 'Finding sets on MediUX and ThePosterDB…'}{slowNote}</span></div>}
 
       {!loading && pending.size > 0 && (
         <div className={styles.panelInlineNotice}>
           <Loader2 size={13} className={shared.spin} />
-          <span>Still searching {[...pending].map(s => SOURCE_LABEL[s]).join(' and ')}…</span>
+          <span>Still searching {[...pending].map(s => SOURCE_LABEL[s]).join(' and ')}…{slowNote}</span>
         </div>
       )}
 

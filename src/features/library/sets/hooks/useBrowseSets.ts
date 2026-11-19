@@ -5,6 +5,9 @@ import { errorMessage } from '../../../../utils/errorMessage'
 import { BROWSE_CACHE_TTL, browseCacheKey, browseSetsCache } from '../setsCache'
 import { SOURCES, sourceFailure } from '../setsPanelUtils'
 
+/** How long a site may search before the panel explains that MediUX can be slow. */
+const SLOW_SEARCH_MS = 10_000
+
 /**
  * The sets MediUX and ThePosterDB offer for an item. Each site is asked on
  * its own and merged as it answers; a cached answer shows at once and is read
@@ -12,7 +15,8 @@ import { SOURCES, sourceFailure } from '../setsPanelUtils'
  *
  * @param item - The title or collection the panel shows.
  * @returns The sets, the loading and refresh state, each site's failure and
- *   notices, the TMDB id MediUX resolved, the collection's members, and `refreshSets`.
+ *   notices, whether the search is running long, the TMDB id MediUX
+ *   resolved, the collection's members, and `refreshSets`.
  */
 export function useBrowseSets(item: LibraryItem)
 {
@@ -25,6 +29,8 @@ export function useBrowseSets(item: LibraryItem)
   const [sourceErrors, setSourceErrors] = useState<Partial<Record<SetSource, string>>>({})
   // Sites still being searched once the first answer is in.
   const [pending, setPending] = useState<Set<SetSource>>(new Set())
+  // The search has run past SLOW_SEARCH_MS.
+  const [slow, setSlow] = useState(false)
   // ThePosterDB lists more sets than the panel read; the page to continue on.
   const [posterdbMore, setPosterdbMore] = useState<string | null>(null)
   // TMDB id MediUX resolved for this item (set even when the Plex item uses a
@@ -44,6 +50,7 @@ export function useBrowseSets(item: LibraryItem)
 
     setError(null)
     setPending(new Set())
+    setSlow(false)
 
     if (cached)
     {
@@ -69,6 +76,7 @@ export function useBrowseSets(item: LibraryItem)
     const hasCache = !!cached
     if (hasCache) setRefreshing(true)
     setPending(new Set(SOURCES))
+    const slowTimer = setTimeout(() => setSlow(true), SLOW_SEARCH_MS)
 
     // Each site is asked on its own, so MediUX's single page is not held back
     // by the ThePosterDB walk; answers merge into the list as they arrive.
@@ -112,6 +120,7 @@ export function useBrowseSets(item: LibraryItem)
     )).then(() =>
     {
       if (cancelled) return
+      clearTimeout(slowTimer)
       const m = results.mediux, p = results.posterdb
       const failures: Partial<Record<SetSource, string>> = {}
       for (const src of SOURCES)
@@ -136,7 +145,11 @@ export function useBrowseSets(item: LibraryItem)
       setLoading(false)
       setRefreshing(false)
     })
-    return () => { cancelled = true }
+    return () =>
+    {
+      cancelled = true
+      clearTimeout(slowTimer)
+    }
   }, [item.key, item.type, item.title, item.year, item.tmdbId, item.tvdbId, item.imdbId, item.anidbId, isCollectionItem, setsReloadKey])
 
   function refreshSets()
@@ -145,7 +158,7 @@ export function useBrowseSets(item: LibraryItem)
     setSetsReloadKey(k => k + 1)
   }
 
-  return { sets, loading, error, tmdbMissing, sourceErrors, pending, posterdbMore, resolvedTmdbId, collectionMembers, refreshing, setsReloadKey, refreshSets }
+  return { sets, loading, error, tmdbMissing, sourceErrors, pending, slow, posterdbMore, resolvedTmdbId, collectionMembers, refreshing, setsReloadKey, refreshSets }
 }
 
 /** The browse state and actions `useBrowseSets` returns. */
