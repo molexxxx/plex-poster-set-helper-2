@@ -4,6 +4,19 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.17.6
+
+### Updated browser engines
+- The app runs on Electron 45.4.1, which updates its built-in Chromium to 156.0.8078.100 with fixes backported from Chromium, V8, ANGLE, FFmpeg, and PDFium.
+- The hidden browser that reads MediUX and ThePosterDB moves to Chromium 159 (Playwright 1.65.1). The installers and the Docker image ship it, so nothing is downloaded, and the first start after updating checks once that it runs.
+
+### Web server security releases
+The Docker image's web server takes the fastify 5.12.8 and @fastify/static 10.1.12 security releases. Neither advisory affected this app: one needs a request timeout the server does not set, and the other needs directory listings, which it does not serve.
+
+### Under the hood
+- The Manual Import, Bulk Files, Reset Posters, log viewer, and first-run setup screens were split into smaller components and hooks, with no change in how they look or behave. New tests cover the helpers pulled out of them.
+- The interface libraries moved to framer-motion 14.14, lucide-react 1.76, and zustand 5.1, and the build tools to Vite 8.3.8, @vitejs/plugin-react 6.3, typescript-eslint 8.73, concurrently 10.0.7, and Prettier 3.10.1.
+
 ## What's new in v2.17.5
 
 ### Franchise titles no longer time out on MediUX
