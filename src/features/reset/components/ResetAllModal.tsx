@@ -4,7 +4,8 @@ import Modal from '../../../components/ui/Modal'
 import styles from './ResetAllModal.module.css'
 
 
-interface ResetAllModalProps {
+interface ResetAllModalProps
+{
   open: boolean
   onClose: () => void
   /** Items the reset covers: those the filters let through. */
@@ -15,7 +16,8 @@ interface ResetAllModalProps {
 
 
 /** Confirms a Reset All, saying how many items it covers and whether their uploads are deleted too. */
-export default function ResetAllModal({ open, onClose, count, deleteUploads, onConfirm }: ResetAllModalProps) {
+export default function ResetAllModal({ open, onClose, count, deleteUploads, onConfirm }: ResetAllModalProps)
+{
   return (
     <Modal
       open={open}

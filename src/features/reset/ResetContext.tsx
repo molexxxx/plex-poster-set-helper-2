@@ -2,12 +2,14 @@ import { createContext, useCallback, useContext, useRef, useState } from 'react'
 
 export type ResetItemStatus = 'resetting' | 'done' | 'error'
 
-export interface ResetTarget {
+export interface ResetTarget
+{
   key: string
   type: 'movie' | 'show' | 'collection'
 }
 
-interface ResetValue {
+interface ResetValue
+{
   /** True while a Reset All batch is in progress. */
   running: boolean
   /** Total items in the active batch. */
@@ -41,7 +43,8 @@ export const useReset = () => useContext(ResetContext)
  * keeps running (and its progress stays visible) when the user navigates away
  * from the Reset page and back. The page is a thin view over this state.
  */
-export function ResetProvider({ children }: { children: React.ReactNode }) {
+export function ResetProvider({ children }: { children: React.ReactNode })
+{
   const [running, setRunning]     = useState(false)
   const [total, setTotal]         = useState(0)
   const [completed, setCompleted] = useState(0)
@@ -53,12 +56,15 @@ export function ResetProvider({ children }: { children: React.ReactNode }) {
   // a sibling forget when two resets resolve close together.
   const writeChain = useRef<Promise<void>>(Promise.resolve())
 
-  const setStatus = useCallback((key: string, status: ResetItemStatus) => {
+  const setStatus = useCallback((key: string, status: ResetItemStatus) =>
+  {
     setStatuses(prev => ({ ...prev, [key]: status }))
   }, [])
 
-  const clearStatus = useCallback((key: string) => {
-    setStatuses(prev => {
+  const clearStatus = useCallback((key: string) =>
+  {
+    setStatuses(prev =>
+    {
       if (!(key in prev)) return prev
       const next = { ...prev }
       delete next[key]
@@ -67,8 +73,10 @@ export function ResetProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   /** Drops an item from the applied-poster history, then signals a list refresh. */
-  const forget = useCallback((key: string) => {
-    writeChain.current = writeChain.current.then(async () => {
+  const forget = useCallback((key: string) =>
+  {
+    writeChain.current = writeChain.current.then(async () =>
+    {
       await window.api.applied.forget(key)
       setRevision(v => v + 1)
     })
@@ -80,9 +88,11 @@ export function ResetProvider({ children }: { children: React.ReactNode }) {
    * "done" state, then forget it from history. Forgetting after the flash keeps
    * the row (and its green confirmation) on screen through the animation.
    */
-  const runOne = useCallback(async (item: ResetTarget, deleteUploads: boolean) => {
+  const runOne = useCallback(async (item: ResetTarget, deleteUploads: boolean) =>
+  {
     setStatus(item.key, 'resetting')
-    try {
+    try
+    {
       // Only shows have a season/episode hierarchy; collections' children are member movies.
       const hierarchical = item.type === 'show'
       await window.api.plex.resetPoster(item.key, hierarchical, deleteUploads)
@@ -90,23 +100,29 @@ export function ResetProvider({ children }: { children: React.ReactNode }) {
       await new Promise(r => setTimeout(r, FLASH_MS))
       await forget(item.key)
       clearStatus(item.key)
-    } catch {
+    }
+    catch
+    {
       setStatus(item.key, 'error')
     }
   }, [setStatus, clearStatus, forget])
 
-  const resetOne = useCallback((item: ResetTarget, deleteUploads: boolean) => {
+  const resetOne = useCallback((item: ResetTarget, deleteUploads: boolean) =>
+  {
     void runOne(item, deleteUploads)
   }, [runOne])
 
-  const startAll = useCallback((items: ResetTarget[], deleteUploads: boolean) => {
+  const startAll = useCallback((items: ResetTarget[], deleteUploads: boolean) =>
+  {
     if (runningRef.current || items.length === 0) return
     runningRef.current = true
     setRunning(true)
     setTotal(items.length)
     setCompleted(0)
-    void (async () => {
-      for (const item of items) {
+    void (async () =>
+    {
+      for (const item of items)
+      {
         await runOne(item, deleteUploads)
         setCompleted(c => c + 1)
       }

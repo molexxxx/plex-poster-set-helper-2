@@ -4,7 +4,8 @@ import type { SourceFilter, TypeFilter } from '../resetText'
 import styles from './ResetFilters.module.css'
 
 
-interface ResetFiltersProps {
+interface ResetFiltersProps
+{
   search: string
   onSearch: (text: string) => void
   sourceFilter: SourceFilter
@@ -19,7 +20,8 @@ interface ResetFiltersProps {
 
 
 /** The list's title search, source and type filters, and the Reset All progress. */
-export default function ResetFilters({ search, onSearch, sourceFilter, onSource, typeFilter, onType, running, completed, total }: ResetFiltersProps) {
+export default function ResetFilters({ search, onSearch, sourceFilter, onSource, typeFilter, onType, running, completed, total }: ResetFiltersProps)
+{
   return (
     <div className={styles.filters}>
       <input

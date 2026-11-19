@@ -9,7 +9,8 @@ import type { ResetItemStatus } from '../ResetContext'
 import styles from './TrackedRow.module.css'
 
 
-interface TrackedRowProps {
+interface TrackedRowProps
+{
   item: TrackedItem
   status: ResetItemStatus | 'idle'
   deleteUploads: boolean
@@ -21,7 +22,8 @@ interface TrackedRowProps {
 
 
 /** One tracked item: its poster, title and where the art came from, and its Reset button or reset status. */
-export default function TrackedRow({ item, status, deleteUploads, running, onView, onReset }: TrackedRowProps) {
+export default function TrackedRow({ item, status, deleteUploads, running, onView, onReset }: TrackedRowProps)
+{
   return (
     <motion.div
       className={[

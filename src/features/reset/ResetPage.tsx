@@ -21,7 +21,8 @@ import styles from './ResetPage.module.css'
 
 
 /** Reset Posters page: lists locally tracked applied art and restores Plex originals. */
-export default function ResetPage() {
+export default function ResetPage()
+{
   const { plexConnected } = useAppContext()
   // The run loop lives in ResetProvider so it survives navigating away mid-run.
   const { running, total, completed, statuses, revision, startAll, resetOne } = useReset()
@@ -33,7 +34,8 @@ export default function ResetPage() {
   const { items, loading, load, listRef, goToPage, filtered, pageItems, pageCount, safePage, pageStart, pageSize, stats, lightboxImages } = tracked
 
 
-  function resetAll() {
+  function resetAll()
+  {
     setConfirmAll(false)
     // Hand the whole batch to the controller so it keeps running (and stays
     // visible) even if the user navigates away from this page.

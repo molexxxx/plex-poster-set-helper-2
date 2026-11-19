@@ -8,7 +8,8 @@ import { cleanLabel, type CleanState } from '../resetText'
  *
  * @returns The task's state, whether it is running, the button label, and `cleanBundles`.
  */
-export function useCleanBundles() {
+export function useCleanBundles()
+{
   const [cleanState, setCleanState] = useState<CleanState>('idle')
   const cleanTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -20,15 +21,19 @@ export function useCleanBundles() {
    * actually clears server-side, so the button tracks real progress and ends the
    * moment it's done - no fixed cooldown.
    */
-  async function cleanBundles() {
+  async function cleanBundles()
+  {
     if (cleanState === 'cleaning') return
     if (cleanTimer.current) clearTimeout(cleanTimer.current)
     setCleanState('cleaning')
-    try {
+    try
+    {
       await window.api.plex.cleanBundles()
       setCleanState('done')
       cleanTimer.current = setTimeout(() => setCleanState('idle'), 2_500)
-    } catch {
+    }
+    catch
+    {
       setCleanState('error')
       cleanTimer.current = setTimeout(() => setCleanState('idle'), 4_000)
     }

@@ -4,7 +4,8 @@ import styles from './StatStrip.module.css'
 
 
 /** Summary chips of applied-poster counts by source and type. */
-export default function StatStrip({ stats }: { stats: Stats }) {
+export default function StatStrip({ stats }: { stats: Stats })
+{
   return (
     <div className={styles.statsStrip}>
       <span className={styles.stripStat}>

@@ -6,7 +6,8 @@ import type { CleanBundles } from '../hooks/useCleanBundles'
 import styles from './SpaceRow.module.css'
 
 
-interface SpaceRowProps {
+interface SpaceRowProps
+{
   /** Anything is tracked, so the delete toggle has something to act on. */
   hasItems: boolean
   plexConnected: boolean
@@ -18,7 +19,8 @@ interface SpaceRowProps {
 
 
 /** Disk space: the toggle to delete uploaded images on reset, and Plex's Clean Bundles task. */
-export default function SpaceRow({ hasItems, plexConnected, deleteUploads, onDeleteUploadsChange, running, clean }: SpaceRowProps) {
+export default function SpaceRow({ hasItems, plexConnected, deleteUploads, onDeleteUploadsChange, running, clean }: SpaceRowProps)
+{
   const { cleanState, cleanBusy, cleanLabel, cleanBundles } = clean
 
   return (

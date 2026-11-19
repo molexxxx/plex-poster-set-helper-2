@@ -2,7 +2,8 @@ import styles from './SkeletonRows.module.css'
 
 
 /** Shimmer placeholder rows shown while the applied history loads. */
-export default function SkeletonRows() {
+export default function SkeletonRows()
+{
   return (
     <>
       {Array.from({ length: 5 }).map((_, i) => (

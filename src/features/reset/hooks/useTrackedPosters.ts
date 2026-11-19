@@ -18,7 +18,8 @@ const PAGE_SIZE = 20
  * @returns The items and the filtered page of them, the filters and their
  *   setters, the stats, lightbox images, the list's scroll ref, and `load`.
  */
-export function useTrackedPosters(revision: number) {
+export function useTrackedPosters(revision: number)
+{
   const [items, setItems]           = useState<TrackedItem[]>([])
   const [loading, setLoading]       = useState(false)
   const [sourceFilter, setSource]   = useState<SourceFilter>('all')
@@ -31,14 +32,18 @@ export function useTrackedPosters(revision: number) {
   const goToPage = (p: number) => { setPage(p); listRef.current?.scrollTo({ top: 0 }) }
 
 
-  const load = useCallback(async (quiet = false) => {
+  const load = useCallback(async (quiet = false) =>
+  {
     if (!quiet) setLoading(true)
-    try {
+    try
+    {
       const cfg = await window.api.config.get()
       const records = cfg.appliedPosters ?? []
       // One row per Plex item (latest record wins)
       setItems(latestPerItem(records))
-    } finally {
+    }
+    finally
+    {
       if (!quiet) setLoading(false)
     }
   }, [])
