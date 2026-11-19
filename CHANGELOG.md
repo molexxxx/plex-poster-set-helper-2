@@ -4,6 +4,22 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.17.1
+
+### Servers with more than one address
+After signing in, the app could fail to reach a Plex server that every other device streams from fine, and say only "fetch failed". Plex lists every network address a server has, and the app took the first local one without checking it. On a TrueNAS server the first one listed belonged to its internal container network, which no other computer can reach. Thanks to @diabWH3 for the report and screenshots (#78).
+
+- Sign-in now tries every address Plex lists for your server at the same time and keeps the best one that answers: an address on your own network first, then remote access, then Plex's relay. When a router blocks plex.direct names, the same address over plain http is tried as well.
+- An address you entered yourself is kept as long as it answers, and an address that never answered is no longer saved.
+- When the saved address stops answering, the app looks your server up again at launch and before a scheduled run, and switches to an address that works. An install already stuck on a bad address fixes itself after this update.
+- Connection errors name the cause, such as "the connection timed out" or "the connection was refused", instead of "fetch failed". When sign-in cannot reach your server, **Settings → Plex → Server** says why under the address field.
+
+### Docker: posters load through the app
+The web UI now loads Plex posters through the app rather than straight from your Plex server, so your browser no longer needs a route to the address the container uses. Posters also show when you open the web UI from outside your network or through an HTTPS reverse proxy, and the Plex token no longer appears in image links.
+
+### Other changes
+- When the sets panel applies every artwork type while Settings picks fewer, the **Schedule** tooltip says "every artwork type" instead of listing all three.
+
 ## What's new in v2.17.0
 
 ### Pick artwork types per schedule
