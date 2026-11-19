@@ -9,7 +9,7 @@ import { SOURCE_LABEL, groupPosters, posterPageUrl, setKey, type FileType } from
 import type { AppliedIndex } from '../../../utils/appliedTracker'
 import { ThumbButton, type ApplyState } from '../libraryShared'
 import { count, plural, shortTypeCounts, type TitleGroup } from './catalogUtils'
-import libraryStyles from '../LibraryPage.module.css'
+import libraryStyles from '../libraryShared.module.css'
 import shared from './catalogShared.module.css'
 import tiles from './tiles.module.css'
 import styles from './SetDetail.module.css'

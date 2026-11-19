@@ -1,0 +1,78 @@
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+  flex-shrink: 0;
+}
+
+/* Which site's sets to show. Its own row above the uploader/type filters: it
+   selects a different axis (where art came from, not what it is). */
+.sourceToggles {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.sourceToggle {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration-fast), background var(--duration-fast), border-color var(--duration-fast);
+}
+
+.sourceToggle:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.sourceToggle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sourceToggleOn,
+.sourceToggleOn:hover {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent-border);
+  color: var(--color-accent-hover);
+}
+
+.sourceCount {
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+}
+
+/* Artwork type chips: equal thirds on a narrow panel, sized to content on a wider one (below). */
+.typeToggles > button {
+  flex: 1;
+  text-align: center;
+}
+
+/* On a wider panel the dropdown and chips share one row, chips sized to content;
+   on a narrow panel they stack and the chips fill the row as equal thirds. The
+   source chips keep their own full-width row at every size. */
+@container sets-panel (min-width: 460px) {
+  .filters { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .sourceToggles { flex: 1 0 100%; }
+  .sourceToggle { flex: 0 0 auto; }
+  /* The uploader dropdown: first in the row, or right after the source chips. */
+  .filters > :first-child:not(.sourceToggles),
+  .filters > .sourceToggles + * { flex: 1 1 auto; min-width: 0; }
+  .filters .typeToggles { flex: 0 0 auto; flex-wrap: nowrap; }
+  .typeToggles > button { flex: 0 0 auto; }
+}

@@ -3,7 +3,7 @@ import { CheckCircle2, Circle, ExternalLink } from 'lucide-react'
 import { posterFileType, type FileType, type SetSource } from '../../utils/posterGroups'
 import { posterSlot } from '../../../electron/services/scheduleUtils'
 import type { PosterInfo } from '../../../electron/ipc/types'
-import styles from './LibraryPage.module.css'
+import styles from './libraryShared.module.css'
 
 /** A creator's page on the site their set came from. */
 export function creatorUrl(source: SetSource, uploader: string): string {

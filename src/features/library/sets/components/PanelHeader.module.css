@@ -1,0 +1,61 @@
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+  flex-shrink: 0;
+}
+
+.panelTitleWrap {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.panelTitle {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panelYear { font-size: var(--text-sm); color: var(--color-text-muted); flex-shrink: 0; }
+
+.panelClose {
+  display: flex;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.panelClose:hover { color: var(--color-text-primary); background: rgba(255, 255, 255, 0.06); }
+
+.panelHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.panelRefresh {
+  display: flex;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: none;
+  border: none;
+}
+
+.panelRefresh:hover:not(:disabled) { color: var(--color-text-primary); background: rgba(255, 255, 255, 0.06); }
+.panelRefresh:disabled { opacity: 0.4; cursor: default; }
+
+.panelActionOn { color: var(--color-accent); }

@@ -1,0 +1,136 @@
+/* Poster thumbnails (ThumbButton and the grids that hold them), the skeleton shimmer, and the spinner, shared across the Library and Creators. */
+.groupThumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 5px;
+}
+.groupThumbsWide { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+
+.groupThumb {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--color-bg-base);
+  padding: 0;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color var(--duration-fast), transform var(--duration-fast);
+}
+.groupThumb:hover { border-color: var(--color-accent); transform: scale(1.04); z-index: 1; }
+.groupThumbsWide .groupThumb { aspect-ratio: 16 / 9; }
+
+.groupThumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+@container sets-panel (min-width: 520px) {
+  .groupThumbs { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+  .groupThumbsWide { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); }
+}
+
+@container sets-panel (min-width: 720px) {
+  .groupThumbs { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+  .groupThumbsWide { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+}
+
+@container sets-panel (min-width: 880px) {
+  .groupThumbs { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}
+
+.epBadge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+}
+
+.spin { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-bg-elevated);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.07) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.imgPending { opacity: 0; }
+
+.groupThumbWrap { position: relative; }
+.groupThumbWrap .groupThumb { width: 100%; }
+.groupThumbSelected .groupThumb { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+.groupThumbPassed .groupThumb img { opacity: 0.55; transition: opacity var(--duration-fast); }
+.groupThumbPassed .groupThumb:hover img { opacity: 0.9; }
+
+.pickBtn {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
+.pickBtn:hover { background: rgba(0, 0, 0, 0.85); color: var(--color-accent-hover); }
+.pickBtn:focus-visible { outline: 2px solid var(--color-accent-border); outline-offset: 1px; }
+.pickBtnOn { color: var(--color-accent); }
+
+/* Opens the poster on its site. Shown while the thumb is hovered or the
+   link has focus, and always on touch screens, which cannot hover. */
+.thumbLink {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.65);
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast), color var(--duration-fast), background var(--duration-fast);
+}
+.groupThumbWrap:hover .thumbLink,
+.thumbLink:focus-visible { opacity: 1; }
+.thumbLink:hover { background: rgba(0, 0, 0, 0.85); color: var(--color-accent-hover); }
+.thumbLink:focus-visible { outline: 2px solid var(--color-accent-border); outline-offset: 1px; }
+
+@media (hover: none) {
+  .thumbLink { opacity: 1; }
+}

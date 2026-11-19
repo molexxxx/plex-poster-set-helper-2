@@ -1,0 +1,149 @@
+.artStripSection {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.artStripHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.artStripHeader:hover { color: var(--color-text-secondary); }
+.artStripHeader:hover .artStripLabel { color: var(--color-text-secondary); }
+
+.artStripChevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.artStripChevronCollapsed { transform: rotate(-90deg); }
+
+.artStripLabel {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.artStripCount {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full, 999px);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.artStripLoading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Collapse with a 1fr -> 0fr grid row so the height animates without JS measuring. */
+.artStripBody {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.artStripBodyCollapsed { grid-template-rows: 0fr; }
+
+.artStripScroll {
+  min-height: 0;
+  overflow: hidden;
+  padding-top: var(--space-2);
+}
+
+/* When open, cap the height and scroll internally so the strip never crowds out
+   the sets list below it - a long show with many seasons stays contained. */
+.artStripBody:not(.artStripBodyCollapsed) .artStripScroll {
+  overflow-y: auto;
+  max-height: clamp(160px, 34vh, 380px);
+}
+
+.artStrip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: var(--space-2);
+}
+
+.artCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.artCardImg {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  display: block;
+  background: var(--color-bg-base);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.artCardFallback {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-base);
+  color: var(--color-text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* The selected item's own art: tint its label rather than ring the thumbnail.
+   An outset border/box-shadow gets clipped by the strip's overflow on the first
+   card, so the cue lives in the label instead. */
+.artHighlight .artLabel {
+  color: var(--color-accent, #e5a00d);
+  font-weight: 600;
+}
+
+.artCardClickable { cursor: pointer; }
+.artCardClickable .artCardImg { transition: border-color 0.15s ease, transform 0.15s ease; }
+.artCardClickable:hover .artCardImg { border-color: var(--color-accent); transform: scale(1.04); }
+.artCardClickable:focus-visible { outline: none; }
+/* Inset so the focus ring never clips at the strip's edge */
+.artCardClickable:focus-visible .artCardImg { box-shadow: inset 0 0 0 2px var(--color-accent); }
+
+.artLabel {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--color-text-secondary);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container sets-panel (min-width: 520px) {
+  .artStrip { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+  .artLabel { font-size: 10px; }
+}
+
+@container sets-panel (min-width: 720px) {
+  .artStrip { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+}

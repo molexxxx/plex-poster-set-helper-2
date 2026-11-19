@@ -1,0 +1,120 @@
+/* Type chip still used in the cross-library group headers */
+.sectionType {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.globalResults {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-bottom: var(--space-4);
+}
+
+.globalGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.globalGroupHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.globalGroupTitle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.globalGroupMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.gridScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Top/left breathing room so a hovered card's lift + border/glow isn't
+     clipped by the scroll container's overflow at the top row. */
+  padding-top: var(--space-2);
+  padding-left: 2px;
+  /* Bleed into the page wrapper's right/bottom padding so the scrollbar sits
+     flush against the window edge and content scrolls all the way down; the
+     gap then lives between the items and the scrollbar (padding-right), not
+     outside the scrollbar. */
+  margin-right: calc(-1 * var(--content-padding));
+  padding-right: var(--space-3);
+  margin-bottom: calc(-1 * var(--content-padding));
+  padding-bottom: var(--dock-clearance);
+}
+
+.itemGrid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+
+.gridScrollWithPanel {
+  /* Reserve the panel's width plus a gap so the last poster column clears the
+     panel's left edge and shadow. The extra --content-padding cancels this
+     scroller's negative right margin (which bleeds it to the window edge, past
+     the panel's inset), and --space-4 is the visible breathing room.
+     No transition on the gap: an animated padding change would reflow the
+     auto-fill grid every frame, visibly squishing and shuffling the thumbnails
+     as the panel opens, closes, or resizes. Snapping reflows once; the panel's
+     own slide (framer-motion) covers the seam. */
+  padding-right: calc(var(--library-panel-width, 560px) + var(--content-padding) + var(--space-4));
+}
+
+@media (min-width: 1200px) {
+  .itemGrid {
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: var(--space-5);
+  }
+}
+
+@media (min-width: 1800px) {
+  .itemGrid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+
+@media (min-width: 2400px) {
+  .itemGrid {
+    grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
+  }
+}
+
+.emptyGrid, .gridLoading, .gridCount {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.emptyGrid {
+  flex-direction: column;
+  padding: var(--space-8) 0;
+}
+
+.gridLoading { padding: var(--space-4); }
+.gridCount   { padding: var(--space-3); font-size: var(--text-xs); opacity: 0.6; }
