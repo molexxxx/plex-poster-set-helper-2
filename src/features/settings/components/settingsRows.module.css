@@ -1,0 +1,108 @@
+/* Block and Row share this module: the .list > .row rules cross both components. */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.blockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 28px;
+}
+
+.blockTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+}
+
+.blockDesc {
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  max-width: 68ch;
+  margin-top: -2px;
+}
+
+/* No overflow clipping: rows draw no background, and a clipped list would cut off dropdown menus. */
+.list {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  min-height: 56px;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.list > .row:first-child { border-top: none; }
+
+.rowStacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.rowLabel {
+  font-size: 13px;
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+
+.rowDesc {
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--color-text-muted);
+  max-width: 75ch;
+}
+
+.rowError {
+  color: var(--color-accent-error);
+}
+
+.rowControl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.rowStacked .rowControl {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Brief highlight when the command palette jumps to a block. */
+.anchorPulse .list {
+  animation: anchorPulse 1.6s var(--ease-out-expo);
+}
+
+@keyframes anchorPulse {
+  0%, 30% { box-shadow: 0 0 0 2px var(--color-accent-border); }
+  100%    { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* A row wrapped for a deep-link anchor still draws its separator. */
+.list > div > .row { border-top: 1px solid var(--color-border); }
+.list > div:first-child > .row { border-top: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anchorPulse .list { animation: none; }
+}
