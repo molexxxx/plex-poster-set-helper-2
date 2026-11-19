@@ -4,6 +4,18 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.17.5
+
+### Franchise titles no longer time out on MediUX
+v2.17.4 gave each collection set's own page a minute and a second try. A franchise title can list 20 or more collection sets (the first Harry Potter movie lists 20), and those pages are read four at a time, so on pages MediUX had not built lately a search could run past its 3-minute limit and show no MediUX sets at all.
+
+- A search now stops reading collection sets two minutes after it started. A set it has not read by then shows as the title's page lists it, the way a set whose read failed showed before v2.17.4. Reads already under way finish in the background, so MediUX has those pages ready next time.
+- Plex collection panels stop scanning member movies at the same point.
+- Scraping a boxset in **Manual Import** still waits for every set.
+
+### Under the hood
+The schedule helpers and the Plex service were split into smaller files with no change in behavior.
+
 ## What's new in v2.17.4
 
 ### Collection sets get the longer MediUX wait
