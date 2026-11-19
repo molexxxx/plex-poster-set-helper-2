@@ -150,6 +150,17 @@ Give it a few seconds on first boot while the app starts. Chromium ships inside 
 </details>
 
 <details>
+<summary><b>The app can't reach your Plex server.</b></summary>
+
+The app tries every address Plex lists for your server and keeps one that answers from
+inside the container, and looks again whenever the saved address stops answering. If none
+answers, **Settings → Plex → Server** says why: enter an address the container can reach,
+for example `http://192.168.1.20:32400`. Posters load through the app, so that address only
+has to work from the container, not from your browser. `docker logs` shows each address
+tried and why it failed.
+</details>
+
+<details>
 <summary><b>Who can access the app?</b></summary>
 
 Anyone on your network who can reach the port must sign in with Plex before using any
