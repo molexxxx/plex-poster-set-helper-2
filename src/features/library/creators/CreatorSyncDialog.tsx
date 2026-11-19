@@ -1,18 +1,19 @@
 import { useId, useMemo, useState } from 'react'
 import { Info } from 'lucide-react'
-import Modal from '../../components/ui/Modal'
-import Button from '../../components/ui/Button'
-import Select from '../../components/ui/Select'
-import Switch from '../../components/ui/Switch'
-import TypeToggles from '../../components/ui/TypeToggles'
-import type { MediuxUserSet, ScheduledJob } from '../../../electron/ipc/types'
-import type { FileType } from '../../utils/posterGroups'
-import { uuid } from '../../utils/uuid'
-import { errorMessage } from '../../utils/errorMessage'
+import Modal from '../../../components/ui/Modal'
+import Button from '../../../components/ui/Button'
+import Select from '../../../components/ui/Select'
+import Switch from '../../../components/ui/Switch'
+import TypeToggles from '../../../components/ui/TypeToggles'
+import type { MediuxUserSet, ScheduledJob } from '../../../../electron/ipc/types'
+import type { FileType } from '../../../utils/posterGroups'
+import { uuid } from '../../../utils/uuid'
+import { errorMessage } from '../../../utils/errorMessage'
 import {
   QUICK_SCHEDULES, artworkOverride, creatorSyncUrl, describeCron, describeQuickSync, planQuickSync, type QuickSyncRequest,
-} from '../../../electron/services/scheduleUtils'
-import styles from './Creators.module.css'
+} from '../../../../electron/services/scheduleUtils'
+import shared from './catalogShared.module.css'
+import styles from './CreatorSyncDialog.module.css'
 
 /** What the dialog syncs: everything the creator publishes, or a chosen handful of sets. */
 export type SyncScope = { kind: 'creator' } | { kind: 'sets'; sets: MediuxUserSet[] }
@@ -166,7 +167,7 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
             {assetTypes ? (
               <>
                 Picked for this sync, so changes in Settings leave it alone.{' '}
-                <button type="button" className={styles.inlineAction} onClick={() => setAssetTypes(undefined)}>Use Settings</button>
+                <button type="button" className={shared.inlineAction} onClick={() => setAssetTypes(undefined)}>Use Settings</button>
               </>
             ) : settingsTypes.length
               ? 'The types picked in Settings. The sync follows any change made there.'

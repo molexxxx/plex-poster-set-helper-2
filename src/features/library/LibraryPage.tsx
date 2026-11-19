@@ -28,7 +28,7 @@ import type {
   PlexArtSlot, LibrarySort, SortDir, LibraryArtFilter, LibraryStatusFilter, LinkedItemRef,
 } from '../../../electron/ipc/types'
 import { CreatorNav, ThumbButton, applyError, applyPosters, creatorUrl, type ApplyState } from './libraryShared'
-import CreatorsView from './Creators'
+import CreatorsView from './creators/CreatorsView'
 import styles from './LibraryPage.module.css'
 
 const PAGE_SIZE = 60
