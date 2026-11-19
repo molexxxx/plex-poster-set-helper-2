@@ -11,7 +11,8 @@ import MyLibraryView from './browser/MyLibraryView'
 import CreatorsView from './creators/CreatorsView'
 import styles from './LibraryPage.module.css'
 /** Library Browser page: switches between the My Library grid and the Creators view. */
-export default function LibraryPage() {
+export default function LibraryPage()
+{
   const { plexConnected } = useAppContext()
   const mode    = useNavStore(s => s.libraryMode)
   const setMode = useNavStore(s => s.setLibraryMode)
@@ -23,22 +24,29 @@ export default function LibraryPage() {
   const { prefs: creatorPrefs } = useCreatorPrefs()
   const followCount = creatorPrefs.mediuxFollows.length + creatorPrefs.posterdbFollows.length
 
-  const openCreator = useCallback((username: string) => {
+  const openCreator = useCallback((username: string) =>
+  {
     setCreatorTarget(username)
     setMode('creators')
   }, [setMode])
 
   // Consume a deep-link intent from the command palette (creator, section, or item).
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!libraryIntent) return
-    if (libraryIntent.creator || libraryIntent.creators) {
+    if (libraryIntent.creator || libraryIntent.creators)
+    {
       if (libraryIntent.creator) setCreatorTarget(libraryIntent.creator)
       setMode('creators')
-    } else if (libraryIntent.item) {
+    }
+    else if (libraryIntent.item)
+    {
       if (libraryIntent.section) setSectionTarget(libraryIntent.section)
       setItemTarget(libraryIntent.item)
       setMode('library')
-    } else if (libraryIntent.section) {
+    }
+    else if (libraryIntent.section)
+    {
       setSectionTarget(libraryIntent.section)
       setMode('library')
     }

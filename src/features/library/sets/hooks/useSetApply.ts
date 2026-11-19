@@ -49,7 +49,8 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
 
   // True when a collection-member poster targets the currently viewed item
   // (exact TMDB match preferred; title/year as a fallback when ids are absent).
-  function isThisItem(p: PosterInfo): boolean {
+  function isThisItem(p: PosterInfo): boolean
+  {
     const myTmdb = item.tmdbId ?? resolvedTmdbId
     if (p.tmdbId && myTmdb) return p.tmdbId === myTmdb
     return p.title.toLowerCase().trim() === item.title.toLowerCase().trim()
@@ -57,7 +58,8 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
   }
 
   /** Main poster (no season/episode) of a list, for the grid thumbnail. */
-  function mainThumb(posters: PosterInfo[]): string | undefined {
+  function mainThumb(posters: PosterInfo[]): string | undefined
+  {
     const main = posters.find(p => p.season == null && p.episode == null)
     return main ? (main.thumbUrl ?? main.url) : undefined
   }
@@ -69,7 +71,8 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
    * @param s - The set.
    * @returns The movie counts, the collection-art state, and the scope in effect.
    */
-  function scopeOf(s: PosterSetSummary) {
+  function scopeOf(s: PosterSetSummary)
+  {
     const context: ApplyContext = isCollectionItem ? 'collection' : 'title'
     const moviesInLib = moviesInLibrary(s.posters, context, isThisItem, k => !!memberInLib.get(k))
     const moviesTotal = moviesInLibrary(s.posters, context, isThisItem, () => true)
@@ -94,7 +97,8 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
     }
   }
 
-  async function applySet(s: PosterSetSummary) {
+  async function applySet(s: PosterSetSummary)
+  {
     // Every per-set map is keyed by source, never by the raw id (see setKey).
     const sKey = setKey(s)
     const { scope, showScope } = scopeOf(s)
@@ -111,7 +115,8 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
       : collectionArt
     const chosen = picks[sKey] ?? {}
 
-    if (isCollectionItem) {
+    if (isCollectionItem)
+    {
       // One poster per Plex slot (see resolveVariants): a set carrying art for
       // several collections would otherwise upload them all to this one and
       // keep whichever came last.
@@ -131,19 +136,23 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
       const bump = (d: number) =>
         setApplyMap(m => ({ ...m, [sKey]: { status: 'applying', done: totalDone + d, total: enabledTotal } }))
 
-      if (memberPosters.length > 0) {
+      if (memberPosters.length > 0)
+      {
         const movieMap = new Map<string, { child: LibraryItem; posters: PosterInfo[] }>()
-        for (const p of memberPosters) {
+        for (const p of memberPosters)
+        {
           const child = matchCollectionChild(p, collectionMembers)
           if (!child) continue
           const existing = movieMap.get(child.key)
           if (existing) existing.posters.push(p)
           else movieMap.set(child.key, { child, posters: [p] })
         }
-        for (const { child, posters } of movieMap.values()) {
+        for (const { child, posters } of movieMap.values())
+        {
           const memberRes = await applyPosters(child.key, posters, types, bump)
           totalDone += memberRes.done; totalFailed += memberRes.failed
-          if (memberRes.done > 0) {
+          if (memberRes.done > 0)
+          {
             const thumb = mainThumb(posters)
             records.push({
               itemKey: child.key, title: child.title, year: child.year, type: 'movie',
@@ -155,10 +164,12 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
         }
       }
 
-      if (collArt.length) {
+      if (collArt.length)
+      {
         const collRes = await applyPosters(item.key, collArt, types, bump)
         totalDone += collRes.done; totalFailed += collRes.failed
-        if (collRes.done > 0) {
+        if (collRes.done > 0)
+        {
           const thumb = mainThumb(collArt) ?? item.thumb
           records.push({
             itemKey: item.key, title: item.title, type: 'collection',
@@ -170,7 +181,8 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
       }
 
       let historyError: string | undefined
-      if (records.length > 0) {
+      if (records.length > 0)
+      {
         historyError = await recordAppliedBatch(records).then(() => undefined, (err: unknown) => errorMessage(err))
         const appliedUrls = records.flatMap(r => r.posterUrls ?? [])
         setAppliedIdx(prev => ({
@@ -219,7 +231,8 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
     // 1. The viewed item's own art.
     const mainRes = await applyPosters(item.key, viewedPosters, types, bump)
     totalDone += mainRes.done; totalFailed += mainRes.failed
-    if (mainRes.done > 0) {
+    if (mainRes.done > 0)
+    {
       const thumb = mainThumb(viewedPosters)
       records.push({
         itemKey: item.key, title: item.title, year: item.year, type: item.type,
@@ -230,21 +243,25 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
     }
 
     // 2. Sibling movies in the collection: resolve each to its own Plex key.
-    if (siblingMembers.length > 0) {
+    if (siblingMembers.length > 0)
+    {
       const movieMap = new Map<string, { title: string; year?: number; tmdbId?: string; posters: PosterInfo[] }>()
-      for (const p of siblingMembers) {
+      for (const p of siblingMembers)
+      {
         const key = memberKey(p)
         const existing = movieMap.get(key)
         if (existing) existing.posters.push(p)
         else movieMap.set(key, { title: p.title, year: p.year, tmdbId: p.tmdbId, posters: [p] })
       }
-      for (const m of movieMap.values()) {
+      for (const m of movieMap.values())
+      {
         const found = await window.api.plex.findItem(m.title, m.year, undefined, m.tmdbId) as { key: string; title: string; year?: number; type: string; thumb?: string; libraryTitle?: string } | null
         // Not in the library - skip quietly rather than reporting a failure.
         if (!found) continue
         const memberRes = await applyPosters(found.key, m.posters, types, bump)
         totalDone += memberRes.done; totalFailed += memberRes.failed
-        if (memberRes.done > 0) {
+        if (memberRes.done > 0)
+        {
           const thumb = mainThumb(m.posters)
           records.push({
             itemKey: found.key, title: found.title, year: found.year,
@@ -260,23 +277,28 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
     // 3. Collection-level art onto the matching Plex Collection objects. A set
     //    can carry art for several collections (a franchise and its spin-off);
     //    each is matched by its own name.
-    if (collArt.length) {
+    if (collArt.length)
+    {
       const byCollection = new Map<string, PosterInfo[]>()
-      for (const p of collArt) {
+      for (const p of collArt)
+      {
         const name = collectionName(p.title)
         const list = byCollection.get(name)
         if (list) list.push(p)
         else byCollection.set(name, [p])
       }
-      for (const posters of byCollection.values()) {
+      for (const posters of byCollection.values())
+      {
         const coll = await window.api.plex.findCollection(posters[0].title) as { key: string; title: string; thumb?: string; libraryTitle?: string } | null
-        if (!coll) {
+        if (!coll)
+        {
           skipped.push(`no Plex collection matches "${posters[0].title}"`)
           continue
         }
         const collRes = await applyPosters(coll.key, posters, types, bump)
         totalDone += collRes.done; totalFailed += collRes.failed
-        if (collRes.done > 0) {
+        if (collRes.done > 0)
+        {
           records.push({
             itemKey: coll.key, title: coll.title, type: 'collection',
             source: s.source, thumb: mainThumb(posters) ?? coll.thumb, setId: s.id, uploader: s.uploader,
@@ -288,7 +310,8 @@ export function useSetApply({ item, types, memberInLib, collectionInPlex, collec
 
     // One atomic write so every touched item keeps its Reset Posters row.
     let historyError: string | undefined
-    if (records.length > 0) {
+    if (records.length > 0)
+    {
       historyError = await recordAppliedBatch(records).then(() => undefined, (err: unknown) => errorMessage(err))
       const appliedUrls = records.flatMap(r => r.posterUrls ?? [])
       setAppliedIdx(prev => ({

@@ -29,7 +29,8 @@ export default function SetsPanel({ item, onClose, onItemPoster }: {
   item: LibraryItem
   onClose: () => void
   onItemPoster: (key: string, thumb: string) => void
-}) {
+})
+{
   const [uploader, setUploader] = useState<string>('all')
   const [source, setSource]     = useState<SetSource | 'all'>('all')
   // Reveals hidden creators' sets for this title, until the next title.
@@ -49,6 +50,7 @@ export default function SetsPanel({ item, onClose, onItemPoster }: {
   const { applyMap, setApplyMap, setCollectionScope, picks, setPickState, appliedIdx, scopeOf, applySet } = useSetApply({
     item, types, memberInLib, collectionInPlex, collectionMembers, resolvedTmdbId, onItemPoster, bumpArtReload,
   })
+
   const panelBodyRef = useRef<HTMLDivElement>(null)
   useSmoothScroll(panelBodyRef)
 
@@ -57,7 +59,8 @@ export default function SetsPanel({ item, onClose, onItemPoster }: {
   // remount needs an explicit reset here. `sets`/`error`/`loading`/`artSlots`/
   // etc. already key their own effects off item.key and don't need to be
   // listed - only genuinely transient UI state does.
-  useEffect(() => {
+  useEffect(() =>
+  {
     setUploader('all')
     setSource('all')
     setShowHidden(false)
@@ -141,7 +144,8 @@ export default function SetsPanel({ item, onClose, onItemPoster }: {
           visibleSets={visibleSets}
           hiddenCount={hiddenCount}
         />
-        {visibleSets.map(s => {
+        {visibleSets.map(s =>
+        {
           const sKey = setKey(s)
           // "Applied" = the set currently live on this item; "Downloaded" = a set
           // applied before but since overwritten; "Has art" = title has art elsewhere.
@@ -163,7 +167,8 @@ export default function SetsPanel({ item, onClose, onItemPoster }: {
               onApply={() => applySet(s)}
               enabledTypes={types}
               creator={creatorOf(s)}
-              onCreatorChange={state => {
+              onCreatorChange={state =>
+              {
                 // Hiding the creator the dropdown is narrowed to would leave
                 // an empty list, and the stale choice would resurface on Show.
                 if (state === 'hidden' && uploaderValue(s) === uploader) setUploader('all')
@@ -184,7 +189,8 @@ export default function SetsPanel({ item, onClose, onItemPoster }: {
               collectionMissing={collectionMissing}
               applyScope={showScope ? applyScope : undefined}
               scopeContext={isCollectionItem ? 'collection' : 'movie'}
-              onApplyScopeChange={showScope ? (patch) => {
+              onApplyScopeChange={showScope ? (patch) =>
+              {
                 setCollectionScope(m => ({
                   ...m,
                   [sKey]: { ...(m[sKey] ?? defaultScope), ...patch },
@@ -196,8 +202,10 @@ export default function SetsPanel({ item, onClose, onItemPoster }: {
               variantContext={isCollectionItem ? 'collection' : 'title'}
               itemTitle={item.title}
               picks={picks[sKey]}
-              onPick={(slot, url) => {
-                setPickState(prev => {
+              onPick={(slot, url) =>
+              {
+                setPickState(prev =>
+                {
                   const bySet = prev.key === item.key ? prev.bySet : {}
                   return { key: item.key, bySet: { ...bySet, [sKey]: { ...(bySet[sKey] ?? {}), [slot]: url } } }
                 })

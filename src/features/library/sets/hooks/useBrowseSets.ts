@@ -34,7 +34,8 @@ export function useBrowseSets(item: LibraryItem)
   const [refreshing, setRefreshing] = useState(false)
   const [collectionMembers, setCollectionMembers] = useState<LibraryItem[]>([])
   const isCollectionItem = item.type === 'collection'
-  useEffect(() => {
+  useEffect(() =>
+  {
     let cancelled = false
     const key = browseCacheKey(item)
     const cached = browseSetsCache.get(key)
@@ -44,7 +45,8 @@ export function useBrowseSets(item: LibraryItem)
     setError(null)
     setPending(new Set())
 
-    if (cached) {
+    if (cached)
+    {
       setSets(cached.sets)
       setResolvedTmdbId(cached.tmdbId)
       setTmdbMissing(!!cached.tmdbMissing)
@@ -52,7 +54,9 @@ export function useBrowseSets(item: LibraryItem)
       setSourceErrors(cached.sourceErrors ?? {})
       setPosterdbMore(cached.posterdbUrl ?? null)
       setLoading(false)
-    } else {
+    }
+    else
+    {
       setSets([])
       setCollectionMembers([])
       setSourceErrors({})
@@ -82,16 +86,20 @@ export function useBrowseSets(item: LibraryItem)
     // live in visibleSets, so it follows a follow or hide without a reload.
     const results: Partial<Record<SetSource, BrowseSetsRes>> = {}
 
-    const settle = (src: SetSource, res: BrowseSetsRes) => {
+    const settle = (src: SetSource, res: BrowseSetsRes) =>
+    {
       if (cancelled) return
       results[src] = res
       setSourceErrors(prev => ({ ...prev, [src]: sourceFailure(src, res) }))
       setSets(prev => [...prev.filter(s => s.source !== src), ...res.sets].sort(byPopularity))
       if (res.collectionMembers) setCollectionMembers(res.collectionMembers)
-      if (src === 'mediux') {
+      if (src === 'mediux')
+      {
         setResolvedTmdbId(res.tmdbId)
         setTmdbMissing(!!res.tmdbMissing)
-      } else {
+      }
+      else
+      {
         setPosterdbMore(res.posterdbCapped && res.posterdbUrl ? res.posterdbUrl : null)
       }
       if (res.error === 'no_movies') setError('no_movies')
@@ -101,18 +109,21 @@ export function useBrowseSets(item: LibraryItem)
 
     Promise.all(SOURCES.map(src =>
       request([src]).then(res => settle(src, res), (e: unknown) => settle(src, { sets: [], error: errorMessage(e) })),
-    )).then(() => {
+    )).then(() =>
+    {
       if (cancelled) return
       const m = results.mediux, p = results.posterdb
       const failures: Partial<Record<SetSource, string>> = {}
-      for (const src of SOURCES) {
+      for (const src of SOURCES)
+      {
         const f = results[src] && sourceFailure(src, results[src])
         if (f) failures[src] = f
       }
       // "No TMDB id" blocks the panel only when ThePosterDB had nothing to add.
       if (m?.tmdbMissing && !p?.sets.length && !failures.posterdb && !m.error) setError('no_tmdb')
       // A site that failed is retried on the next open rather than remembered.
-      if (!Object.keys(failures).length) {
+      if (!Object.keys(failures).length)
+      {
         browseSetsCache.set(key, {
           sets: [...(m?.sets ?? []), ...(p?.sets ?? [])].sort(byPopularity),
           tmdbId: m?.tmdbId,
@@ -128,7 +139,8 @@ export function useBrowseSets(item: LibraryItem)
     return () => { cancelled = true }
   }, [item.key, item.type, item.title, item.year, item.tmdbId, item.tvdbId, item.imdbId, item.anidbId, isCollectionItem, setsReloadKey])
 
-  function refreshSets() {
+  function refreshSets()
+  {
     browseSetsCache.delete(browseCacheKey(item))
     setSetsReloadKey(k => k + 1)
   }

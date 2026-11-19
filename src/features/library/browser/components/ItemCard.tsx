@@ -4,7 +4,8 @@ import type { LibraryItem } from '../../../../../electron/ipc/types'
 import shared from '../../libraryShared.module.css'
 import styles from './ItemCard.module.css'
 /** Poster-grid card for one Plex library item. */
-export default function ItemCard({ item, active, onClick }: { item: LibraryItem; active: boolean; onClick: () => void }) {
+export default function ItemCard({ item, active, onClick }: { item: LibraryItem; active: boolean; onClick: () => void })
+{
   const [err, setErr]       = useState(false)
   const [loaded, setLoaded] = useState(false)
   return (

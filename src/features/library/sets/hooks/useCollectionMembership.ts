@@ -23,18 +23,22 @@ export function useCollectionMembership(item: LibraryItem, allSets: PosterSetSum
   const [collectionInPlex, setCollectionInPlex] = useState<Map<string, boolean>>(new Map())
   const isCollectionItem = item.type === 'collection'
   // Resolve which collection-member movies are in scope for apply toggles.
-  useEffect(() => {
+  useEffect(() =>
+  {
     const unique = new Map<string, { title: string; year?: number; tmdbId?: string }>()
-    for (const s of allSets) for (const p of s.posters) {
+    for (const s of allSets) for (const p of s.posters)
+    {
       if (!p.isCollectionMember) continue
       const k = memberKey(p)
       if (!unique.has(k)) unique.set(k, { title: p.title, year: p.year, tmdbId: p.tmdbId })
     }
     if (unique.size === 0) { setMemberInLib(new Map()); return }
 
-    if (isCollectionItem) {
+    if (isCollectionItem)
+    {
       const out = new Map<string, boolean>()
-      for (const [k, m] of unique) {
+      for (const [k, m] of unique)
+      {
         out.set(k, !!matchCollectionChild(
           { title: m.title, year: m.year, tmdbId: m.tmdbId, url: '', source: 'mediux' },
           collectionMembers,
@@ -46,9 +50,11 @@ export function useCollectionMembership(item: LibraryItem, allSets: PosterSetSum
 
     const myTmdb = item.tmdbId ?? resolvedTmdbId
     let cancelled = false
-    ;(async () => {
+    ;(async () =>
+    {
       const out = new Map<string, boolean>()
-      for (const [k, m] of unique) {
+      for (const [k, m] of unique)
+      {
         if (m.tmdbId && myTmdb && m.tmdbId === myTmdb) { out.set(k, true); continue }
         const found = await window.api.plex.findItem(m.title, m.year, undefined, m.tmdbId)
         if (cancelled) return
@@ -63,17 +69,21 @@ export function useCollectionMembership(item: LibraryItem, allSets: PosterSetSum
   // view, keyed by collectionName and resolved with the same findCollection
   // the apply uses. A name not resolved yet counts as present; a collection
   // view never reads the map, since its target is the viewed collection.
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (isCollectionItem) return
     const names = new Map<string, string>()
-    for (const s of allSets) for (const p of s.posters) {
+    for (const s of allSets) for (const p of s.posters)
+    {
       if (p.isCollection && !names.has(collectionName(p.title))) names.set(collectionName(p.title), p.title)
     }
     if (names.size === 0) return
     let cancelled = false
-    ;(async () => {
+    ;(async () =>
+    {
       const out = new Map<string, boolean>()
-      for (const [name, title] of names) {
+      for (const [name, title] of names)
+      {
         const found = await window.api.plex.findCollection(title).catch(() => null)
         if (cancelled) return
         out.set(name, !!found)

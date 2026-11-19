@@ -11,7 +11,8 @@ import SetsPanel from '../sets/SetsPanel'
 import cardStyles from './components/ItemCard.module.css'
 import styles from './MyLibraryView.module.css'
 /** Plex library grid with per-section tabs, cross-library search, and the poster-sets panel. */
-export default function MyLibraryView({ targetSection, targetItem }: { targetSection: string | null; targetItem: LibraryItem | null }) {
+export default function MyLibraryView({ targetSection, targetItem }: { targetSection: string | null; targetItem: LibraryItem | null })
+{
   const [selected, setSelected] = useState<LibraryItem | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   useSmoothScroll(scrollRef)
@@ -22,14 +23,16 @@ export default function MyLibraryView({ targetSection, targetItem }: { targetSec
   } = grid
   // The floating dock centers itself beside an open sets panel instead of over it.
   const panelOpen = selected != null
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!panelOpen) return
     document.documentElement.dataset.libraryPanel = 'open'
     return () => { delete document.documentElement.dataset.libraryPanel }
   }, [panelOpen])
 
   // Deep-link from the command palette: jump to a specific library section.
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!targetSection) return
     setSearch('')
     setActiveKey(targetSection)
@@ -39,7 +42,8 @@ export default function MyLibraryView({ targetSection, targetItem }: { targetSec
   // Deep-link from the command palette: open a specific item's sets panel,
   // and scroll its card into view within the active library tab.
   const scrollTargetRef = useRef<string | null>(null)
-  const flashCard = useCallback((key: string) => {
+  const flashCard = useCallback((key: string) =>
+  {
     const el = scrollRef.current?.querySelector<HTMLElement>(`[data-item-key="${key}"]`)
     if (!el) return false
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
@@ -48,7 +52,8 @@ export default function MyLibraryView({ targetSection, targetItem }: { targetSec
     return true
   }, [])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!targetItem) return
     // Filter the grid down to the chosen title (cross-library search) and open
     // its sets panel, so a command-palette jump lands on just that item.
@@ -61,7 +66,8 @@ export default function MyLibraryView({ targetSection, targetItem }: { targetSec
   }, [targetItem, flashCard, setSearch])
 
   // Backup: if the grid loads later, scroll once the card appears.
-  useEffect(() => {
+  useEffect(() =>
+  {
     const key = scrollTargetRef.current
     if (key && flashCard(key)) scrollTargetRef.current = null
   }, [items, flashCard])
@@ -70,11 +76,14 @@ export default function MyLibraryView({ targetSection, targetItem }: { targetSec
   // padding-right equal to the panel width). Two rAFs let React flush the DOM
   // and the browser complete layout before we scroll so the measured position
   // is post-reflow, not the pre-open position.
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!selected) return
     let raf2: number
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
+    const raf1 = requestAnimationFrame(() =>
+    {
+      raf2 = requestAnimationFrame(() =>
+      {
         const el = scrollRef.current?.querySelector<HTMLElement>(`[data-item-key="${selected.key}"]`)
         el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
       })
@@ -183,7 +192,8 @@ export default function MyLibraryView({ targetSection, targetItem }: { targetSec
             key="sets-panel"
             item={selected}
             onClose={() => setSelected(null)}
-            onItemPoster={(key, thumb) => {
+            onItemPoster={(key, thumb) =>
+            {
               setItems(prev => prev.map(it => it.key === key ? { ...it, thumb } : it))
               // The grid may be showing cross-library search results instead of `items`.
               setGlobalResults(prev => prev.map(g => ({ ...g, items: g.items.map(it => it.key === key ? { ...it, thumb } : it) })))

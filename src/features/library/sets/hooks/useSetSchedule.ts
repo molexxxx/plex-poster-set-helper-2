@@ -27,19 +27,22 @@ export function useSetSchedule(item: LibraryItem, types: Set<FileType>, settings
   const goScheduler = useNavStore(s => s.goScheduler)
 
   // Scheduled jobs, kept live so the Scheduled tags follow edits made elsewhere.
-  useEffect(() => {
+  useEffect(() =>
+  {
     window.api.scheduler.list().then(setSchedJobs).catch(() => { /* scheduler unavailable */ })
     return window.api.scheduler.onChange(setSchedJobs)
   }, [])
 
   // Schedule a single set straight from the library, reusing any job that
   // already covers it (the set itself or, for MediUX, a whole-creator sync).
-  async function scheduleSet(s: PosterSetSummary) {
+  async function scheduleSet(s: PosterSetSummary)
+  {
     if (schedulingId) return
     const sKey = setKey(s)
     setSchedulingId(sKey)
     setScheduleError(null)
-    try {
+    try
+    {
       const plan = planQuickSync(await window.api.scheduler.list(), {
         urls: [s.setUrl ?? `https://mediux.pro/sets/${s.id}`],
         name: `${item.title}${item.year ? ` (${item.year})` : ''} - ${s.setName}`,
@@ -50,14 +53,19 @@ export function useSetSchedule(item: LibraryItem, types: Set<FileType>, settings
       }, uuid)
       if (plan.kind !== 'exists') await window.api.scheduler.save(plan.job)
       setSchedJobs(await window.api.scheduler.list())
-    } catch (err) {
+    }
+    catch (err)
+    {
       setScheduleError({ setId: sKey, message: errorMessage(err) })
-    } finally {
+    }
+    finally
+    {
       setSchedulingId(null)
     }
   }
 
-  function openScheduledJob(jobId: string) {
+  function openScheduledJob(jobId: string)
+  {
     goScheduler(jobId)
     navigate('scheduler')
   }

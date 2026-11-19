@@ -23,8 +23,10 @@ export function usePanelSettings()
   const panelWidthRef = useRef(PANEL_WIDTH_DEFAULT)
   const [resizing, setResizing] = useState(false)
 
-  useEffect(() => {
-    window.api.config.get().then(c => {
+  useEffect(() =>
+  {
+    window.api.config.get().then(c =>
+    {
       if (c.mediuxFilters?.length) setTypes(new Set(c.mediuxFilters as FileType[]))
       if (c.mediuxFilters) setSettingsTypes(c.mediuxFilters)
       setHasTmdbKey(Boolean(c.tmdbApiKey?.trim()))
@@ -40,17 +42,20 @@ export function usePanelSettings()
   // switching between items both panels are briefly mounted, and the outgoing
   // one's cleanup would otherwise wipe the width the incoming one just set. The
   // grid only consumes the gap while a panel is open, so a stale value is inert.
-  useEffect(() => {
+  useEffect(() =>
+  {
     document.documentElement.style.setProperty('--library-panel-width', `${panelWidth}px`)
   }, [panelWidth])
 
-  function startPanelResize(e: React.MouseEvent) {
+  function startPanelResize(e: React.MouseEvent)
+  {
     e.preventDefault()
     const startX = e.clientX
     const startW = panelWidthRef.current
     setResizing(true)
 
-    function onMove(ev: MouseEvent) {
+    function onMove(ev: MouseEvent)
+    {
       const next = clampPanelWidth(startW + (startX - ev.clientX))
       panelWidthRef.current = next
       // Drive the drag straight through the CSS var: the panel and the grid gap
@@ -60,7 +65,8 @@ export function usePanelSettings()
       document.documentElement.style.setProperty('--library-panel-width', `${next}px`)
     }
 
-    function onUp() {
+    function onUp()
+    {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
       document.body.style.cursor = ''
@@ -76,7 +82,8 @@ export function usePanelSettings()
     document.addEventListener('mouseup', onUp)
   }
 
-  function resetPanelWidth() {
+  function resetPanelWidth()
+  {
     const w = clampPanelWidth(PANEL_WIDTH_DEFAULT)
     panelWidthRef.current = w
     setPanelWidth(w)

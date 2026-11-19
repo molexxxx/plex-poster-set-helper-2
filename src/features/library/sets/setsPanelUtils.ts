@@ -10,7 +10,8 @@ export const SOURCES: SetSource[] = ['mediux', 'posterdb']
  * @param res - Its answer.
  * @returns The reason it could not be searched, if any.
  */
-export function sourceFailure(src: SetSource, res: BrowseSetsRes): string | undefined {
+export function sourceFailure(src: SetSource, res: BrowseSetsRes): string | undefined
+{
   if (res.sourceErrors?.[src]) return res.sourceErrors[src]
   return res.error && res.error !== 'no_tmdb' && res.error !== 'no_movies' ? res.error : undefined
 }
@@ -31,7 +32,8 @@ export const ART_KIND_LABEL: Record<PlexArtSlot['kind'], string> = {
  * @param thumb - The slot's transcode thumb URL.
  * @returns The same URL with the transcode dimensions bumped up.
  */
-export function hiResArt(thumb: string): string {
+export function hiResArt(thumb: string): string
+{
   return thumb.replace(/width=\d+&height=\d+/, 'width=800&height=1200')
 }
 
@@ -41,14 +43,17 @@ const PANEL_WIDTH_MIN = 360
 const PANEL_WIDTH_MAX = 900
 
 /** Keeps a panel width between the minimum and the maximum, and within 90 percent of the window. */
-export function clampPanelWidth(w: number): number {
+export function clampPanelWidth(w: number): number
+{
   const max = Math.min(PANEL_WIDTH_MAX, Math.round(window.innerWidth * 0.9))
   return Math.max(PANEL_WIDTH_MIN, Math.min(max, w))
 }
 
 /** Match a collection-member poster to a Plex collection child. */
-export function matchCollectionChild(p: PosterInfo, children: LibraryItem[]): LibraryItem | undefined {
-  if (p.tmdbId) {
+export function matchCollectionChild(p: PosterInfo, children: LibraryItem[]): LibraryItem | undefined
+{
+  if (p.tmdbId)
+  {
     const byTmdb = children.find(c => c.tmdbId === p.tmdbId)
     if (byTmdb) return byTmdb
   }

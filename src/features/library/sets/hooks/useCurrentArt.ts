@@ -15,17 +15,21 @@ export function useCurrentArt(item: LibraryItem)
   const [artLoading, setArtLoading] = useState(true)
   const [artReloadKey, setArtReloadKey] = useState(0)
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     let cancelled = false
     const cacheKey = item.key
     const cached = currentArtCache.get(cacheKey)
     const fresh = !!cached && Date.now() - cached.fetchedAt < ART_CACHE_TTL
     const forced = artReloadKey > 0
 
-    if (cached && !forced) {
+    if (cached && !forced)
+    {
       setArtSlots(cached.slots)
       setArtLoading(false)
-    } else if (!cached) {
+    }
+    else if (!cached)
+    {
       setArtSlots([])
       setArtLoading(true)
     }
@@ -37,19 +41,23 @@ export function useCurrentArt(item: LibraryItem)
       type: item.type === 'collection' ? 'collection' : item.type === 'show' ? 'show' : 'movie',
       title: item.title,
       year: item.year,
-    }).then(res => {
+    }).then(res =>
+    {
       if (cancelled) return
       currentArtCache.set(cacheKey, { slots: res.slots, fetchedAt: Date.now() })
       setArtSlots(res.slots)
-    }).catch(() => {
+    }).catch(() =>
+    {
       if (!cancelled && !cached) setArtSlots([])
-    }).finally(() => {
+    }).finally(() =>
+    {
       if (!cancelled) setArtLoading(false)
     })
     return () => { cancelled = true }
   }, [item.key, item.type, item.title, item.year, artReloadKey])
 
-  function bumpArtReload() {
+  function bumpArtReload()
+  {
     staleCurrentArt(item.key)
     setArtReloadKey(k => k + 1)
   }

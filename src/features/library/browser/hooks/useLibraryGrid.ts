@@ -39,8 +39,10 @@ export function useLibraryGrid(scrollRef: RefObject<HTMLDivElement | null>)
 
   const offsetRef = useRef(0)
 
-  useEffect(() => {
-    window.api.config.get().then(c => {
+  useEffect(() =>
+  {
+    window.api.config.get().then(c =>
+    {
       setCollectionsEnabled(c.collectionsEnabled !== false)
       if (c.librarySort) setSort(c.librarySort)
       if (c.librarySortDir) setSortDir(c.librarySortDir)
@@ -66,26 +68,32 @@ export function useLibraryGrid(scrollRef: RefObject<HTMLDivElement | null>)
   const hasMovieLibrary = sections.some(s => s.type === 'movie')
   const showCollections = collectionsEnabled && hasMovieLibrary
 
-  const loadSections = useCallback(() => {
-    return window.api.library.sections().then((s: LibrarySection[]) => {
+  const loadSections = useCallback(() =>
+  {
+    return window.api.library.sections().then((s: LibrarySection[]) =>
+    {
       setSections(s)
       setActiveKey(prev => prev || s[0]?.key || '')
     })
   }, [])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     loadSections()
-    const unsub = window.api.auth.onStatusChange(st => {
+    const unsub = window.api.auth.onStatusChange(st =>
+    {
       if (st.status === 'authorized') loadSections()
     })
     return () => { unsub() }
   }, [loadSections])
 
-  const loadItems = useCallback(async (key: string, q: string, append: boolean, fresh = false) => {
+  const loadItems = useCallback(async (key: string, q: string, append: boolean, fresh = false) =>
+  {
     if (!key || key === COLLECTIONS_TAB_KEY) return
     setLoading(true)
     const offset = append ? offsetRef.current : 0
-    try {
+    try
+    {
       const res = await window.api.library.items({
         sectionKey: key, offset, limit: PAGE_SIZE, search: q, sort, sortDir,
         artFilter: toArtFilter(artFilter), status: statusParam, fresh: fresh || undefined,
@@ -93,29 +101,37 @@ export function useLibraryGrid(scrollRef: RefObject<HTMLDivElement | null>)
       setTotal(res.total)
       offsetRef.current = offset + res.items.length
       setItems(prev => append ? [...prev, ...res.items] : res.items)
-    } finally {
+    }
+    finally
+    {
       setLoading(false)
     }
   }, [sort, sortDir, artFilter, statusParam])
 
-  const loadCollections = useCallback(async (q: string, append: boolean) => {
+  const loadCollections = useCallback(async (q: string, append: boolean) =>
+  {
     setLoading(true)
     const offset = append ? offsetRef.current : 0
-    try {
+    try
+    {
       const res = await window.api.library.collections({ offset, limit: PAGE_SIZE, search: q || undefined, sort, sortDir })
       setTotal(res.total)
       offsetRef.current = offset + res.items.length
       setItems(prev => append ? [...prev, ...res.items] : res.items)
-    } finally {
+    }
+    finally
+    {
       setLoading(false)
     }
   }, [sort, sortDir])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!activeKey || isGlobalSearch) return
     offsetRef.current = 0
     const q = search.trim()
-    const t = setTimeout(() => {
+    const t = setTimeout(() =>
+    {
       if (activeKey === COLLECTIONS_TAB_KEY) void loadCollections(q, false)
       else void loadItems(activeKey, '', false)
     }, activeKey === COLLECTIONS_TAB_KEY && q ? 300 : 0)
@@ -123,12 +139,14 @@ export function useLibraryGrid(scrollRef: RefObject<HTMLDivElement | null>)
   }, [activeKey, isGlobalSearch, search, loadItems, loadCollections, reloadNonce])
 
   // Cross-library search: fire all sections in parallel, debounced
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!isGlobalSearch || !sections.length) { setGlobalResults([]); setCollectionHits([]); return }
     setGlobalLoading(true)
     const q = search.trim()
     let cancelled = false
-    const t = setTimeout(() => {
+    const t = setTimeout(() =>
+    {
       Promise.all([
         Promise.all(
           sections.map(s =>
@@ -142,7 +160,8 @@ export function useLibraryGrid(scrollRef: RefObject<HTMLDivElement | null>)
               .then(res => res.items)
               .catch(() => [] as LibraryItem[])
           : Promise.resolve([] as LibraryItem[]),
-      ]).then(([results, collections]) => {
+      ]).then(([results, collections]) =>
+      {
         if (cancelled) return
         setGlobalResults(results.filter(r => r.items.length > 0))
         setCollectionHits(collections)
@@ -153,10 +172,12 @@ export function useLibraryGrid(scrollRef: RefObject<HTMLDivElement | null>)
   }, [search, isGlobalSearch, sections, showCollections, reloadNonce, sort, sortDir, artFilter, statusParam])
 
   // Infinite scroll, single-tab mode only
-  function onScroll() {
+  function onScroll()
+  {
     const el = scrollRef.current
     if (!el || loading || isGlobalSearch) return
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 400 && items.length < total) {
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 400 && items.length < total)
+    {
       if (isCollectionsView) void loadCollections(search.trim(), true)
       else void loadItems(activeKey, '', true)
     }
@@ -167,22 +188,31 @@ export function useLibraryGrid(scrollRef: RefObject<HTMLDivElement | null>)
   // Manual refresh re-checks sections and reloads what's on screen, holding the
   // spin for a brief minimum so a fast local Plex doesn't flicker sub-frame
   const refreshing = manualRefreshing || loading || globalLoading
-  async function handleRefresh() {
+  async function handleRefresh()
+  {
     if (manualRefreshing) return
     setManualRefreshing(true)
     const started = Date.now()
-    try {
+    try
+    {
       await loadSections()
-      if (!isGlobalSearch && activeKey === COLLECTIONS_TAB_KEY) {
+      if (!isGlobalSearch && activeKey === COLLECTIONS_TAB_KEY)
+      {
         offsetRef.current = 0
         await loadCollections(search.trim(), false)
-      } else if (!isGlobalSearch && activeKey) {
+      }
+      else if (!isGlobalSearch && activeKey)
+      {
         offsetRef.current = 0
         await loadItems(activeKey, '', false, true)
-      } else {
+      }
+      else
+      {
         setReloadNonce(n => n + 1)
       }
-    } finally {
+    }
+    finally
+    {
       const elapsed = Date.now() - started
       if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed))
       setManualRefreshing(false)
@@ -193,11 +223,13 @@ export function useLibraryGrid(scrollRef: RefObject<HTMLDivElement | null>)
   // dropdown never displays an option it isn't offering on that tab.
   const sortList = isCollectionsView ? COLLECTION_SORTS : ALL_SORTS
   const shownSort: LibrarySort = sortList.includes(sort) ? sort : 'title'
-  function changeSort(next: LibrarySort) {
+  function changeSort(next: LibrarySort)
+  {
     setSort(next)
     window.api.config.set({ librarySort: next }).catch(() => {})
   }
-  function toggleSortDir() {
+  function toggleSortDir()
+  {
     const next: SortDir = sortDir === 'asc' ? 'desc' : 'asc'
     setSortDir(next)
     window.api.config.set({ librarySortDir: next }).catch(() => {})

@@ -76,7 +76,8 @@ export default function SetCard({ set, apply, onApply, enabledTypes, title, badg
   /** Chosen poster URL by slot key (see variantKey). */
   picks?: Record<string, string>
   onPick?: (slot: string, url: string) => void
-}) {
+})
+{
   const [err, setErr]               = useState(false)
   const [previewLoaded, setPreviewLoaded] = useState(false)
   // A ThePosterDB avatar can be the fallback CDN guess, which 403s for users
@@ -283,9 +284,11 @@ export default function SetCard({ set, apply, onApply, enabledTypes, title, badg
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             style={{ overflow: 'hidden' }}
           >
-            {(() => {
+            {(() =>
+            {
               let flat = -1
-              return visibleGroups.map(g => {
+              return visibleGroups.map(g =>
+              {
                 // Posters competing for one Plex slot: only one of them is
                 // applied, so the group offers a pick.
                 const clusters = variantContext ? variantClusters(g.posters, variantContext) : null
@@ -298,7 +301,8 @@ export default function SetCard({ set, apply, onApply, enabledTypes, title, badg
                       {hasChoice && <span className={styles.groupHint}>One is applied: pick it</span>}
                     </div>
                     <div className={`${shared.groupThumbs} ${g.kind === 'title_card' || g.kind === 'backdrop' ? shared.groupThumbsWide : ''}`}>
-                      {g.posters.map(p => {
+                      {g.posters.map(p =>
+                      {
                         flat++
                         const idx = flat
                         const slot = variantContext ? variantKey(p, variantContext) : ''

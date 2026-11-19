@@ -32,7 +32,8 @@ export function useLinkedSets(item: LibraryItem, setsReloadKey: number)
   const updateLinkUi = (patch: Partial<Omit<LinkUiState, 'key'>>) =>
     setLinkUi(prev => ({ ...(prev.key === item.key ? prev : { open: false, url: '', error: null }), ...patch, key: item.key }))
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (linkOpen) linkInputRef.current?.focus()
   }, [linkOpen])
 
@@ -44,26 +45,32 @@ export function useLinkedSets(item: LibraryItem, setsReloadKey: number)
 
   // Linked sets load beside the browse; Refresh re-reads their pages too. The
   // previous item's sets never show here, since the state is keyed by item.
-  useEffect(() => {
+  useEffect(() =>
+  {
     let cancelled = false
     const key = item.key
-    window.api.library.linkedSets({ item: linkedItem, fresh: setsReloadKey > 0 }).then(res => {
+    window.api.library.linkedSets({ item: linkedItem, fresh: setsReloadKey > 0 }).then(res =>
+    {
       if (!cancelled) setLinkedState({ key, sets: res.sets, errors: res.errors ?? [] })
-    }).catch((err: unknown) => {
+    }).catch((err: unknown) =>
+    {
       if (!cancelled) setLinkedState({ key, sets: [], errors: [{ url: '', error: errorMessage(err) }] })
     })
     return () => { cancelled = true }
   }, [item.key, linkedItem, setsReloadKey])
 
-  async function submitLink() {
+  async function submitLink()
+  {
     const url = linkUrl.trim()
     if (!url || linking) return
     setLinking(true)
     updateLinkUi({ error: null })
-    try {
+    try
+    {
       const res = await window.api.library.linkSet({ item: linkedItem, url })
       const refused = res.errors?.[0]
-      if (refused) {
+      if (refused)
+      {
         updateLinkUi({ error: refused.error })
         return
       }
@@ -72,21 +79,29 @@ export function useLinkedSets(item: LibraryItem, setsReloadKey: number)
         ? { ...prev, sets: mergeLinkedSets(prev.sets, res.sets) }
         : { key, sets: res.sets, errors: [] })
       updateLinkUi({ open: false, url: '' })
-    } catch (err) {
+    }
+    catch (err)
+    {
       updateLinkUi({ error: errorMessage(err) })
-    } finally {
+    }
+    finally
+    {
       setLinking(false)
     }
   }
 
-  async function unlink(url: string) {
+  async function unlink(url: string)
+  {
     const key = item.key
     setLinkedState(prev => prev.key === key
       ? { ...prev, sets: prev.sets.filter(s => s.linkedFrom !== url), errors: prev.errors.filter(e => e.url !== url) }
       : prev)
-    try {
+    try
+    {
       await window.api.library.unlinkSet({ itemKey: key, url })
-    } catch (err) {
+    }
+    catch (err)
+    {
       updateLinkUi({ open: true, error: errorMessage(err) })
     }
   }

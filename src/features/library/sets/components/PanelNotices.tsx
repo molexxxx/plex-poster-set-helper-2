@@ -87,7 +87,8 @@ export default function PanelNotices({ item, isCollectionItem, browse, links, cr
         </div>
       )}
 
-      {error === 'no_tmdb' && !isCollectionItem && (() => {
+      {error === 'no_tmdb' && !isCollectionItem && (() =>
+      {
         const agent = item.tvdbId ? 'TVDB' : item.imdbId ? 'IMDb' : item.anidbId ? 'AniDB' : 'non-TMDB'
         // A key only helps convert tvdb/imdb ids via TMDB; AniDB is mapped
         // separately, so its failures mean "no known mapping", not "add a key".
@@ -134,7 +135,8 @@ export default function PanelNotices({ item, isCollectionItem, browse, links, cr
         </div>
       )}
 
-      {!loading && !error && pending.size === 0 && allSets.length === 0 && (() => {
+      {!loading && !error && pending.size === 0 && allSets.length === 0 && (() =>
+      {
         const searched = SOURCES.filter(s => !sourceErrors[s])
         return (
           <div className={styles.panelNotice}>

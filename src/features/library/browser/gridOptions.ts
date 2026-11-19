@@ -26,7 +26,8 @@ export type ArtFilterValue = 'all' | 'none' | 'applied' | 'unscheduled' | `uploa
  * @param value - The selected option.
  * @returns The filter, or undefined for "all".
  */
-export function toArtFilter(value: ArtFilterValue): LibraryArtFilter | undefined {
+export function toArtFilter(value: ArtFilterValue): LibraryArtFilter | undefined
+{
   if (value === 'all') return undefined
   if (value === 'none' || value === 'applied' || value === 'unscheduled') return { kind: value }
   const m = value.match(/^uploader:(mediux|posterdb):(.*)$/)

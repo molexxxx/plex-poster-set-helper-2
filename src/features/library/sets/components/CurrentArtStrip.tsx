@@ -7,7 +7,8 @@ import type { PlexArtSlot } from '../../../../../electron/ipc/types'
 import { ART_KIND_LABEL, hiResArt } from '../setsPanelUtils'
 import styles from './CurrentArtStrip.module.css'
 /** Collapsible strip of the item's current Plex art, clickable into a lightbox. */
-export default function CurrentArtStrip({ slots, loading }: { slots: PlexArtSlot[]; loading: boolean }) {
+export default function CurrentArtStrip({ slots, loading }: { slots: PlexArtSlot[]; loading: boolean })
+{
   const [expanded, setExpanded] = useState(true)
   const [lightbox, setLightbox] = useState<number | null>(null)
 
@@ -22,7 +23,8 @@ export default function CurrentArtStrip({ slots, loading }: { slots: PlexArtSlot
     [slots],
   )
 
-  if (loading) {
+  if (loading)
+  {
     return (
       <div className={styles.artStripSection}>
         <span className={styles.artStripLabel}>Current Plex Art</span>
@@ -52,7 +54,8 @@ export default function CurrentArtStrip({ slots, loading }: { slots: PlexArtSlot
       <div className={`${styles.artStripBody} ${expanded ? '' : styles.artStripBodyCollapsed}`}>
         <div className={styles.artStripScroll}>
           <div className={styles.artStrip}>
-            {slots.map(s => {
+            {slots.map(s =>
+            {
               const i = s.thumb ? ++imgIdx : -1
               return (
                 <div
@@ -64,7 +67,8 @@ export default function CurrentArtStrip({ slots, loading }: { slots: PlexArtSlot
                         role: 'button',
                         tabIndex: 0,
                         onClick: () => setLightbox(i),
-                        onKeyDown: (e: React.KeyboardEvent) => {
+                        onKeyDown: (e: React.KeyboardEvent) =>
+                        {
                           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightbox(i) }
                         },
                       }
