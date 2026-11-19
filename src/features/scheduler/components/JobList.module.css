@@ -1,0 +1,130 @@
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  max-height: calc(100vh - var(--titlebar-height) - var(--statusbar-height) - var(--content-padding) - var(--dock-clearance));
+}
+
+.sidebarHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.inlineLink {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: var(--font-medium);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.inlineLink:hover { color: var(--color-accent-warning); }
+
+.jobList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 4px;
+  overflow-y: auto;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.jobItem {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.jobItem:hover { background: rgba(255, 255, 255, 0.04); }
+
+.jobItem:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.jobItemSelected,
+.jobItemSelected:hover { background: var(--color-bg-elevated); }
+
+.order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.jobItemSelected .order {
+  color: var(--color-accent);
+  border-color: var(--color-accent-border);
+}
+
+.jobItemText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.jobItemName,
+.jobItemSub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jobItemName {
+  font-size: 13px;
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+
+.jobItemPaused .jobItemName { color: var(--color-text-secondary); }
+
+.jobItemSub {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.jobItemStatus {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Brief highlight when a job is opened from the palette or the problem notice. */
+.rowPulse { animation: rowPulse 1.6s var(--ease-out-expo); }
+
+@keyframes rowPulse {
+  0%, 30% { background: var(--color-accent-soft); }
+  100%    { background: var(--color-bg-elevated); }
+}
+
+@media (max-width: 900px) {
+  .sidebar { position: static; max-height: none; }
+  .jobList { max-height: 280px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rowPulse { animation: none; }
+}

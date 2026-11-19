@@ -1,0 +1,13 @@
+.fieldError,
+.fieldWarning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.fieldError { color: var(--color-accent-error); }
+.fieldWarning { color: var(--color-accent-warning); }
+.fieldError svg, .fieldWarning svg { flex-shrink: 0; margin-top: 1px; }

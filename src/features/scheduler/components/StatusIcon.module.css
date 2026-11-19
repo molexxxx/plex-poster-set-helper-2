@@ -1,0 +1,12 @@
+.iconSuccess { color: var(--color-accent-success); }
+.iconWarning { color: var(--color-accent-warning); }
+.iconError   { color: var(--color-accent-error); }
+.iconMuted   { color: var(--color-text-muted); }
+
+.iconSpin { color: var(--color-accent); animation: spin 1s linear infinite; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .iconSpin { animation: none; }
+}
