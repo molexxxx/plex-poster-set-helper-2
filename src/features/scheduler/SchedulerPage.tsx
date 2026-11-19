@@ -140,7 +140,11 @@ export default function SchedulerPage()
                 onToggle={enabled => void attempt(() => window.api.scheduler.save({ ...selected, enabled }))}
                 onRunNow={() => void runNow(selected.id)}
                 onStop={() => void attempt(() => window.api.scheduler.stop(selected.id))}
-                onMove={delta => moveJob(selected.id, delta)}
+                onMove={delta =>
+                {
+                  setSelectedId(selected.id)
+                  moveJob(selected.id, delta)
+                }}
               />
             )}
           </div>
