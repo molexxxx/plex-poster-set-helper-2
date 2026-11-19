@@ -1,0 +1,42 @@
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: color var(--duration-fast), background var(--duration-fast);
+}
+
+.iconBtn:hover {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.iconBtnDestructive:hover {
+  color: var(--color-accent-error);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 var(--space-2);
+  background: var(--color-bg-elevated);
+  border: 1px solid rgba(237, 232, 223, 0.2);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  outline: none;
+}
+
+.renameInput:focus {
+  border-color: rgba(237, 232, 223, 0.35);
+}

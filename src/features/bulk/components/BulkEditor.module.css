@@ -1,0 +1,69 @@
+.editorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.editorTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-accent-primary);
+  letter-spacing: 0.005em;
+}
+
+.dirtyDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent-warning);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.editorHeaderRight {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.urlCount {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.urlEditor {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  resize: none;
+  padding: var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.65;
+  outline: none;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.urlEditor::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.urlEditor:focus {
+  border-color: rgba(237, 232, 223, 0.18);
+  box-shadow: 0 0 0 3px rgba(237, 232, 223, 0.04);
+}
+
+.urlEditor:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
