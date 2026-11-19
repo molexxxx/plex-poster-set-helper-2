@@ -145,8 +145,8 @@ export class MediuxScraper extends BaseScraper
       if (!needsEnrich) return s
       try
       {
-        const full = await this._fetchSets(`https://mediux.pro/sets/${s.id}`)
-        const found = full?.sets.find(x => String(x.id) === String(s.id))
+        const full = await this._fetchPage(`https://mediux.pro/sets/${s.id}`)
+        const found = full.sets.find(x => String(x.id) === String(s.id))
         const fullSet = found && keepDownloads(found, s)
         if (fullSet?.files?.some(f => f.movie_id))
         {
@@ -157,7 +157,7 @@ export class MediuxScraper extends BaseScraper
       }
       catch (err)
       {
-        Logger.warn('MediUX', `Enrich failed for set ${s.id}: ${err instanceof Error ? err.message : err}`)
+        Logger.warn('MediUX', `Could not read collection set ${s.id} for its per-movie details, so its posters may not match the right movies: ${err instanceof Error ? err.message : err}`)
         return s
       }
     })
@@ -579,7 +579,8 @@ export class MediuxScraper extends BaseScraper
    * @param timeoutMs - Fetch budget.
    * @param strict - Throw on a transport failure or empty body instead of
    *   returning null, for callers that must tell a failed page from one with
-   *   no sets.
+   *   no sets. Such a caller retries or reports the failure, so it is logged
+   *   here only at scrape level.
    * @returns The sets (empty when the page has none), an og:title fallback, and
    *   whether the page carried MediUX's data payload; null when the page could
    *   not be read or the URL is not a MediUX page.
@@ -614,8 +615,8 @@ export class MediuxScraper extends BaseScraper
       const html = await res.text()
       if (!html || html.length < 500)
       {
-        Logger.warn('MediUX', `HTTP ${res.status}, empty/short body for: ${url}`)
         if (strict) throw new Error(`HTTP ${res.status} with an empty page`)
+        Logger.warn('MediUX', `HTTP ${res.status}, empty/short body for: ${url}`)
         return null
       }
       if (!res.ok) Logger.scrape('MediUX', `HTTP ${res.status} but parsing body anyway`)
@@ -633,8 +634,13 @@ export class MediuxScraper extends BaseScraper
     }
     catch (err)
     {
-      Logger.warn('MediUX', `HTTP fetch failed for ${url}: ${err instanceof Error ? err.message : err}`)
-      if (strict) throw err instanceof Error ? err : new Error(String(err))
+      const failure = `HTTP fetch failed for ${url}: ${err instanceof Error ? err.message : err}`
+      if (strict)
+      {
+        Logger.scrape('MediUX', failure)
+        throw err instanceof Error ? err : new Error(String(err))
+      }
+      Logger.warn('MediUX', failure)
       return null
     }
   }

@@ -16,26 +16,36 @@ vi.mock('../../electron/services/logger', () => ({
 
 const { MediuxScraper } = await import('../../electron/scrapers/mediux/mediuxScraper')
 const { hasFlightData } = await import('../../electron/scrapers/mediux/flightPayload')
+const { Logger } = await import('../../electron/services/logger')
 
 const PADDING = '<!-- padding -->'.repeat(60)
 /** A page Cloudflare serves instead of MediUX's own: long enough to parse, without the flight payload. */
 const CHALLENGE = `<html><head><title>Just a moment...</title></head><body>${PADDING}</body></html>`
 
-/** The flight payload script a MediUX title page carries, with or without sets. */
+/** The flight payload script a MediUX page carries, holding the given raw sets. */
+function rawFlightScript(sets: object[]): string
+{
+  const payload = JSON.stringify({ sets })
+  return `self.__next_f.push([1,"${payload.replace(/"/g, '\\"')}"])`
+}
+
+/** The flight payload script for one-poster sets, or for none. */
 function flightScript(sets: Array<{ id: number; name: string }>): string
 {
-  const payload = JSON.stringify({
-    sets: sets.map(s => ({
-      id: s.id, set_name: s.name, user_created: { username: 'alice' },
-      files: [{ id: `f${s.id}`, fileType: 'poster', title: s.name.replace(/ Set$/, '') }],
-    })),
-  })
-  return `self.__next_f.push([1,"${payload.replace(/"/g, '\\"')}"])`
+  return rawFlightScript(sets.map(s => ({
+    id: s.id, set_name: s.name, user_created: { username: 'alice' },
+    files: [{ id: `f${s.id}`, fileType: 'poster', title: s.name.replace(/ Set$/, '') }],
+  })))
+}
+
+function pageWith(script: string): string
+{
+  return `<html><head></head><body><script>${script}</script>${PADDING}</body></html>`
 }
 
 function titlePage(sets: Array<{ id: number; name: string }>): string
 {
-  return `<html><head></head><body><script>${flightScript(sets)}</script>${PADDING}</body></html>`
+  return pageWith(flightScript(sets))
 }
 
 function response(html: string)
@@ -65,6 +75,7 @@ describe('MediuxScraper.browseSets', () =>
   beforeEach(() =>
   {
     fetchMock.mockReset()
+    vi.mocked(Logger.warn).mockClear()
     vi.stubGlobal('fetch', fetchMock)
   })
 
@@ -85,6 +96,39 @@ describe('MediuxScraper.browseSets', () =>
     expect(sets.map(s => s.id)).toEqual(['5'])
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(newContext).not.toHaveBeenCalled()
+    expect(Logger.warn).not.toHaveBeenCalled()
+  })
+
+  it('asks again for a collection set page that runs out of time', async () =>
+  {
+    const poster = (id: string, title: string, movie?: { id: number; title: string; release_date: string }) =>
+      ({ id, fileType: 'poster', title, ...(movie ? { movie_id: movie } : {}) })
+    const stripped = {
+      id: 9, set_name: 'Toy Story Collection', user_created: { username: 'alice' },
+      files: [poster('a', 'Toy Story (1995)'), poster('b', 'Toy Story 2 (1999)')],
+    }
+    const full = {
+      ...stripped,
+      collection: { id: 10194, collection_name: 'Toy Story Collection' },
+      files: [
+        poster('a', 'Toy Story (1995)', { id: 862, title: 'Toy Story', release_date: '1995-11-22' }),
+        poster('b', 'Toy Story 2 (1999)', { id: 863, title: 'Toy Story 2', release_date: '1999-11-24' }),
+      ],
+    }
+    fetchMock
+      .mockResolvedValueOnce(response(pageWith(rawFlightScript([stripped]))))
+      .mockRejectedValueOnce(timedOut())
+      .mockResolvedValueOnce(response(pageWith(rawFlightScript([full]))))
+    const { scraper, newContext } = scraperWithBrowser()
+
+    const sets = await scraper.browseSets('862', 'movie')
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      'https://mediux.pro/movies/862', 'https://mediux.pro/sets/9', 'https://mediux.pro/sets/9',
+    ])
+    expect(sets[0].posters.map(p => p.tmdbId)).toEqual(['862', '863'])
+    expect(newContext).not.toHaveBeenCalled()
+    expect(Logger.warn).not.toHaveBeenCalled()
   })
 
   it('says MediUX was slow when both tries run out of time, without a browser load', async () =>
