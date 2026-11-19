@@ -4,6 +4,21 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.17.2
+
+### Security: the Docker web UI requires your Plex account
+The web UI's sign-in did not keep anyone out. Once you had signed in, any browser that could open the page got in without signing in, could read the Plex token the app stores, and could sign the app out of Plex. Anyone who could reach the port could also start a sign-in with their own Plex account and take the app over. The desktop app is not affected.
+
+- Every browser now signs in to Plex itself, and only the Plex account the app is linked to gets in. Any other account is turned away and nothing changes.
+- The Plex token stays on the server. The browser never receives it, and sign-in updates no longer carry it.
+- **Sign out** in **Settings → Plex → Account** unlinks the account and signs every browser out. Canceling a sign-in only abandons that browser's attempt.
+- A browser stays signed in for 30 days after its last visit, across container restarts.
+- Starting a sign-in twice no longer leaves sign-in stuck until a restart, in the web UI or the desktop app.
+
+**After updating,** each browser signs in once with your Plex account. Your Plex link, server, schedules, and history are untouched.
+
+**If port 3939 was ever reachable from outside your home network,** through port forwarding or a reverse proxy, treat the token as exposed. Plex tokens don't expire, so this update cannot cancel one that was already copied. Update first and sign in once, so the app records which account owns it. Then remove **Plex Poster Set Helper 2** under **Authorized Devices** in your Plex account settings and sign in again. If you also use the desktop app and can't tell the entries apart, removing both is fine; the desktop app will ask you to sign in again.
+
 ## What's new in v2.17.1
 
 ### Servers with more than one address
