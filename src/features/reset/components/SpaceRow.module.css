@@ -1,0 +1,52 @@
+.spaceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--duration-base), background var(--duration-base);
+}
+
+/* Armed = the delete toggle is on; warm the row so the destructive intent reads. */
+.spaceRowArmed {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+}
+
+.spaceActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.spaceNote {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.spaceNoteErr { color: var(--color-accent-error); }
+.spaceNoteOk { color: var(--color-accent-success); }
+
+/* Shown in place of the toggle when nothing is tracked, so Clean Bundles
+   keeps a home after a Reset All. Mirrors the Switch label/description layout. */
+.spaceHint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.spaceHintIcon { color: var(--color-accent); flex-shrink: 0; }
+
+.spaceHintText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.spaceHintTitle { font-size: var(--text-sm); color: var(--color-text-primary); }
+
+.spaceHintSub { font-size: var(--text-xs); color: var(--color-text-muted); }

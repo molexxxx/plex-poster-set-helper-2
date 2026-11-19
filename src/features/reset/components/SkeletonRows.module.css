@@ -1,0 +1,37 @@
+.skelRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  animation: skelFade var(--duration-slow) var(--ease-out-expo) both;
+}
+
+@keyframes skelFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.skelInfo { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+
+.skel {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-xs);
+}
+
+.skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07) 50%, transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+.skelThumb { width: 42px; height: 63px; border-radius: var(--radius-sm); flex-shrink: 0; }
+.skelTitle { width: 38%; height: 12px; }
+.skelMeta  { width: 62%; height: 9px; }
+.skelBtn   { width: 74px; height: 28px; border-radius: var(--radius-sm); flex-shrink: 0; }

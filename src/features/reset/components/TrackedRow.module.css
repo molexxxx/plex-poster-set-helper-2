@@ -1,0 +1,160 @@
+.itemRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  /* Keep each row at its natural height: without this the flex-column list
+     shrinks every row to fit instead of overflowing, squishing the whole list. */
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 4px);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  overflow: hidden;
+  transition: border-color var(--duration-fast), transform var(--duration-fast),
+    box-shadow var(--duration-fast), opacity var(--duration-base);
+}
+
+/* Source-colored edge: a quiet signal of where the art came from. */
+.itemRow::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--row-accent);
+  opacity: 0.55;
+  transition: opacity var(--duration-fast);
+}
+
+.rowMediux   { --row-accent: var(--color-source-mediux); }
+.rowPosterdb { --row-accent: var(--color-source-posterdb); }
+
+.itemRow:hover {
+  border-color: rgba(255,255,255,0.12);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.itemRow:hover::before { opacity: 1; }
+
+.itemDone {
+  opacity: 0.5;
+  border-color: var(--color-accent-success) !important;
+}
+.itemDone::before { background: var(--color-accent-success); opacity: 1; }
+
+/* thumb */
+.thumb {
+  width: 42px;
+  height: 63px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-bg-elevated);
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: border-color var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+.thumb:hover:not(:disabled) {
+  border-color: var(--row-accent, var(--color-accent));
+  box-shadow: 0 0 0 1px var(--row-accent, var(--color-accent)), var(--shadow-md);
+  transform: scale(1.06);
+}
+.thumb:disabled { cursor: default; }
+
+.appliedAt { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thumbFallback {
+  color: var(--color-text-disabled);
+}
+
+/* info */
+.itemInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.itemTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.itemYear {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.libraryName {
+  font-size: var(--text-xs);
+  color: var(--color-text-disabled);
+}
+
+/* action */
+.itemAction {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.workingLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.doneLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--color-accent-success);
+}
+
+.errorLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--color-accent-error);
+}
+
+/* Per-row Reset button while the delete toggle is armed: warns on hover. */
+.dangerAction:hover:not(:disabled) {
+  color: var(--color-accent-error) !important;
+  border-color: rgba(248, 113, 113, 0.4) !important;
+  background: rgba(248, 113, 113, 0.08) !important;
+}
