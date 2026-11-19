@@ -28,7 +28,8 @@ interface CatalogPagesInput
  */
 export function useCatalogPages({ sets, searchResults, partial, q, filter, crawling, tab, page }: CatalogPagesInput)
 {
-  const merged = useMemo(() => {
+  const merged = useMemo(() =>
+  {
     if (!partial || q.length < 2 || !searchResults.length) return sets
     const ids = new Set(sets.map(s => s.id))
     return [...searchResults.filter(s => !ids.has(s.id)), ...sets]
@@ -39,19 +40,23 @@ export function useCatalogPages({ sets, searchResults, partial, q, filter, crawl
     [merged, q],
   )
   const libraryCount = useMemo(() => queried.filter(s => s.matchedKey).length, [queried])
-  const visible = useMemo(() => {
+  const visible = useMemo(() =>
+  {
     if (filter === 'all') return crawling ? queried : [...queried].sort((a, b) => (a.matchedKey ? 0 : 1) - (b.matchedKey ? 0 : 1))
     return queried.filter(s => (filter === 'library' ? !!s.matchedKey : !s.matchedKey))
   }, [queried, filter, crawling])
   const groups = useMemo(() => groupByTitle(visible), [visible])
-  const files = useMemo(() => {
+  const files = useMemo(() =>
+  {
     if (tab === 'sets') return []
     const type = TAB_TYPE[tab]
     return visible.flatMap(set => set.posters.filter(p => posterFileType(p) === type).map(poster => ({ set, poster })))
   }, [visible, tab])
-  const tabCounts = useMemo(() => {
+  const tabCounts = useMemo(() =>
+  {
     let posters = 0, backdrops = 0, titlecards = 0
-    for (const s of visible) for (const p of s.posters) {
+    for (const s of visible) for (const p of s.posters)
+    {
       const t = posterFileType(p)
       if (t === 'poster') posters++
       else if (t === 'backdrop') backdrops++

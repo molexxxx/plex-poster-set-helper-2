@@ -38,7 +38,8 @@ const viewStates = new Map<string, ViewState>()
 const TILE_MIN = 150
 const TILE_GAP = 16
 
-interface CatalogProps {
+interface CatalogProps
+{
   username: string
   creator: CreatorState
   appliedIdx: AppliedIndex
@@ -54,7 +55,8 @@ interface CatalogProps {
 }
 
 /** One creator's catalog: a header with status and sync, then titles with their variant sets, or single files. */
-export default function CreatorCatalog({ username, creator, appliedIdx, jobs, coverage, quickCron, types: allTypes, settingsTypes, onTypesChange, onCreatorChange, onApplied }: CatalogProps) {
+export default function CreatorCatalog({ username, creator, appliedIdx, jobs, coverage, quickCron, types: allTypes, settingsTypes, onTypesChange, onCreatorChange, onApplied }: CatalogProps)
+{
   const key = username.toLowerCase()
   const catalog = useCreatorCatalog(username)
   const { navigate } = useAppContext()
@@ -85,7 +87,8 @@ export default function CreatorCatalog({ username, creator, appliedIdx, jobs, co
 
   useEffect(() => { viewStates.set(key, { tab, page, query, filter }) }, [key, tab, page, query, filter])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!catalog.fetchedAt) return
     const id = setInterval(() => setTick(t => t + 1), 60_000)
     return () => clearInterval(id)
@@ -108,18 +111,22 @@ export default function CreatorCatalog({ username, creator, appliedIdx, jobs, co
   const openIndex = openGroup ? pageGroups.findIndex(g => g.key === openGroup) : -1
   const detailAfter = openIndex < 0 ? -1 : Math.min(pageGroups.length - 1, Math.floor(openIndex / columns) * columns + columns - 1)
 
-  function toggleGroup(groupKey: string) {
+  function toggleGroup(groupKey: string)
+  {
     setOpenGroup(cur => (cur === groupKey ? null : groupKey))
   }
   const changeFilter = (f: LibraryFilter) => { setFilter(f); setPage(0) }
-  const changeQuery = (v: string) => {
+  const changeQuery = (v: string) =>
+  {
     setQuery(v)
     setPage(0)
     if (v.trim().length < 2) { setSearchResults([]); setSearching(false) }
   }
 
-  function toggleSelect(id: string) {
-    setSelected(prev => {
+  function toggleSelect(id: string)
+  {
+    setSelected(prev =>
+    {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id); else next.add(id)
       return next
@@ -129,7 +136,8 @@ export default function CreatorCatalog({ username, creator, appliedIdx, jobs, co
   const pageSelectable = pageGroups.flatMap(g => g.sets).filter(s => s.matchedKey)
   const selectedSets = catalog.sets.filter(s => selected.has(s.id))
 
-  function openJob() {
+  function openJob()
+  {
     if (tip?.jobId) goScheduler(tip.jobId)
     navigate('scheduler')
   }
@@ -226,7 +234,8 @@ export default function CreatorCatalog({ username, creator, appliedIdx, jobs, co
 
         {catalog.ready && !catalog.error && tab === 'sets' && pageGroups.length > 0 && (
           <div ref={attachShelf} className={tiles.shelf}>
-            {pageGroups.map((group, i) => {
+            {pageGroups.map((group, i) =>
+            {
               const set = pickedSet(group)
               const openGroupData = i === detailAfter ? pageGroups[openIndex] : null
               return (
@@ -269,7 +278,8 @@ export default function CreatorCatalog({ username, creator, appliedIdx, jobs, co
 
         {catalog.ready && !catalog.error && tab !== 'sets' && pageFiles.length > 0 && (
           <div className={`${tiles.fileGrid} ${tab === 'posters' ? '' : tiles.fileGridWide}`}>
-            {pageFiles.map(({ set, poster }, i) => {
+            {pageFiles.map(({ set, poster }, i) =>
+            {
               const k = `${set.id}:${poster.url}`
               const st = applyMap[k]
               return (
@@ -334,7 +344,8 @@ export default function CreatorCatalog({ username, creator, appliedIdx, jobs, co
           pickedTypes={allTypes}
           settingsTypes={settingsTypes}
           onClose={() => setSyncScope(null)}
-          onSaved={(message, jobId) => {
+          onSaved={(message, jobId) =>
+          {
             setSyncScope(null)
             setSelecting(false)
             setSelected(new Set())

@@ -8,10 +8,12 @@ export const catalogCache = new Map<string, CachedCatalog>()
 export const CATALOG_CACHE_LIMIT = 3
 
 /** Stores a catalog as the newest entry, dropping the oldest beyond the limit. */
-export function rememberCatalog(key: string, entry: CachedCatalog): void {
+export function rememberCatalog(key: string, entry: CachedCatalog): void
+{
   catalogCache.delete(key)
   catalogCache.set(key, entry)
-  while (catalogCache.size > CATALOG_CACHE_LIMIT) {
+  while (catalogCache.size > CATALOG_CACHE_LIMIT)
+  {
     const oldest = catalogCache.keys().next().value
     if (oldest === undefined) break
     catalogCache.delete(oldest)

@@ -14,14 +14,17 @@ export const count = (n: number) => n.toLocaleString('en-US')
 export const plural = (n: number, one: string, many = `${one}s`) => `${count(n)} ${n === 1 ? one : many}`
 
 /** The key sets for the same title share: the matched Plex item, or the normalized title and year. */
-export function titleKey(s: MediuxUserSet): string {
+export function titleKey(s: MediuxUserSet): string
+{
   return s.matchedKey ? `k:${s.matchedKey}` : `t:${s.title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()}|${s.year ?? ''}`
 }
 
 /** Groups sets by the title they are for, keeping the catalog's order. */
-export function groupByTitle(sets: MediuxUserSet[]): TitleGroup[] {
+export function groupByTitle(sets: MediuxUserSet[]): TitleGroup[]
+{
   const groups = new Map<string, TitleGroup>()
-  for (const s of sets) {
+  for (const s of sets)
+  {
     const key = titleKey(s)
     const group = groups.get(key)
     if (group) group.sets.push(s)
@@ -31,7 +34,8 @@ export function groupByTitle(sets: MediuxUserSet[]): TitleGroup[] {
 }
 
 /** Appends the incoming sets the list does not hold yet, returning the same list when none are new. */
-export function appendNew(prev: MediuxUserSet[], incoming: MediuxUserSet[]): MediuxUserSet[] {
+export function appendNew(prev: MediuxUserSet[], incoming: MediuxUserSet[]): MediuxUserSet[]
+{
   if (!incoming.length) return prev
   const seen = new Set(prev.map(s => s.id))
   const fresh = incoming.filter(s => !seen.has(s.id))
@@ -39,7 +43,8 @@ export function appendNew(prev: MediuxUserSet[], incoming: MediuxUserSet[]): Med
 }
 
 /** Counts a set's files by type, such as "1 poster · 3 title cards", or "No files". */
-export function shortTypeCounts(s: MediuxUserSet): string {
+export function shortTypeCounts(s: MediuxUserSet): string
+{
   const parts: string[] = []
   if (s.posterCount) parts.push(plural(s.posterCount, 'poster'))
   if (s.titleCardCount) parts.push(plural(s.titleCardCount, 'title card'))
@@ -48,7 +53,8 @@ export function shortTypeCounts(s: MediuxUserSet): string {
 }
 
 /** Names a single file's season or episode for its lightbox caption, when it has one. */
-export function fileCaption(p: PosterInfo): string | undefined {
+export function fileCaption(p: PosterInfo): string | undefined
+{
   if (p.episode != null) return `${typeof p.season === 'number' ? `Season ${p.season}, ` : ''}Episode ${p.episode}`
   if (typeof p.season === 'number') return p.season === 0 ? 'Specials' : `Season ${p.season}`
   return undefined

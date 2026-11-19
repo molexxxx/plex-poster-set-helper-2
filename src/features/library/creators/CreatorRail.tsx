@@ -42,23 +42,29 @@ export default function CreatorRail({ prefs, active, coverage, setPicked, stateO
 
   const isActive = (name: string) => active?.toLowerCase() === name.toLowerCase()
 
-  async function addCreator() {
+  async function addCreator()
+  {
     const parsed = parseCreatorInput(adding)
-    if (!parsed) {
+    if (!parsed)
+    {
       setPrefsError('Enter a username or a MediUX or ThePosterDB profile link.')
       return
     }
     setPrefsError(null)
-    try {
+    try
+    {
       if (stateOf(parsed.source, parsed.name) !== 'followed') await setState(parsed.source, parsed.name, 'followed')
       if (parsed.source === 'mediux') setPicked(parsed.name)
       setAdding('')
-    } catch (err) {
+    }
+    catch (err)
+    {
       setPrefsError(errorMessage(err))
     }
   }
 
-  function onRailKey(e: React.KeyboardEvent) {
+  function onRailKey(e: React.KeyboardEvent)
+  {
     if (!browsable.length) return
     const i = Math.max(0, browsable.findIndex(isActive))
     const next = e.key === 'ArrowDown' ? Math.min(i + 1, browsable.length - 1)
@@ -72,7 +78,8 @@ export default function CreatorRail({ prefs, active, coverage, setPicked, stateO
     railRef.current?.querySelector<HTMLElement>(`[data-creator="${CSS.escape(browsable[next].toLowerCase())}"]`)?.focus()
   }
 
-  function railOption(name: string, hidden: boolean) {
+  function railOption(name: string, hidden: boolean)
+  {
     const selected = isActive(name)
     const known = catalogCache.get(name.toLowerCase())
     const synced = coverage.creators.has(name.toLowerCase())

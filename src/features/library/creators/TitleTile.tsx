@@ -9,7 +9,8 @@ import { plural, type TitleGroup } from './catalogUtils'
 import shared from './catalogShared.module.css'
 import tiles from './tiles.module.css'
 import styles from './TitleTile.module.css'
-interface TitleTileProps {
+interface TitleTileProps
+{
   group: TitleGroup
   /** The variant shown and applied; the group's first set until another is picked. */
   set: MediuxUserSet
@@ -31,7 +32,8 @@ interface TitleTileProps {
 const MAX_SWATCHES = 5
 
 /** One title on the poster wall: the picked set's art, with Apply on the art and the other sets as swatches. */
-export default function TitleTile({ group, set, username, appliedIdx, coverage, apply, selecting, checked, open, onOpen, onPick, onToggleSelect, onApply, applyHint }: TitleTileProps) {
+export default function TitleTile({ group, set, username, appliedIdx, coverage, apply, selecting, checked, open, onOpen, onPick, onToggleSelect, onApply, applyHint }: TitleTileProps)
+{
   const [loaded, setLoaded] = useState(false)
   const [broken, setBroken] = useState(false)
   const current = group.matchedKey ? appliedIdx.currentByItem.get(group.matchedKey) : undefined

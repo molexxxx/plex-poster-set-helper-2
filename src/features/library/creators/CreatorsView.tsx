@@ -11,7 +11,8 @@ import styles from './CreatorsView.module.css'
 let lastCreator: string | null = null
 
 /** The Creators view: followed creators beside the selected creator's catalog. */
-export default function CreatorsView({ initialCreator }: { initialCreator: string | null }) {
+export default function CreatorsView({ initialCreator }: { initialCreator: string | null })
+{
   const { prefs, stateOf, setState } = useCreatorPrefs()
   const follows = prefs.mediuxFollows
   const { appliedIdx, setAppliedIdx, jobs, quickCron, types, setTypes, settingsTypes, coverage } = useCreatorsData()
@@ -22,7 +23,8 @@ export default function CreatorsView({ initialCreator }: { initialCreator: strin
   useEffect(() => { if (initialCreator) setPicked(initialCreator) }, [initialCreator])
   useEffect(() => { lastCreator = active }, [active])
 
-  function savePrefs(run: Promise<unknown>) {
+  function savePrefs(run: Promise<unknown>)
+  {
     setPrefsError(null)
     run.catch((err: unknown) => setPrefsError(errorMessage(err)))
   }
@@ -53,7 +55,8 @@ export default function CreatorsView({ initialCreator }: { initialCreator: strin
             types={types}
             settingsTypes={settingsTypes}
             onTypesChange={setTypes}
-            onCreatorChange={state => {
+            onCreatorChange={state =>
+            {
               setPicked(active)
               savePrefs(setState('mediux', active, state))
             }}

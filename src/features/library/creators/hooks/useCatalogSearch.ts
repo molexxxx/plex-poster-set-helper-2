@@ -15,10 +15,12 @@ export function useCatalogSearch(username: string, partial: boolean, q: string)
   const [searchResults, setSearchResults] = useState<MediuxUserSet[]>([])
   const [searching, setSearching] = useState(false)
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!partial || q.length < 2) return
     let cancelled = false
-    const t = setTimeout(() => {
+    const t = setTimeout(() =>
+    {
       setSearching(true)
       window.api.library.creatorSearch({ username, query: q })
         .then(res => { if (!cancelled) setSearchResults(res.sets) })

@@ -23,8 +23,10 @@ export function useCreatorsData()
   const coverage = useMemo(() => scheduleCoverage(jobs), [jobs])
 
   useEffect(() => { void loadAppliedIndex().then(setAppliedIdx) }, [])
-  useEffect(() => {
-    window.api.config.get().then(c => {
+  useEffect(() =>
+  {
+    window.api.config.get().then(c =>
+    {
       if (c.mediuxFilters?.length) setTypes(new Set(c.mediuxFilters as FileType[]))
       if (c.mediuxFilters) setSettingsTypes(c.mediuxFilters)
       setQuickCron(c.schedulerQuickCron || DEFAULT_QUICK_CRON)

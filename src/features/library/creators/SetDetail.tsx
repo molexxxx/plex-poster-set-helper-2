@@ -13,7 +13,8 @@ import libraryStyles from '../LibraryPage.module.css'
 import shared from './catalogShared.module.css'
 import tiles from './tiles.module.css'
 import styles from './SetDetail.module.css'
-interface SetDetailProps {
+interface SetDetailProps
+{
   group: TitleGroup
   set: MediuxUserSet
   appliedIdx: AppliedIndex
@@ -26,18 +27,21 @@ interface SetDetailProps {
 }
 
 /** The shelf that opens under a title's row: the picked set large, every set for the title, and its files. */
-export default function SetDetail({ group, set, appliedIdx, enabledTypes, onTypesChange, apply, onPick, onApply, onClose }: SetDetailProps) {
+export default function SetDetail({ group, set, appliedIdx, enabledTypes, onTypesChange, apply, onPick, onApply, onClose }: SetDetailProps)
+{
   const ref = useRef<HTMLElement>(null)
   const headingId = useId()
   const typesLabelId = useId()
   const heading = group.year ? `${group.title} (${group.year})` : group.title
   const [lightbox, setLightbox] = useState<number | null>(null)
-  const fileRows = useMemo(() => {
+  const fileRows = useMemo(() =>
+  {
     const groups = groupPosters(set.posters).filter(g => enabledTypes.has(g.kind))
     const posterItems = groups.filter(g => g.kind === 'poster')
       .flatMap(g => g.posters.map(p => ({ poster: p, caption: g.label.replace(/ Poster$/, '') })))
     const rows = posterItems.length ? [{ label: 'Posters', kind: 'poster' as FileType, items: posterItems }] : []
-    for (const g of groups.filter(gr => gr.kind !== 'poster')) {
+    for (const g of groups.filter(gr => gr.kind !== 'poster'))
+    {
       rows.push({ label: g.label === 'Backdrop' ? 'Backdrops' : g.label, kind: g.kind, items: g.posters.map(p => ({ poster: p, caption: '' })) })
     }
     return rows
@@ -54,7 +58,8 @@ export default function SetDetail({ group, set, appliedIdx, enabledTypes, onType
   const status = apply?.status ?? 'idle'
   const canApply = !!group.matchedKey || set.posters.some(p => p.isCollection)
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     const el = ref.current
     const list = el?.closest<HTMLElement>('[data-scroll-list]')
     if (!el || !list) return
@@ -140,7 +145,8 @@ export default function SetDetail({ group, set, appliedIdx, enabledTypes, onType
           <div key={row.label} className={styles.fileGroup}>
             <span className={styles.fileGroupLabel}>{row.label}<span className={shared.tabCount}>{count(row.items.length)}</span></span>
             <div className={`${libraryStyles.groupThumbs} ${row.kind === 'poster' ? '' : libraryStyles.groupThumbsWide}`}>
-              {row.items.map(({ poster, caption }) => {
+              {row.items.map(({ poster, caption }) =>
+              {
                 flat++
                 const idx = flat
                 const thumb = (

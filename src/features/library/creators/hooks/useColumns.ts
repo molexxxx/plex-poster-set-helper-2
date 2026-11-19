@@ -7,10 +7,12 @@ import { useCallback, useRef, useState } from 'react'
  * @param gap - The grid's column gap.
  * @returns The column count and a ref callback for the grid element.
  */
-export function useColumns(min: number, gap: number): [number, (el: HTMLElement | null) => void] {
+export function useColumns(min: number, gap: number): [number, (el: HTMLElement | null) => void]
+{
   const [columns, setColumns] = useState(1)
   const observer = useRef<ResizeObserver | null>(null)
-  const attach = useCallback((el: HTMLElement | null) => {
+  const attach = useCallback((el: HTMLElement | null) =>
+  {
     observer.current?.disconnect()
     observer.current = null
     if (!el) return

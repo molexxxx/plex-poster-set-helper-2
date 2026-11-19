@@ -20,7 +20,8 @@ export type SyncScope = { kind: 'creator' } | { kind: 'sets'; sets: MediuxUserSe
 
 type Start = 'new' | 'everything'
 
-interface Props {
+interface Props
+{
   open: boolean
   username: string
   scope: SyncScope
@@ -35,7 +36,8 @@ interface Props {
   onSaved: (message: string, jobId: string) => void
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string): string
+{
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
@@ -45,7 +47,8 @@ function formatDate(iso: string): string {
  * and whether it only fills gaps.
  * Nothing is scheduled until the user confirms with the scope spelled out.
  */
-export default function CreatorSyncDialog({ open, username, scope, jobs, matchedTitles, defaultCron, pickedTypes, settingsTypes, onClose, onSaved }: Props) {
+export default function CreatorSyncDialog({ open, username, scope, jobs, matchedTitles, defaultCron, pickedTypes, settingsTypes, onClose, onSaved }: Props)
+{
   const scheduleLabelId = useId()
   const typesLabelId = useId()
   const typesDescId = useId()
@@ -55,7 +58,8 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
   const startLabelId = useId()
   const isCreator = scope.kind === 'creator'
 
-  const request = useMemo<QuickSyncRequest>(() => {
+  const request = useMemo<QuickSyncRequest>(() =>
+  {
     const urls = scope.kind === 'creator' ? [creatorSyncUrl(username)] : scope.sets.map(s => `https://mediux.pro/sets/${s.id}`)
     const count = scope.kind === 'sets' ? scope.sets.length : 0
     return {
@@ -82,10 +86,12 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
   const since = existing?.since
   const setCount = scope.kind === 'sets' ? scope.sets.length : 0
 
-  async function save() {
+  async function save()
+  {
     setSaving(true)
     setError(null)
-    try {
+    try
+    {
       const overrides: QuickSyncRequest['overrides'] = isCreator
         ? { cronExpr, fillGaps, assetTypes, since: start === 'new' ? since ?? new Date().toISOString() : undefined }
         : { cronExpr, fillGaps, assetTypes }
@@ -98,9 +104,13 @@ export default function CreatorSyncDialog({ open, username, scope, jobs, matched
           ? `Syncing new uploads from @${username}, ${when}.`
           : `Syncing every set from @${username}, ${when}. The first run applies their art to ${matchedTitles.toLocaleString('en-US')} ${matchedTitles === 1 ? 'title' : 'titles'}.`
       onSaved(message, saved.id)
-    } catch (err) {
+    }
+    catch (err)
+    {
       setError(errorMessage(err))
-    } finally {
+    }
+    finally
+    {
       setSaving(false)
     }
   }

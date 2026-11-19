@@ -12,7 +12,8 @@ import { appendNew } from '../catalogUtils'
  * @returns The sets and crawl state, whether a check or re-read is running, the error or
  *   notice, and `check` and `reread`.
  */
-export function useCreatorCatalog(username: string) {
+export function useCreatorCatalog(username: string)
+{
   const key = username.toLowerCase()
   const [cached] = useState(() => catalogCache.get(key))
   const [sets, setSets]           = useState<MediuxUserSet[]>(cached?.sets ?? [])
@@ -29,8 +30,10 @@ export function useCreatorCatalog(username: string) {
   const countRef = useRef(sets.length)
   useEffect(() => { revRef.current = rev; countRef.current = sets.length }, [rev, sets.length])
 
-  const applySnapshot = useCallback((snap: UserSetsSnapshot) => {
-    if (!snap.unchanged) {
+  const applySnapshot = useCallback((snap: UserSetsSnapshot) =>
+  {
+    if (!snap.unchanged)
+    {
       setSets(prev => (snap.status === 'crawling' ? appendNew(snap.sets, prev) : snap.sets))
     }
     setRev(snap.rev)
@@ -43,22 +46,27 @@ export function useCreatorCatalog(username: string) {
     if (snap.collected || snap.status !== 'crawling') setReady(true)
   }, [])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     let cancelled = false
-    const off = window.api.library.onUserSetsChunk((chunk: UserSetsChunk) => {
+    const off = window.api.library.onUserSetsChunk((chunk: UserSetsChunk) =>
+    {
       if (cancelled || chunk.username.toLowerCase() !== key) return
       if (chunk.reset) setSets(chunk.sets)
-      else if (chunk.upsert) {
+      else if (chunk.upsert)
+      {
         const ids = new Set(chunk.sets.map(s => s.id))
         setSets(prev => [...chunk.sets, ...prev.filter(s => !ids.has(s.id))])
-      } else if (chunk.sets.length) setSets(prev => appendNew(prev, chunk.sets))
+      }
+      else if (chunk.sets.length) setSets(prev => appendNew(prev, chunk.sets))
       setRev(chunk.rev)
       setStatus(chunk.status)
       setCapped(chunk.capped)
       if (chunk.fetchedAt) setFetchedAt(chunk.fetchedAt)
       if (chunk.sets.length || chunk.done) setReady(true)
       if (chunk.done) { setChecking(false); setRereading(false) }
-      if (chunk.error) {
+      if (chunk.error)
+      {
         if (chunk.collected) setNotice(chunk.error)
         else setError(chunk.error)
       }
@@ -69,11 +77,13 @@ export function useCreatorCatalog(username: string) {
     return () => { cancelled = true; off() }
   }, [username, key, applySnapshot])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (ready && sets.length) rememberCatalog(key, { rev, sets, capped, fetchedAt, status })
   }, [key, ready, rev, sets, capped, fetchedAt, status])
 
-  const check = useCallback(() => {
+  const check = useCallback(() =>
+  {
     setNotice(null)
     setError(null)
     setChecking(true)
@@ -82,7 +92,8 @@ export function useCreatorCatalog(username: string) {
       .catch(err => { setChecking(false); setNotice(`Could not check for new sets: ${errorMessage(err)}`) })
   }, [username, applySnapshot])
 
-  const reread = useCallback(() => {
+  const reread = useCallback(() =>
+  {
     setNotice(null)
     setRereading(true)
     window.api.library.rereadUserSets({ username, rev: revRef.current || undefined })

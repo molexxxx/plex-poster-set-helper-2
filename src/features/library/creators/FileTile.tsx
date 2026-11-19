@@ -12,7 +12,8 @@ export default function FileTile({ set, poster, state, applied, onOpen, onApply 
   applied: boolean
   onOpen: () => void
   onApply: () => void
-}) {
+})
+{
   const [loaded, setLoaded] = useState(false)
   const title = set.year ? `${set.title} (${set.year})` : set.title
   const caption = poster.episode != null

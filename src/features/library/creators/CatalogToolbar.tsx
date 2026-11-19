@@ -47,7 +47,8 @@ export default function CatalogToolbar({
             tabIndex={tab === value ? 0 : -1}
             className={`${shared.tab} ${tab === value ? shared.tabActive : ''}`}
             onClick={() => changeTab(value)}
-            onKeyDown={e => {
+            onKeyDown={e =>
+            {
               const order: Tab[] = ['sets', 'posters', 'backdrops', 'titlecards']
               const i = order.indexOf(tab)
               const next = e.key === 'ArrowRight' ? order[(i + 1) % 4] : e.key === 'ArrowLeft' ? order[(i + 3) % 4] : null
