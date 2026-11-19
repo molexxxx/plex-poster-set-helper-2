@@ -1,5 +1,6 @@
 import { ConfigService } from './config'
 import { Logger } from './logger'
+import { readableError } from './readableError'
 import { ScraperFactory } from '../scrapers/scraperFactory'
 import { classifyUrl } from '../scrapers/urlSource'
 import type { LinkedItemRef, LinkedSetsRes, PosterSetSummary } from '../ipc/types'
@@ -33,11 +34,6 @@ export function normalizeLink(raw: string): string | null
   {
     return null
   }
-}
-
-function errorText(err: unknown): string
-{
-  return err instanceof Error ? err.message : String(err)
 }
 
 async function resolveLink(item: LinkedItemRef, url: string, fresh: boolean): Promise<PosterSetSummary[]>
@@ -90,7 +86,7 @@ export const LinkedSetsService = {
     settled.forEach((result, i) =>
     {
       if (result.status === 'fulfilled') out.sets.push(...result.value)
-      else (out.errors ??= []).push({ url: urls[i], error: errorText(result.reason) })
+      else (out.errors ??= []).push({ url: urls[i], error: readableError(result.reason) })
     })
     return out
   },
@@ -119,7 +115,7 @@ export const LinkedSetsService = {
     }
     catch (err)
     {
-      const error = errorText(err)
+      const error = readableError(err)
       Logger.warn('Library', `Could not link ${url} to "${item.title}": ${error}`)
       return { sets: [], errors: [{ url, error }] }
     }

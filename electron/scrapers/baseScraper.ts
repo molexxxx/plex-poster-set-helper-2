@@ -77,6 +77,55 @@ export async function mapPool<T, R>(
 }
 
 /**
+ * Rejects once a promise has taken longer than the given time. The work keeps
+ * running; the caller just stops waiting on it.
+ *
+ * @param work - The promise to wait on.
+ * @param ms - Time limit in milliseconds.
+ * @param message - Error message for the rejection when the time runs out.
+ * @returns What the promise resolves to, when it settles in time.
+ */
+export function withTimeout<T>(work: Promise<T>, ms: number, message: string): Promise<T>
+{
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const expired = new Promise<never>((_resolve, reject) =>
+  {
+    timer = setTimeout(() => reject(new Error(message)), ms)
+  })
+  return Promise.race([work, expired]).finally(() => clearTimeout(timer))
+}
+
+/**
+ * Waits until a promise settles or the given time passes, whichever comes
+ * first, and never rejects.
+ *
+ * @param work - The promise to wait on.
+ * @param ms - Longest wait in milliseconds.
+ */
+export async function waitAtMost(work: Promise<unknown>, ms: number): Promise<void>
+{
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const elapsed = new Promise<void>(resolve =>
+  {
+    timer = setTimeout(resolve, ms)
+  })
+  try
+  {
+    await Promise.race([work.then(() => undefined, () => undefined), elapsed])
+  }
+  finally
+  {
+    clearTimeout(timer)
+  }
+}
+
+/** Longest wait for the headless browser to start, or to open a page in it. */
+const BROWSER_START_TIMEOUT_MS = 60_000
+const PAGE_OPEN_TIMEOUT_MS = 30_000
+/** Longest wait for a browser page to close before the caller moves on. */
+const PAGE_CLOSE_TIMEOUT_MS = 10_000
+
+/**
  * Sleeps for the configured scraper delay of the given type.
  *
  * @param type - Which delay setting to apply.
@@ -128,6 +177,7 @@ export abstract class BaseScraper {
       const browser = await chromium.launch({
         headless: true,
         executablePath,
+        timeout: BROWSER_START_TIMEOUT_MS,
         args: [
           '--no-sandbox',
           '--disable-dev-shm-usage',
@@ -149,25 +199,44 @@ export abstract class BaseScraper {
    */
   async newContext(): Promise<{ context: BrowserContext; page: Page }> {
     const browser = await this.getBrowser()
-    const context = await browser.newContext({
-      userAgent: pick(USER_AGENTS),
-      viewport: pick(VIEWPORTS),
-      locale: 'en-US',
-      timezoneId: 'America/New_York',
-      extraHTTPHeaders: {
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-      },
-    })
-    const page = await context.newPage()
-    // Mask automation fingerprints (runs in browser context, not Node)
-    await page.addInitScript(() => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const g = globalThis as any
-      Object.defineProperty(g.navigator, 'webdriver', { get: () => undefined })
-      g.chrome = { runtime: {} }
-    })
-    return { context, page }
+    const opening = (async () => {
+      const context = await browser.newContext({
+        userAgent: pick(USER_AGENTS),
+        viewport: pick(VIEWPORTS),
+        locale: 'en-US',
+        timezoneId: 'America/New_York',
+        extraHTTPHeaders: {
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        },
+      })
+      const page = await context.newPage()
+      // Mask automation fingerprints (runs in browser context, not Node)
+      await page.addInitScript(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const g = globalThis as any
+        Object.defineProperty(g.navigator, 'webdriver', { get: () => undefined })
+        g.chrome = { runtime: {} }
+      })
+      return { context, page }
+    })()
+    try {
+      return await withTimeout(opening, PAGE_OPEN_TIMEOUT_MS, 'the headless browser did not open a page')
+    } catch (err) {
+      // A page that opens after the caller gave up would otherwise stay open.
+      void opening.then(({ context }) => context.close(), () => {})
+      throw err
+    }
+  }
+
+  /**
+   * Closes a browser context without letting a stuck browser hold up the caller.
+   *
+   * @param context - The context to close.
+   */
+  async closeContext(context: BrowserContext): Promise<void>
+  {
+    await withTimeout(context.close(), PAGE_CLOSE_TIMEOUT_MS, 'the browser page did not close').catch(() => {})
   }
 
   /**

@@ -442,6 +442,32 @@ describe('avatars', () =>
     expect((await resolveAvatars(['Unknown', ''])).size).toBe(0)
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('answers the guessed URL while a lookup runs, and shares the profile fetch', async () =>
+  {
+    let release!: () => void
+    const held = new Promise<void>(resolve =>
+    {
+      release = resolve
+    })
+    const fetchMock = vi.fn(async () =>
+    {
+      await held
+      return { ok: true, status: 200, text: async () => profilePage(CUSTOM_AVATAR) }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const first = mod.lookUpAvatars(['alice'])
+    const second = mod.lookUpAvatars(['ALICE', 'Unknown'])
+    expect(first.avatarOf('alice')).toBe(guessedAvatarUrl('alice'))
+    expect(second.avatarOf('Unknown')).toBeUndefined()
+
+    release()
+    await Promise.all([first.done, second.done])
+    expect(first.avatarOf('alice')).toBe(CUSTOM_AVATAR_URL)
+    expect(second.avatarOf('ALICE')).toBe(CUSTOM_AVATAR_URL)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('PosterdbScraper.findMedia', () =>
@@ -570,6 +596,46 @@ describe('PosterdbScraper.browseSets', () =>
     expect(requests(fetchMock, MEDIA_PAGE_2)).toBe(0)
     expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(browser).not.toHaveBeenCalled()
+  })
+
+  it('does not hold the sets for a slow avatar lookup', async () =>
+  {
+    const pages = dunePages()
+    let release!: () => void
+    const held = new Promise<void>(resolve =>
+    {
+      release = resolve
+    })
+    const fetchMock = vi.fn(async (url: string) =>
+    {
+      if (url === profileUrl('bob')) await held
+      if (!(url in pages)) return { ok: false, status: 404, text: async () => '' }
+      return { ok: true, status: 200, text: async () => pages[url] }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const scraper = new PosterdbScraper()
+    fakeBrowser(scraper, () => '')
+
+    vi.useFakeTimers()
+    try
+    {
+      const browsing = scraper.browseSets('Dune', 2021, 'movie')
+      await vi.advanceTimersByTimeAsync(2_000)
+      const result = await browsing
+      expect(result.sets.map(s => [s.id, s.uploaderAvatar])).toEqual([
+        ['10', CUSTOM_AVATAR_URL], ['20', guessedAvatarUrl('bob')], ['30', CUSTOM_AVATAR_URL],
+      ])
+    }
+    finally
+    {
+      vi.useRealTimers()
+    }
+
+    release()
+    const late = mod.lookUpAvatars(['bob'])
+    await late.done
+    expect(late.avatarOf('bob')).toBe(`${BASE}/images/users/avatars/avatar-01.webp`)
+    expect(requests(fetchMock, profileUrl('bob'))).toBe(1)
   })
 
   it('reports more on the site after two full pages', async () =>

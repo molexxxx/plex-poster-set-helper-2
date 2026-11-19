@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import { BaseScraper, sleepConfig, mapPool, USER_AGENTS } from './baseScraper'
+import { BaseScraper, sleepConfig, mapPool, waitAtMost, USER_AGENTS } from './baseScraper'
 import { Logger } from '../services/logger'
 import { ConfigService } from '../services/config'
 import { stripSuffix } from '../services/titleParse'
@@ -485,9 +485,17 @@ export function classifySetPosters(
 const AVATAR_TTL = 24 * 60 * 60 * 1000
 /** Parallel profile-page fetches while resolving avatars. */
 const AVATAR_FETCH_CONCURRENCY = 4
+/**
+ * Longest a browse waits for avatars once its sets are ready. Profile pages
+ * can take several seconds; a lookup still running finishes in the background
+ * and fills the cache for the next open.
+ */
+const AVATAR_WAIT_MS = 2_000
 
 /** Resolved avatars by lowercased username; null means "show the generic icon". */
 const avatarCache = new Map<string, { url: string | null; at: number }>()
+/** Profile lookups in flight by lowercased username, so concurrent browses read each page once. */
+const avatarLookups = new Map<string, Promise<string | null>>()
 
 /**
  * Where a custom upload would live: the CDN path is built from the username.
@@ -559,37 +567,101 @@ export function parseProfileAvatar($: cheerio.CheerioAPI): string | null | undef
 }
 
 /**
- * Resolves the avatar for each uploader by reading their profile page over
- * plain HTTP. Results are cached for a day; a failed fetch falls back to the
- * guessed CDN URL without caching, so a hiccup isn't remembered.
+ * Reads one uploader's avatar from their profile page, joining a lookup for
+ * the same uploader that is already running. A found avatar is cached for a
+ * day; a failed fetch answers the guessed CDN URL without caching, so a
+ * hiccup isn't remembered.
  *
- * @param usernames - Uploaders to resolve; duplicates are fine.
- * @returns Lowercased username to avatar URL (null = generic icon).
+ * @param name - Uploader as shown on the site.
+ * @returns The avatar URL, or null for the generic icon.
  */
-export async function resolveAvatars(usernames: string[]): Promise<Map<string, string | null>> {
-  const out = new Map<string, string | null>()
-  const pending: string[] = []
-  for (const name of new Set(usernames)) {
-    if (!name || name === 'Unknown') continue
-    const hit = avatarCache.get(name.toLowerCase())
-    if (hit && Date.now() - hit.at < AVATAR_TTL) out.set(name.toLowerCase(), hit.url)
-    else pending.push(name)
-  }
-
-  await mapPool(pending, AVATAR_FETCH_CONCURRENCY, async name => {
-    const key = name.toLowerCase()
-    try {
+function lookUpAvatar(name: string): Promise<string | null>
+{
+  const key = name.toLowerCase()
+  const running = avatarLookups.get(key)
+  if (running) return running
+  const lookup = (async () =>
+  {
+    try
+    {
       const html = await fetchHtml(`${BASE}/user/${encodeURIComponent(name)}`)
       if (html === null) throw new Error('profile page did not load')
       const found = parseProfileAvatar(cheerio.load(html))
       if (found === undefined) throw new Error('no avatar element on profile page')
       avatarCache.set(key, { url: found, at: Date.now() })
-      out.set(key, found)
-    } catch (err) {
-      Logger.warn('PosterDB', `Avatar lookup failed for "${name}": ${err instanceof Error ? err.message : err}`)
-      out.set(key, guessedAvatarUrl(name))
+      return found
     }
-  })
+    catch (err)
+    {
+      Logger.warn('PosterDB', `Avatar lookup failed for "${name}": ${err instanceof Error ? err.message : err}`)
+      return guessedAvatarUrl(name)
+    }
+  })().finally(() => avatarLookups.delete(key))
+  avatarLookups.set(key, lookup)
+  return lookup
+}
+
+/** Avatar lookups started for a browse. */
+export interface AvatarLookup
+{
+  /** Settles once every profile lookup has. */
+  done: Promise<void>
+  /**
+   * The avatar for an uploader so far: the resolved one (null for the generic
+   * icon), the guessed CDN URL while its lookup is still running, or undefined
+   * for an unknown uploader.
+   */
+  avatarOf: (name: string) => string | null | undefined
+}
+
+/**
+ * Starts resolving each uploader's avatar, answering cached ones at once.
+ *
+ * @param usernames - Uploaders to resolve; duplicates are fine.
+ * @returns The lookup, readable at any time and complete once `done` settles.
+ */
+export function lookUpAvatars(usernames: string[]): AvatarLookup
+{
+  const found = new Map<string, string | null>()
+  const asked = new Set<string>()
+  for (const name of new Set(usernames))
+  {
+    if (!name || name === 'Unknown') continue
+    const hit = avatarCache.get(name.toLowerCase())
+    if (hit && Date.now() - hit.at < AVATAR_TTL) found.set(name.toLowerCase(), hit.url)
+    else asked.add(name)
+  }
+  const done = mapPool([...asked], AVATAR_FETCH_CONCURRENCY, async name =>
+  {
+    found.set(name.toLowerCase(), await lookUpAvatar(name))
+  }).then(() => undefined)
+  const askedKeys = new Set([...asked].map(n => n.toLowerCase()))
+  return {
+    done,
+    avatarOf: name =>
+    {
+      const key = name.toLowerCase()
+      if (found.has(key)) return found.get(key)
+      return askedKeys.has(key) ? guessedAvatarUrl(name) : undefined
+    },
+  }
+}
+
+/**
+ * Resolves the avatar for each uploader by reading their profile page over
+ * plain HTTP, waiting for every lookup.
+ *
+ * @param usernames - Uploaders to resolve; duplicates are fine.
+ * @returns Lowercased username to avatar URL (null = generic icon).
+ */
+export async function resolveAvatars(usernames: string[]): Promise<Map<string, string | null>> {
+  const lookup = lookUpAvatars(usernames)
+  await lookup.done
+  const out = new Map<string, string | null>()
+  for (const name of new Set(usernames)) {
+    const avatar = lookup.avatarOf(name)
+    if (avatar !== undefined) out.set(name.toLowerCase(), avatar)
+  }
   return out
 }
 
@@ -738,7 +810,7 @@ export class PosterdbScraper extends BaseScraper {
       Logger.error('PosterDB', `scrapeSet failed: ${err instanceof Error ? err.message : err}`)
       return []
     } finally {
-      await context.close()
+      await this.closeContext(context)
     }
   }
 
@@ -772,14 +844,14 @@ export class PosterdbScraper extends BaseScraper {
       }
 
       const setUrl = setHref.startsWith('http') ? setHref : `${BASE}${setHref}`
-      await context.close()
+      await this.closeContext(context)
       await sleepConfig('min')
       return this.scrapeSet(setUrl)
     } catch (err) {
       Logger.error('PosterDB', `scrapeSinglePoster failed: ${err instanceof Error ? err.message : err}`)
       return []
     } finally {
-      await context.close().catch(() => {})
+      await this.closeContext(context)
     }
   }
 
@@ -823,7 +895,7 @@ export class PosterdbScraper extends BaseScraper {
         Logger.error('PosterDB', `scrapeUserUploads page ${page} failed: ${err instanceof Error ? err.message : err}`)
         hasMore = false
       } finally {
-        await context.close()
+        await this.closeContext(context)
       }
     }
 
@@ -868,7 +940,7 @@ export class PosterdbScraper extends BaseScraper {
       Logger.warn('PosterDB', `Page load failed [${url}]: ${err instanceof Error ? err.message : err}`)
       return null
     } finally {
-      await context.close().catch(() => {})
+      await this.closeContext(context)
     }
   }
 
@@ -1053,9 +1125,7 @@ export class PosterdbScraper extends BaseScraper {
     const capped = pages.some(p => p.full) || stubs.length > MAX_BROWSE_SETS
     const wanted = stubs.slice(0, MAX_BROWSE_SETS)
 
-    // Avatars resolve alongside the set expansion, so they add no wait of
-    // their own.
-    const avatarsP = resolveAvatars(wanted.map(s => s.uploader))
+    const avatars = lookUpAvatars(wanted.map(s => s.uploader))
 
     const concurrency = Math.max(1, Math.min(SET_FETCH_CONCURRENCY, ConfigService.get().maxWorkers))
     const summaries = await mapPool(wanted, concurrency, async stub => {
@@ -1076,14 +1146,14 @@ export class PosterdbScraper extends BaseScraper {
       return stubToSummary(stub, posters, parsed.name || stub.card.title, type)
     })
 
-    const avatars = await avatarsP
+    await waitAtMost(avatars.done, AVATAR_WAIT_MS)
     // mapPool keeps input order, so the index is the set's place on the
     // downloads-sorted media page.
     const sets = summaries
       .map((s, i): PosterSetSummary | null => (s ? { ...s, popularityRank: i } : null))
       .filter((s): s is PosterSetSummary => s !== null && s.posters.length > 0)
       .map(s => {
-        const avatar = avatars.get(s.uploader.toLowerCase())
+        const avatar = avatars.avatarOf(s.uploader)
         return avatar ? { ...s, uploaderAvatar: avatar } : s
       })
     Logger.scrape(
@@ -1148,7 +1218,9 @@ export class PosterdbScraper extends BaseScraper {
       ?? { setId, uploader: parsed.cards[0].uploader ?? 'Unknown', size: parsed.cards.length, card: parsed.cards[0] }
     const posters = classifySetPosters(cardsToPosters(parsed.cards), title, year, type)
     const summary = stubToSummary(stub, posters, parsed.name || stub.card.title, type)
-    const avatar = (await resolveAvatars([summary.uploader])).get(summary.uploader.toLowerCase())
+    const avatars = lookUpAvatars([summary.uploader])
+    await waitAtMost(avatars.done, AVATAR_WAIT_MS)
+    const avatar = avatars.avatarOf(summary.uploader)
     return avatar ? { ...summary, uploaderAvatar: avatar } : summary
   }
 }

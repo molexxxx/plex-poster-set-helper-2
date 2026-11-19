@@ -1,9 +1,11 @@
 import pLimit from 'p-limit'
 import { PosterdbScraper, posterdbUrlType, type PosterdbBrowseResult, type PosterdbMediaType } from './posterdbScraper'
 import { MediuxScraper } from './mediuxScraper'
-import { BaseScraper } from './baseScraper'
+import { BaseScraper, withTimeout } from './baseScraper'
 import { Logger } from '../services/logger'
 import { ConfigService } from '../services/config'
+import { createInFlight } from '../services/inFlight'
+import { readableError } from '../services/readableError'
 import type { ArtworkType, PosterInfo, PosterSetSummary, ScrapeProgress } from '../ipc/types'
 import { classifyUrl, type ScraperSource } from './urlSource'
 import { posterKind } from '../services/scheduleUtils'
@@ -19,6 +21,18 @@ let _aborted = false
 // abort() and close() must not cut off or orphan a browse in progress.
 let _browsePosterdb: PosterdbScraper | null = null
 let _browsesInFlight = 0
+
+/**
+ * Longest the library waits on one site's browse, so the sets panel never
+ * stays on "Still searching". Only the wait ends; the browse itself runs on.
+ */
+const BROWSE_DEADLINE_MS = 3 * 60_000
+/** Shown after "<site> could not be searched:" when a browse passes the deadline. */
+const BROWSE_DEADLINE_MESSAGE = 'the search did not finish within 3 minutes. Use Refresh to try again.'
+
+/** Library browses in flight, so a title asked for twice at once is read once. */
+const mediuxBrowses = createInFlight<PosterSetSummary[]>()
+const posterdbBrowses = createInFlight<PosterdbBrowseResult & { error?: string }>()
 
 function getPosterdb(): PosterdbScraper {
   if (!_posterdb) _posterdb = new PosterdbScraper()
@@ -74,7 +88,7 @@ export const ScraperFactory = {
       onProgress({ url, status: 'done', posterCount: posters.length, workerId })
       return posters
     } catch (err) {
-      const error = err instanceof Error ? err.message : String(err)
+      const error = readableError(err)
       Logger.error('ScraperFactory', `scrapeUrl failed [${url}]: ${error}`)
       onProgress({ url, status: 'error', error, workerId })
       return []
@@ -131,14 +145,17 @@ export const ScraperFactory = {
   },
 
   /**
-   * Lists MediUX sets for a TMDB title (library browser).
+   * Lists MediUX sets for a TMDB title (library browser). A browse of the same
+   * title already running is joined rather than started again.
    *
    * @param tmdbId - Resolved TMDB id.
    * @param type - Media type of the title.
    * @returns Set summaries with uploader metadata.
+   * @throws When MediUX cannot be read, or the browse passes the deadline.
    */
-  async browseMediux(tmdbId: string, type: 'movie' | 'show') {
-    return getMediux().browseSets(tmdbId, type)
+  async browseMediux(tmdbId: string, type: 'movie' | 'show'): Promise<PosterSetSummary[]> {
+    return mediuxBrowses(`${type}|${tmdbId}`, () =>
+      withTimeout(getMediux().browseSets(tmdbId, type), BROWSE_DEADLINE_MS, BROWSE_DEADLINE_MESSAGE))
   },
 
   /**
@@ -150,7 +167,8 @@ export const ScraperFactory = {
    * @param year - Release year, when known.
    * @param type - Movie, show, or collection.
    * @param fresh - Skip remembered title matches.
-   * @returns The sets found, or an empty result carrying the reason (never throws).
+   * @returns The sets found, or an empty result carrying the reason (never
+   *   throws). A browse of the same title already running is joined.
    */
   async browsePosterdb(
     title: string,
@@ -158,20 +176,24 @@ export const ScraperFactory = {
     type: PosterdbMediaType,
     fresh = false,
   ): Promise<PosterdbBrowseResult & { error?: string }> {
-    const scraper = (_browsePosterdb ??= new PosterdbScraper())
-    _browsesInFlight++
-    try {
-      return await scraper.browseSets(title, year, type, fresh)
-    } catch (err) {
-      const error = err instanceof Error ? err.message : String(err)
-      Logger.warn('ScraperFactory', `browsePosterdb failed for "${title}": ${error}`)
-      return { sets: [], capped: false, error }
-    } finally {
+    return posterdbBrowses(`${type}|${title}|${year ?? ''}|${fresh ? 'fresh' : ''}`, async () => {
+      const scraper = (_browsePosterdb ??= new PosterdbScraper())
+      _browsesInFlight++
       // Pages come over plain HTTP; the browser only steps in for a gated
-      // page. Drop it once no browse needs it so neither the desktop app nor
-      // a long-lived container keeps an idle Chromium around.
-      if (--_browsesInFlight === 0) await scraper.close().catch(() => {})
-    }
+      // page. Drop it once no browse needs it, counting one that ran past the
+      // deadline, so neither the desktop app nor a long-lived container keeps
+      // an idle Chromium around.
+      const browse = scraper.browseSets(title, year, type, fresh).finally(async () => {
+        if (--_browsesInFlight === 0) await scraper.close().catch(() => {})
+      })
+      try {
+        return await withTimeout(browse, BROWSE_DEADLINE_MS, BROWSE_DEADLINE_MESSAGE)
+      } catch (err) {
+        const error = readableError(err)
+        Logger.warn('ScraperFactory', `browsePosterdb failed for "${title}": ${error}`)
+        return { sets: [], capped: false, error }
+      }
+    })
   },
 
   /**
@@ -203,12 +225,27 @@ export const ScraperFactory = {
     return getMediux().linkSets(url)
   },
 
+  /**
+   * Lists MediUX sets with art for a Plex collection. A browse of the same
+   * collection already running is joined rather than started again.
+   *
+   * @param collectionTitle - The collection's name in Plex.
+   * @param tmdbCollectionId - Its TMDB collection id, when known.
+   * @param childTmdbIds - TMDB ids of its movies, in collection order.
+   * @returns Set summaries with collection art.
+   * @throws When the browse passes the deadline.
+   */
   async browseMediuxCollection(
     collectionTitle: string,
     tmdbCollectionId: string | undefined,
     childTmdbIds: string[],
-  ) {
-    return getMediux().browseCollectionSets(collectionTitle, tmdbCollectionId, childTmdbIds)
+  ): Promise<PosterSetSummary[]> {
+    return mediuxBrowses(`collection|${tmdbCollectionId ?? ''}|${childTmdbIds.join(',')}|${collectionTitle}`, () =>
+      withTimeout(
+        getMediux().browseCollectionSets(collectionTitle, tmdbCollectionId, childTmdbIds),
+        BROWSE_DEADLINE_MS,
+        BROWSE_DEADLINE_MESSAGE,
+      ))
   },
 
   /**

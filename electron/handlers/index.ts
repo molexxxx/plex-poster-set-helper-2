@@ -26,6 +26,7 @@ import type {
 import { mergeAppliedRecords, parseArtworkTypes } from '../services/scheduleUtils'
 import { browseOutcome, type SourceResult } from '../services/browseSets'
 import { resetPosterdbCaches } from '../scrapers/posterdbScraper'
+import { readableError } from '../services/readableError'
 
 const REPO = 'molexxxx/plex-poster-set-helper-2'
 
@@ -41,7 +42,7 @@ async function browseSource(site: string, run: () => Promise<PosterSetSummary[]>
   try {
     return { sets: await run() }
   } catch (err) {
-    const error = err instanceof Error ? err.message : String(err)
+    const error = readableError(err)
     Logger.warn('Library', `${site} browse failed: ${error}`)
     return { sets: [], error }
   }
