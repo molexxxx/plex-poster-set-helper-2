@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { splitTrailingYear, stripSuffix } from '../../electron/services/titleParse'
-import { urlKey } from '../../electron/services/scheduleUtils'
+import { urlKey } from '../../electron/services/schedule/jobs'
 import { pickLibraryMatch } from '../../electron/services/libraryMatch'
 
 vi.mock('../../electron/services/config', () => ({

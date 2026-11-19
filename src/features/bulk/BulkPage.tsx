@@ -11,7 +11,7 @@ import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
 import TypeToggles from '../../components/ui/TypeToggles'
 import { useAppContext } from '../../app/AppContext'
 import type { ArtworkType, PosterInfo } from '../../../electron/ipc/types'
-import { ARTWORK_TYPES } from '../../../electron/services/scheduleUtils'
+import { ARTWORK_TYPES } from '../../../electron/services/schedule/artworkTypes'
 import styles from './BulkPage.module.css'
 
 

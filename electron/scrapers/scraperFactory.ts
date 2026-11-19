@@ -10,7 +10,7 @@ import { createInFlight } from '../services/inFlight'
 import { readableError } from '../services/readableError'
 import type { ArtworkType, PosterInfo, PosterSetSummary, ScrapeProgress } from '../ipc/types'
 import { classifyUrl, type ScraperSource } from './urlSource'
-import { posterKind } from '../services/scheduleUtils'
+import { posterKind } from '../services/schedule/artworkTypes'
 
 export { classifyUrl, type ScraperSource }
 

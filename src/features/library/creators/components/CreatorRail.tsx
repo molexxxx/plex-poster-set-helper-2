@@ -1,6 +1,6 @@
 import { useId, useRef, useState } from 'react'
 import { CalendarClock, ExternalLink, Eye, EyeOff, Plus, Star, UserPlus, X } from 'lucide-react'
-import type { ScheduleCoverage } from '../../../../../electron/services/scheduleUtils'
+import type { ScheduleCoverage } from '../../../../../electron/services/schedule/coverage'
 import { parseCreatorInput, type useCreatorPrefs } from '../../../../utils/creatorPrefs'
 import { errorMessage } from '../../../../utils/errorMessage'
 import { creatorUrl } from '../../libraryShared'

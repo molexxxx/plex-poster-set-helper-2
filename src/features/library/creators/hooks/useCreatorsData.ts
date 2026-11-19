@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ScheduledJob } from '../../../../../electron/ipc/types'
-import { DEFAULT_QUICK_CRON, scheduleCoverage } from '../../../../../electron/services/scheduleUtils'
+import { DEFAULT_QUICK_CRON } from '../../../../../electron/services/schedule/quickSync'
+import { scheduleCoverage } from '../../../../../electron/services/schedule/coverage'
 import { ALL_TYPES, type FileType } from '../../../../utils/posterGroups'
 import { loadAppliedIndex, type AppliedIndex } from '../../../../utils/appliedTracker'
 const EMPTY_INDEX: AppliedIndex = { setKeys: new Set(), titles: new Set(), posterUrls: new Set(), currentByItem: new Map(), currentPosterUrls: new Set() }

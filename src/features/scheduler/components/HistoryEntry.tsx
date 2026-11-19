@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { JobRun } from '../../../../electron/ipc/types'
-import { describeRun } from '../../../../electron/services/scheduleUtils'
+import { describeRun } from '../../../../electron/services/schedule/runs'
 import { formatWhen } from '../schedulerFormat'
 import StatusIcon from './StatusIcon'
 import DetailList from './DetailList'

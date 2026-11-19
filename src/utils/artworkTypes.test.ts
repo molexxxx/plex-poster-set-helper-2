@@ -35,8 +35,11 @@ vi.mock('../../electron/services/config', () => ({
 
 const { ScraperFactory } = await import('../../electron/scrapers/scraperFactory')
 const {
-  artworkOverride, creatorSyncUrl, describeArtworkTypes, jobArtworkTypes, normalizeJob, parseArtworkTypes, planQuickSync, ScheduleValidationError,
-} = await import('../../electron/services/scheduleUtils')
+  artworkOverride, describeArtworkTypes, jobArtworkTypes, parseArtworkTypes,
+} = await import('../../electron/services/schedule/artworkTypes')
+const { creatorSyncUrl } = await import('../../electron/services/schedule/coverage')
+const { normalizeJob, ScheduleValidationError } = await import('../../electron/services/schedule/jobs')
+const { planQuickSync } = await import('../../electron/services/schedule/quickSync')
 
 const POSTERS: PosterInfo[] = [
   { title: 'Show', url: 'main', source: 'posterdb' },

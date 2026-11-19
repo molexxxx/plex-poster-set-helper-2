@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { PosterInfo } from '../../electron/ipc/types'
 import { filterByTypes, singleFileTypes, toggleFileType, type FileType } from './posterGroups'
 import { applyPosters } from '../features/library/libraryShared'
-import { artworkOverride } from '../../electron/services/scheduleUtils'
+import { artworkOverride } from '../../electron/services/schedule/artworkTypes'
 
 const uploadPoster = vi.fn()
 

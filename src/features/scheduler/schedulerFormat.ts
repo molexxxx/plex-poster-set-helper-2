@@ -1,5 +1,6 @@
 import type { ArtworkType, JobRun, ScheduledJob } from '../../../electron/ipc/types'
-import { creatorOfUrl, describeArtworkTypes } from '../../../electron/services/scheduleUtils'
+import { creatorOfUrl } from '../../../electron/services/schedule/coverage'
+import { describeArtworkTypes } from '../../../electron/services/schedule/artworkTypes'
 import { classifyUrl } from '../../../electron/scrapers/urlSource'
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 

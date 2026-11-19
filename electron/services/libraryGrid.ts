@@ -1,5 +1,6 @@
 import type { AppliedRecord, LibraryArtFilter, LibrarySort, LibraryStatusFilter, SortDir } from '../ipc/types'
-import { artFilterMatches, type ScheduleCoverage } from './scheduleUtils'
+import { artFilterMatches } from './schedule/appliedArt'
+import type { ScheduleCoverage } from './schedule/coverage'
 import type { ShowStatus } from './showStatusService'
 
 /** The fields a grid filter needs per item, read without cast, genres, or images. */

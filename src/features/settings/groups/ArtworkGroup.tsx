@@ -1,6 +1,7 @@
 import Switch from '../../../components/ui/Switch'
 import Select from '../../../components/ui/Select'
-import { DEFAULT_QUICK_CRON, QUICK_SCHEDULES, describeCron } from '../../../../electron/services/scheduleUtils'
+import { DEFAULT_QUICK_CRON, QUICK_SCHEDULES } from '../../../../electron/services/schedule/quickSync'
+import { describeCron } from '../../../../electron/services/schedule/cronText'
 import type { AppConfig, Library } from '../../../../electron/ipc/types'
 import type { SettingsConfig } from '../hooks/useSettingsConfig'
 import type { AnimeList } from '../hooks/useAnimeList'

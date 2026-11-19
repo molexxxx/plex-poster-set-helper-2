@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ArtworkType } from '../../../../electron/ipc/types'
-import { ARTWORK_TYPES } from '../../../../electron/services/scheduleUtils'
+import { ARTWORK_TYPES } from '../../../../electron/services/schedule/artworkTypes'
 /**
  * The artwork types picked in Settings, which jobs without their own choice follow.
  *

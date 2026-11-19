@@ -1,5 +1,5 @@
 import type { ArtworkType } from '../../../electron/ipc/types'
-import { ARTWORK_TYPES } from '../../../electron/services/scheduleUtils'
+import { ARTWORK_TYPES } from '../../../electron/services/schedule/artworkTypes'
 import { toggleFileType } from '../../utils/posterGroups'
 import styles from './TypeToggles.module.css'
 

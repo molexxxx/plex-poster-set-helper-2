@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AlertCircle, CalendarClock, Check, CheckCircle2, Image as ImageIcon, Loader2, Upload } from 'lucide-react'
 import type { MediuxUserSet } from '../../../../../electron/ipc/types'
-import { coveringJob, type ScheduleCoverage } from '../../../../../electron/services/scheduleUtils'
+import { coveringJob, type ScheduleCoverage } from '../../../../../electron/services/schedule/coverage'
 import { setKey } from '../../../../utils/posterGroups'
 import { appliedKey, type AppliedIndex } from '../../../../utils/appliedTracker'
 import type { ApplyState } from '../../libraryShared'

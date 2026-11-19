@@ -13,10 +13,18 @@ import { getUserDataPath } from '../runtime/paths'
 import { appEvents } from '../runtime/events'
 import { isWebMode } from '../runtime/runtime'
 import {
-  addSlotCoverage, appliedUrlIndex, coverageKey, creatorOfUrl, creatorSyncOrder, describeRun, emptyTally, failedRun, finishRun, isSlotCovered,
-  jobArtworkTypes, mergeAppliedRecords, normalizeJob, posterKind, posterSlot, previewCron, recordRun, recoverInterrupted, setRefOfUrl,
-  reorderJobs, slotCoverage, titleLabel, withNextRun, type RunTally, type SlotCoverage,
-} from './scheduleUtils'
+  addSlotCoverage, appliedUrlIndex, isSlotCovered, mergeAppliedRecords, posterSlot, slotCoverage,
+  type SlotCoverage,
+} from './schedule/appliedArt'
+import { coverageKey, creatorOfUrl, setRefOfUrl } from './schedule/coverage'
+import { creatorSyncOrder } from './schedule/quickSync'
+import {
+  describeRun, emptyTally, failedRun, finishRun, recordRun, recoverInterrupted, titleLabel,
+  type RunTally,
+} from './schedule/runs'
+import { jobArtworkTypes, posterKind } from './schedule/artworkTypes'
+import { normalizeJob, reorderJobs, withNextRun } from './schedule/jobs'
+import { previewCron } from './schedule/cronText'
 
 const ENGINE_FILE     = 'scheduler-engine.json'
 const ENGINE_WRITE_MS = 30_000

@@ -2,7 +2,7 @@ import { CalendarClock, ExternalLink, Eye, EyeOff, History, Loader2, RefreshCw, 
 import Button from '../../../../components/ui/Button'
 import Menu from '../../../../components/ui/Menu'
 import type { ScheduledJob } from '../../../../../electron/ipc/types'
-import { describeCron } from '../../../../../electron/services/scheduleUtils'
+import { describeCron } from '../../../../../electron/services/schedule/cronText'
 import type { CreatorState } from '../../../../utils/creatorPrefs'
 import { creatorUrl, timeAgo } from '../../libraryShared'
 import type { SyncScope } from './CreatorSyncDialog'

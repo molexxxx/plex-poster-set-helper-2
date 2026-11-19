@@ -1,5 +1,6 @@
 import type { PosterInfo, SetSource } from '../../electron/ipc/types'
-import { posterKind, posterSlot } from '../../electron/services/scheduleUtils'
+import { posterKind } from '../../electron/services/schedule/artworkTypes'
+import { posterSlot } from '../../electron/services/schedule/appliedArt'
 
 export type FileType = 'poster' | 'backdrop' | 'title_card'
 export const ALL_TYPES: FileType[] = ['poster', 'backdrop', 'title_card']

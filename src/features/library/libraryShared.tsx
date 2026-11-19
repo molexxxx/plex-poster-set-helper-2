@@ -1,7 +1,7 @@
 import { createContext, useState } from 'react'
 import { CheckCircle2, Circle, ExternalLink } from 'lucide-react'
 import { posterFileType, type FileType, type SetSource } from '../../utils/posterGroups'
-import { posterSlot } from '../../../electron/services/scheduleUtils'
+import { posterSlot } from '../../../electron/services/schedule/appliedArt'
 import type { PosterInfo } from '../../../electron/ipc/types'
 import styles from './libraryShared.module.css'
 

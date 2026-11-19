@@ -23,7 +23,8 @@ import type {
   CurrentArtReq, ClearCachesRes, AppliedRecord, PosterSetSummary,
   LinkedSetsReq, LinkSetReq, UnlinkSetReq, AnimeListStatus, LogHistoryReq,
 } from '../ipc/types'
-import { mergeAppliedRecords, parseArtworkTypes } from '../services/scheduleUtils'
+import { mergeAppliedRecords } from '../services/schedule/appliedArt'
+import { parseArtworkTypes } from '../services/schedule/artworkTypes'
 import { browseOutcome, type SourceResult } from '../services/browseSets'
 import { resetPosterdbCaches } from '../scrapers/posterdb/posterdbScraper'
 import { readableError } from '../services/readableError'

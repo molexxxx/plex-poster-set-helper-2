@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { AppliedRecord, ScheduledJob } from '../../electron/ipc/types'
-import { appliedByItem, appliedUploaders, artFilterMatches, creatorSyncUrl, scheduleCoverage } from '../../electron/services/scheduleUtils'
+import { appliedByItem, appliedUploaders, artFilterMatches } from '../../electron/services/schedule/appliedArt'
+import { creatorSyncUrl, scheduleCoverage } from '../../electron/services/schedule/coverage'
 
 function rec(itemKey: string, overrides: Partial<AppliedRecord> = {}): AppliedRecord
 {

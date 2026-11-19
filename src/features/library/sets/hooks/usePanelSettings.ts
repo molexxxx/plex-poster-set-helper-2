@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ALL_TYPES, type FileType } from '../../../../utils/posterGroups'
-import { DEFAULT_QUICK_CRON } from '../../../../../electron/services/scheduleUtils'
+import { DEFAULT_QUICK_CRON } from '../../../../../electron/services/schedule/quickSync'
 import { PANEL_WIDTH_DEFAULT, clampPanelWidth } from '../setsPanelUtils'
 
 /**

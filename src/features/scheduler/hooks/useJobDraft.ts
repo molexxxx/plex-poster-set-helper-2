@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ArtworkType, ScheduledJob } from '../../../../electron/ipc/types'
-import { analyzeUrls, cronToForm, formToCron, type ScheduleForm } from '../../../../electron/services/scheduleUtils'
+import { analyzeUrls } from '../../../../electron/services/schedule/jobs'
+import { cronToForm, formToCron, type ScheduleForm } from '../../../../electron/services/schedule/cronText'
 import { useCronPreview } from './useCronPreview'
 
 /**

@@ -3,7 +3,9 @@ import type { LibraryItem, PosterSetSummary, ScheduledJob } from '../../../../..
 import { setKey, type FileType } from '../../../../utils/posterGroups'
 import { uuid } from '../../../../utils/uuid'
 import { errorMessage } from '../../../../utils/errorMessage'
-import { artworkOverride, planQuickSync, scheduleCoverage } from '../../../../../electron/services/scheduleUtils'
+import { artworkOverride } from '../../../../../electron/services/schedule/artworkTypes'
+import { planQuickSync } from '../../../../../electron/services/schedule/quickSync'
+import { scheduleCoverage } from '../../../../../electron/services/schedule/coverage'
 import { useAppContext } from '../../../../app/AppContext'
 import { useNavStore } from '../../../../app/navStore'
 

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import type { AppliedRecord } from '../../electron/ipc/types'
 import { applyGridQuery, historyKeysFor, lightComparator, needsHistoryOnly, toLightItem, type LightItem } from '../../electron/services/libraryGrid'
-import { appliedByItem, creatorSyncUrl, scheduleCoverage } from '../../electron/services/scheduleUtils'
+import { appliedByItem } from '../../electron/services/schedule/appliedArt'
+import { creatorSyncUrl, scheduleCoverage } from '../../electron/services/schedule/coverage'
 
 function light(key: string, title: string, extra: Partial<LightItem> = {}): LightItem
 {

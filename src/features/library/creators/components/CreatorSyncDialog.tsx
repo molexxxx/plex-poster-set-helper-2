@@ -10,8 +10,11 @@ import type { FileType } from '../../../../utils/posterGroups'
 import { uuid } from '../../../../utils/uuid'
 import { errorMessage } from '../../../../utils/errorMessage'
 import {
-  QUICK_SCHEDULES, artworkOverride, creatorSyncUrl, describeCron, describeQuickSync, planQuickSync, type QuickSyncRequest,
-} from '../../../../../electron/services/scheduleUtils'
+  QUICK_SCHEDULES, describeQuickSync, planQuickSync, type QuickSyncRequest,
+} from '../../../../../electron/services/schedule/quickSync'
+import { artworkOverride } from '../../../../../electron/services/schedule/artworkTypes'
+import { creatorSyncUrl } from '../../../../../electron/services/schedule/coverage'
+import { describeCron } from '../../../../../electron/services/schedule/cronText'
 import shared from './catalogShared.module.css'
 import styles from './CreatorSyncDialog.module.css'
 

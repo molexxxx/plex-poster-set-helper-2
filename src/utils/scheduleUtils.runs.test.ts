@@ -1,23 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import type { AppliedRecord, ScheduledJob } from '../../electron/ipc/types'
 import {
-  MAX_RUN_DETAIL,
-  addSlotCoverage,
-  coverageKey,
-  describeProgress,
-  describeRun,
-  emptyTally,
-  finishRun,
-  isSlotCovered,
-  mergeAppliedRecords,
-  normalizeJob,
-  posterKind,
-  posterSlot,
-  reorderJobs,
-  runDetails,
-  slotCoverage,
-  titleLabel,
-} from '../../electron/services/scheduleUtils'
+  MAX_RUN_DETAIL, describeProgress, describeRun, emptyTally, finishRun, runDetails, titleLabel,
+} from '../../electron/services/schedule/runs'
+import {
+  addSlotCoverage, isSlotCovered, mergeAppliedRecords, posterSlot, slotCoverage,
+} from '../../electron/services/schedule/appliedArt'
+import { coverageKey } from '../../electron/services/schedule/coverage'
+import { normalizeJob, reorderJobs } from '../../electron/services/schedule/jobs'
+import { posterKind } from '../../electron/services/schedule/artworkTypes'
 
 const START = new Date('2026-10-11T03:00:00.000Z')
 const END = new Date('2026-10-11T03:05:00.000Z')

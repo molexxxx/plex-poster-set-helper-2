@@ -2,42 +2,24 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import cron from 'node-cron'
 import type { AppliedRecord, JobRun, ScheduledJob } from '../../electron/ipc/types'
 import {
-  DEFAULT_QUICK_CRON,
-  INTERRUPTED_MESSAGE,
-  MAX_JOB_HISTORY,
-  ScheduleValidationError,
-  analyzeUrls,
-  appliedUrlIndex,
-  artFilterMatches,
-  creatorOfUrl,
-  creatorSyncOrder,
-  creatorSyncUrl,
-  cronExpressionError,
-  cronToForm,
-  coveringJob,
-  describeCron,
-  describeQuickSync,
-  describeRun,
-  emptyTally,
-  failedRun,
-  finishRun,
-  formToCron,
-  mediuxSetId,
-  mergeAppliedRecords,
-  posterdbSetId,
-  nextCronRuns,
-  normalizeJob,
-  planQuickSync,
-  previewCron,
-  recordRun,
-  recoverInterrupted,
-  relativeTime,
-  scheduleCoverage,
+  DEFAULT_QUICK_CRON, creatorSyncOrder, describeQuickSync, planQuickSync,
+} from '../../electron/services/schedule/quickSync'
+import {
+  INTERRUPTED_MESSAGE, MAX_JOB_HISTORY, describeRun, emptyTally, failedRun, finishRun, recordRun,
+  recoverInterrupted, relativeTime,
+} from '../../electron/services/schedule/runs'
+import {
+  ScheduleValidationError, analyzeUrls, normalizeJob, urlKey, withNextRun,
+} from '../../electron/services/schedule/jobs'
+import { appliedUrlIndex, artFilterMatches, mergeAppliedRecords } from '../../electron/services/schedule/appliedArt'
+import {
+  creatorOfUrl, creatorSyncUrl, coveringJob, mediuxSetId, posterdbSetId, scheduleCoverage,
   setRefOfUrl,
-  urlKey,
-  withNextRun,
-  type ScheduleForm,
-} from '../../electron/services/scheduleUtils'
+} from '../../electron/services/schedule/coverage'
+import { cronExpressionError, nextCronRuns } from '../../electron/services/schedule/cron'
+import {
+  cronToForm, describeCron, formToCron, previewCron, type ScheduleForm,
+} from '../../electron/services/schedule/cronText'
 
 /** Friday, October 9 2026, 12:00 local time. */
 const FRI_NOON = new Date(2026, 9, 9, 12, 0, 0)

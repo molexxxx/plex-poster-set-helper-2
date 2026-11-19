@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ScheduledJob, SchedulerEngineStatus } from '../../../../electron/ipc/types'
-import { describeRun } from '../../../../electron/services/scheduleUtils'
+import { describeRun } from '../../../../electron/services/schedule/runs'
 import { errorMessage } from '../../../utils/errorMessage'
 
 /**

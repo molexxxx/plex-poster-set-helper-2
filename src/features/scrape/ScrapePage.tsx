@@ -12,7 +12,7 @@ import { useScrapeStore } from './useScrapeStore'
 import UrlQueueEntry from './components/UrlQueueEntry'
 import type { QueueEntry, PosterResult } from './useScrapeStore'
 import type { PosterInfo, ScrapeProgress } from '../../../electron/ipc/types'
-import { ARTWORK_TYPES } from '../../../electron/services/scheduleUtils'
+import { ARTWORK_TYPES } from '../../../electron/services/schedule/artworkTypes'
 import { filterByTypes } from '../../utils/posterGroups'
 import styles from './ScrapePage.module.css'
 

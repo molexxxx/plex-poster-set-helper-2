@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type { SelectOption } from '../../../../components/ui/Select'
 import type { LibraryItem, LibrarySection, LibrarySort, LibraryStatusFilter, SortDir } from '../../../../../electron/ipc/types'
 import { SOURCE_LABEL, SOURCE_SHORT } from '../../../../utils/posterGroups'
-import { appliedUploaders, type AppliedUploader } from '../../../../../electron/services/scheduleUtils'
+import { appliedUploaders, type AppliedUploader } from '../../../../../electron/services/schedule/appliedArt'
 import { ALL_SORTS, COLLECTIONS_TAB_KEY, COLLECTION_SORTS, PAGE_SIZE, toArtFilter, type ArtFilterValue } from '../gridOptions'
 
 /**
