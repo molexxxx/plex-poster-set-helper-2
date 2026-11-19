@@ -1,0 +1,189 @@
+/* Zoom-to-view button (top-right of each thumb) */
+.zoomBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast), background var(--duration-fast);
+  z-index: 2;
+}
+.thumb:hover .zoomBtn { opacity: 1; }
+.zoomBtn:hover { background: var(--color-accent); color: var(--color-accent-contrast); }
+
+/* "Already applied to this title" marker (top-left) */
+.inLibBadge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  z-index: 2;
+}
+
+/* "This exact poster is applied" badge (top-left, stronger) */
+.appliedBadge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(63, 185, 80, 0.92);
+  color: #07140a;
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* "Uploaded before but not the current poster" badge */
+.downloadedBadge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(20, 22, 29, 0.92);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-elevated);
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: border-color var(--duration-fast), transform var(--duration-fast);
+  /* Skip rendering work for off-screen thumbnails - major scroll perf win */
+  content-visibility: auto;
+  contain-intrinsic-size: 168px;
+}
+
+.thumbWide { aspect-ratio: 16 / 9; }
+
+.thumb:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: scale(1.04);
+  z-index: 1;
+}
+
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.thumbFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-elevated);
+}
+
+.thumbInitial {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+}
+
+.overlayHover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity var(--duration-fast);
+  color: var(--color-text-primary);
+}
+
+.thumb:hover .overlayHover {
+  opacity: 1;
+}
+
+.overlayDone {
+  background: rgba(52, 211, 153, 0.68);
+  color: #fff;
+}
+
+.overlayError {
+  background: rgba(248, 113, 113, 0.68);
+  color: #fff;
+}
+
+.overlayErrorState {
+  flex-direction: column;
+  gap: 3px;
+}
+
+.overlayErrorText {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: center;
+  line-height: 1.2;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.95;
+}
+
+.overlayPending {
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--color-accent-primary);
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

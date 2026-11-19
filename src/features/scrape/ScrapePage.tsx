@@ -1,160 +1,27 @@
-import { useEffect, useRef, useState, useCallback, useMemo, useId } from 'react'
+import { useMemo } from 'react'
 import { Reorder, AnimatePresence, motion } from 'framer-motion'
-import { Link2, Play, Square, Trash2, ListPlus, Zap, ExternalLink } from 'lucide-react'
-import Button from '../../components/ui/Button'
+import { Link2 } from 'lucide-react'
 import EmptyState from '../../components/ui/EmptyState'
-import Spinner from '../../components/ui/Spinner'
 import PlexConnectBanner from '../../components/ui/PlexConnectBanner'
-import TypeToggles from '../../components/ui/TypeToggles'
 import { useAppContext } from '../../app/AppContext'
-import { useUpdater } from '../updater/UpdaterContext'
-import { useScrapeStore } from './useScrapeStore'
+import { useScrapeStore } from './hooks/useScrapeStore'
+import { useScrapeRunner } from './hooks/useScrapeRunner'
+import UrlInput from './components/UrlInput'
+import QueueControls from './components/QueueControls'
+import RunGate from './components/RunGate'
 import UrlQueueEntry from './components/UrlQueueEntry'
-import type { QueueEntry, PosterResult } from './useScrapeStore'
-import type { PosterInfo, ScrapeProgress } from '../../../electron/ipc/types'
 import { ARTWORK_TYPES } from '../../../electron/services/schedule/artworkTypes'
 import { filterByTypes } from '../../utils/posterGroups'
 import styles from './ScrapePage.module.css'
 
 
-const MAX_WORKERS = 2
-
-/** Artwork sources users paste links from - opened in the browser on request. */
-const SOURCES = [
-  { label: 'ThePosterDB', url: 'https://theposterdb.com' },
-  { label: 'MediUX',      url: 'https://mediux.pro' },
-] as const
-
-
 /** Manual scrape page: URL queue with a concurrency-pooled runner and live progress. */
 export default function ScrapePage() {
   const { plexConnected } = useAppContext()
-  const { env } = useUpdater()
-  const { entries, isRunning, addUrls, setEntries, patchEntry, patchPoster, clearAll, setRunning, types, setTypes } =
+  const { entries, isRunning, addUrls, setEntries, patchPoster, clearAll, types, setTypes } =
     useScrapeStore()
   const shownTypes = useMemo(() => new Set(types ?? ARTWORK_TYPES), [types])
-  const typesLabelId = useId()
-
-  const [inputValue, setInputValue] = useState('')
-  const abortRef = useRef(false)
-  const runningRef = useRef(false)
-
-  // The page starts from the types picked in Settings, once per session.
-  useEffect(() => {
-    if (useScrapeStore.getState().types) return
-    window.api.config.get()
-      .then(c => { if (!useScrapeStore.getState().types) setTypes(c.mediuxFilters?.length ? c.mediuxFilters : [...ARTWORK_TYPES]) })
-      .catch(() => setTypes([...ARTWORK_TYPES]))
-  }, [setTypes])
-
-  useEffect(() => {
-    const off = window.api.scrape.onProgress((prog: ScrapeProgress) => {
-      const match = entries.find(e => e.url === prog.url)
-      if (!match) return
-      if (prog.status === 'error') {
-        patchEntry(match.id, { status: 'error', error: prog.error })
-      }
-    })
-    return () => { off() }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries])
-
-
-  const runQueue = useCallback(async () => {
-    if (runningRef.current) return
-    abortRef.current = false
-    runningRef.current = true
-    setRunning(true)
-
-    const idle = useScrapeStore.getState().entries.filter(e => e.status === 'idle')
-    if (!idle.length) {
-      setRunning(false)
-      runningRef.current = false
-      return
-    }
-
-    // Simple concurrency pool - emit at most MAX_WORKERS concurrent invocations
-    let cursor = 0
-
-    async function runOne(entry: QueueEntry) {
-      if (abortRef.current) return
-      patchEntry(entry.id, { status: 'scraping', posters: [] })
-      try {
-        // Every type is read so the type toggles can change what applies without a rescrape.
-        const results = await window.api.scrape.url(entry.url, [...ARTWORK_TYPES]) as PosterInfo[]
-        if (abortRef.current) return
-        patchEntry(entry.id, {
-          status: 'done',
-          posters: results.map((p): PosterResult => ({ ...p, uploadStatus: 'idle' })),
-        })
-      } catch (err) {
-        patchEntry(entry.id, {
-          status: 'error',
-          error: err instanceof Error ? err.message : String(err),
-        })
-      }
-    }
-
-    async function worker() {
-      while (cursor < idle.length && !abortRef.current) {
-        const entry = idle[cursor++]
-        await runOne(entry)
-      }
-    }
-
-    const workerCount = Math.min(MAX_WORKERS, idle.length)
-    await Promise.all(Array.from({ length: workerCount }, () => worker()))
-
-    runningRef.current = false
-    setRunning(false)
-  }, [patchEntry, setRunning])
-
-  const cancelRun = useCallback(async () => {
-    abortRef.current = true
-    await window.api.scrape.cancel()
-    // Reset any mid-scrape entries back to idle
-    useScrapeStore.getState().entries.forEach(e => {
-      if (e.status === 'scraping') {
-        useScrapeStore.getState().patchEntry(e.id, { status: 'idle' })
-      }
-    })
-    setRunning(false)
-    runningRef.current = false
-  }, [setRunning])
-
-
-  function handleAdd() {
-    const urls = inputValue
-      .split(/[\n,]+/)
-      .map(s => s.trim())
-      .filter(Boolean)
-    if (urls.length) {
-      addUrls(urls)
-      setInputValue('')
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault()
-      handleAdd()
-    }
-  }
-
-  /**
-   * Open an artwork source in the browser. In the desktop app the click is
-   * routed through the OS browser via openExternal (an in-app <a> would spawn a
-   * blank Electron window). The headless Docker build is viewed in a real
-   * browser where openExternal is a no-op, so there we let the anchor's native
-   * target="_blank" open a new tab instead.
-   */
-  function openSource(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
-    if (!env?.container) {
-      e.preventDefault()
-      window.api.app.openExternal(url)
-    }
-  }
-
+  const { runQueue, cancelRun } = useScrapeRunner()
 
   const idleCount    = entries.filter(e => e.status === 'idle').length
   const doneCount    = entries.filter(e => e.status === 'done').length
@@ -167,137 +34,29 @@ export default function ScrapePage() {
       {!plexConnected && <PlexConnectBanner />}
 
       {/* URL Input */}
-      <div className={styles.inputSection}>
-        <textarea
-          className={styles.urlInput}
-          value={inputValue}
-          onChange={e => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={'https://theposterdb.com/set/12345\nhttps://mediux.pro/sets/67890\nhttps://mediux.pro/boxsets/3722\n…'}
-          rows={4}
-          disabled={isRunning}
-          spellCheck={false}
-        />
-        <div className={styles.inputFooter}>
-          <div className={styles.footerLeft}>
-            <p className={styles.inputHint}>
-              <kbd className={styles.kbd}>Ctrl</kbd><kbd className={styles.kbd}>Enter</kbd> to add
-            </p>
-            <span className={styles.sources}>
-              <span className={styles.sourcesLabel}>Browse</span>
-              {SOURCES.map(s => (
-                <a
-                  key={s.url}
-                  className={styles.sourceLink}
-                  href={s.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => openSource(e, s.url)}
-                >
-                  {s.label}
-                  <ExternalLink size={11} />
-                </a>
-              ))}
-            </span>
-          </div>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<ListPlus size={14} />}
-            onClick={handleAdd}
-            disabled={isRunning || !inputValue.trim()}
-          >
-            Add to Queue
-          </Button>
-        </div>
-      </div>
+      <UrlInput disabled={isRunning} onAdd={addUrls} />
 
       {/* Controls */}
       {entries.length > 0 && (
-        <div className={styles.controls}>
-          <div className={styles.controlsLeft}>
-            {!isRunning ? (
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<Play size={13} />}
-                onClick={runQueue}
-                disabled={idleCount === 0}
-              >
-                Run{idleCount > 0 ? ` (${idleCount})` : ''}
-              </Button>
-            ) : (
-              <Button
-                variant="destructive"
-                size="sm"
-                icon={<Square size={13} />}
-                onClick={cancelRun}
-              >
-                Cancel
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Trash2 size={13} />}
-              onClick={clearAll}
-              disabled={isRunning}
-            >
-              Clear All
-            </Button>
-            <span id={typesLabelId} className={styles.typesLabel}>Types to apply</span>
-            <TypeToggles
-              value={shownTypes}
-              onChange={next => setTypes([...next])}
-              ariaLabelledBy={typesLabelId}
-              disabled={!types}
-            />
-          </div>
-
-          <div className={styles.controlsRight}>
-            {isRunning && <Spinner size="xs" />}
-            {doneCount > 0 && (
-              <span className={styles.stat}>
-                <span className={styles.statVal}>{doneCount}</span>
-                <span className={styles.statLbl}>done</span>
-              </span>
-            )}
-            {totalPosters > 0 && (
-              <span className={styles.stat}>
-                <span className={styles.statVal}>{totalPosters}</span>
-                <span className={styles.statLbl}>posters</span>
-              </span>
-            )}
-            {errorCount > 0 && (
-              <span className={`${styles.stat} ${styles.statError}`}>
-                <span className={styles.statVal}>{errorCount}</span>
-                <span className={styles.statLbl}>error{errorCount !== 1 ? 's' : ''}</span>
-              </span>
-            )}
-          </div>
-        </div>
+        <QueueControls
+          isRunning={isRunning}
+          idleCount={idleCount}
+          doneCount={doneCount}
+          errorCount={errorCount}
+          totalPosters={totalPosters}
+          shownTypes={shownTypes}
+          typesReady={!!types}
+          onRun={runQueue}
+          onCancel={cancelRun}
+          onClear={clearAll}
+          onTypesChange={setTypes}
+        />
       )}
 
       {/* Run gate: shown when queue has idle items and isn't running */}
       <AnimatePresence>
         {entries.length > 0 && !isRunning && idleCount > 0 && (
-          <motion.div
-            className={styles.runGate}
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className={styles.runGateInfo}>
-              <span className={styles.runGateDot} aria-hidden="true" />
-              <span>
-                <strong>{idleCount}</strong> URL{idleCount !== 1 ? 's' : ''} queued and ready, click Run to begin scraping
-              </span>
-            </div>
-            <Button variant="primary" size="sm" icon={<Zap size={13} />} onClick={runQueue}>
-              Run Queue
-            </Button>
-          </motion.div>
+          <RunGate idleCount={idleCount} onRun={runQueue} />
         )}
       </AnimatePresence>
 

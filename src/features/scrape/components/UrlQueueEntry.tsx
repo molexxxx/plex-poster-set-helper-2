@@ -1,19 +1,17 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState } from 'react'
 import { Reorder, motion, AnimatePresence } from 'framer-motion'
-import {
-  GripVertical, X, ChevronDown, ChevronUp,
-  Upload, CheckCircle2, AlertCircle, Loader2, Maximize2, Library, Sparkles, BadgeCheck, Download,
-} from 'lucide-react'
+import { GripVertical, X, ChevronDown, ChevronUp, Upload, AlertCircle, Sparkles } from 'lucide-react'
 import Badge from '../../../components/ui/Badge'
 import Spinner from '../../../components/ui/Spinner'
 import Button from '../../../components/ui/Button'
-import Lightbox, { type LightboxImage } from '../../../components/ui/Lightbox'
-import { filterByTypes, groupPosters, SOURCE_SHORT, type FileType } from '../../../utils/posterGroups'
-import { recordAppliedQuietly, appliedKey, loadAppliedIndex, type AppliedIndex } from '../../../utils/appliedTracker'
-import { posterSlot } from '../../../../electron/services/schedule/appliedArt'
-import { setRefOfUrl } from '../../../../electron/services/schedule/coverage'
-import { useScrapeStore } from '../useScrapeStore'
-import type { QueueEntry, PosterResult } from '../useScrapeStore'
+import Lightbox from '../../../components/ui/Lightbox'
+import { SOURCE_SHORT, type FileType } from '../../../utils/posterGroups'
+import { shortUrl, sourceFromUrl } from '../queueText'
+import type { PatchPoster } from '../uploadPoster'
+import { useScrapeStore } from '../hooks/useScrapeStore'
+import type { QueueEntry } from '../hooks/useScrapeStore'
+import { useEntryUploads } from '../hooks/useEntryUploads'
+import EntryPosterGroups from './EntryPosterGroups'
 import styles from './UrlQueueEntry.module.css'
 
 
@@ -22,259 +20,7 @@ interface Props {
   /** Artwork types shown and uploaded. */
   types: Set<FileType>
   isRunning: boolean
-  patchPoster: (entryId: string, posterUrl: string, patch: Partial<PosterResult>) => void
-}
-
-
-/**
- * Detects the scraping source site from a URL.
- *
- * @param url - URL to inspect.
- * @returns posterdb, mediux, or null when unrecognized.
- */
-function sourceFromUrl(url: string): 'posterdb' | 'mediux' | null {
-  if (/theposterdb\.com/i.test(url)) return 'posterdb'
-  if (/mediux\.pro/i.test(url)) return 'mediux'
-  return null
-}
-
-/**
- * Compacts a URL for display.
- *
- * @param url - Full URL.
- * @returns Host and path without protocol or www.
- */
-function shortUrl(url: string): string {
-  try {
-    const u = new URL(url)
-    return u.hostname.replace(/^www\./, '') + u.pathname
-  } catch {
-    return url
-  }
-}
-
-/**
- * Display label for a poster.
- *
- * @param p - The poster.
- * @returns Title plus season/episode markers.
- */
-function posterLabel(p: PosterResult): string {
-  if (p.season === 'Backdrop') return `${p.title} - Backdrop`
-  if (p.season === 'Cover')    return `${p.title} - Cover`
-  if (typeof p.season === 'number') return `${p.title} S${p.season}`
-  if (p.episode != null)       return `${p.title} E${p.episode}`
-  return p.title + (p.year ? ` (${p.year})` : '')
-}
-
-
-/**
- * Matches a poster to its Plex target (item or collection) and uploads it via
- * IPC, patching the poster's upload status as it goes.
- *
- * @param entryId - Owning queue entry.
- * @param poster - Poster to upload.
- * @param patchPoster - Store mutator for per-poster status updates.
- * @param setId - MediUX set id recorded into the applied history.
- */
-async function uploadPoster(
-  entryId: string,
-  poster: PosterResult,
-  patchPoster: Props['patchPoster'],
-  setId?: string,
-) {
-  patchPoster(entryId, poster.url, { uploadStatus: 'matching' })
-  try {
-    // Collection art (e.g. a boxset's "Toy Story Collection" set) applies to a
-    // Plex Collection object, matched by name - not an individual movie/show.
-    if (poster.isCollection) {
-      const coll = await window.api.plex.findCollection(poster.title)
-      if (!coll) {
-        patchPoster(entryId, poster.url, { uploadStatus: 'no_match' })
-        return
-      }
-      patchPoster(entryId, poster.url, { uploadStatus: 'uploading' })
-      const res = await window.api.plex.uploadPoster(coll.key, poster.url, poster.source, poster.season, poster.episode, true, coll.title)
-      if (res.success) {
-        void recordAppliedQuietly({
-          itemKey: coll.key,
-          title: coll.title,
-          type: 'collection',
-          source: poster.source,
-          libraryTitle: coll.libraryTitle,
-          thumb: poster.thumbUrl ?? poster.url,
-          setId,
-          posterUrls: [poster.url],
-          slots: [posterSlot(poster)],
-          appliedAt: new Date().toISOString(),
-        })
-      }
-      patchPoster(entryId, poster.url, {
-        uploadStatus: res.success ? 'done' : 'error',
-        uploadError: res.success ? undefined : res.error,
-      })
-      return
-    }
-
-    // Match by TMDB id when the poster carries one (same as the Library Browser),
-    // falling back to title/year inside findItem when it doesn't.
-    const item = await window.api.plex.findItem(poster.title, poster.year, undefined, poster.tmdbId)
-    if (!item) {
-      patchPoster(entryId, poster.url, { uploadStatus: 'no_match' })
-      return
-    }
-    patchPoster(entryId, poster.url, { uploadStatus: 'uploading' })
-    const res = await window.api.plex.uploadPoster(item.key, poster.url, poster.source, poster.season, poster.episode, undefined, item.title)
-    if (res.success) {
-      // Track it so it appears in Reset Posters and the "in library" marker.
-      // Recording the setId keeps it interchangeable with the Library Browser.
-      void recordAppliedQuietly({
-        itemKey: item.key,
-        title: item.title,
-        year: item.year,
-        type: item.type === 'movie' ? 'movie' : 'show',
-        source: poster.source,
-        libraryTitle: item.libraryTitle,
-        thumb: poster.thumbUrl ?? poster.url,
-        setId,
-        posterUrls: [poster.url],
-        slots: [posterSlot(poster)],
-        appliedAt: new Date().toISOString(),
-      })
-    }
-    patchPoster(entryId, poster.url, {
-      uploadStatus: res.success ? 'done' : 'error',
-      uploadError: res.success ? undefined : res.error,
-    })
-  } catch (err) {
-    patchPoster(entryId, poster.url, {
-      uploadStatus: 'error',
-      uploadError: err instanceof Error ? err.message : String(err),
-    })
-  }
-}
-
-
-/** Poster thumbnail with upload status overlay, applied badges, and lightbox zoom. */
-function PosterThumb({
-  poster,
-  entryId,
-  patchPoster,
-  onView,
-  inLibrary,
-  applied,
-  downloaded,
-  setId,
-}: {
-  poster: PosterResult
-  entryId: string
-  patchPoster: Props['patchPoster']
-  onView: () => void
-  inLibrary?: boolean
-  applied?: boolean
-  downloaded?: boolean
-  setId?: string
-}) {
-  const [imgError, setImgError] = useState(false)
-  const us = poster.uploadStatus
-
-  const overlayIcon =
-    us === 'matching' || us === 'uploading' ? <Loader2 size={14} className={styles.spin} /> :
-    us === 'done'     ? <CheckCircle2 size={14} /> :
-    us === 'error'    ? <AlertCircle size={13} /> :
-    us === 'no_match' ? <AlertCircle size={13} /> :
-    null
-
-  const overlayClass =
-    us === 'done'     ? styles.overlayDone :
-    us === 'error' || us === 'no_match' ? styles.overlayError :
-    us === 'matching' || us === 'uploading' ? styles.overlayPending :
-    ''
-
-  // Human-readable error reason shown in tooltip and inside the overlay
-  const errorReason =
-    us === 'no_match' ? 'Not in library' :
-    us === 'error'    ? (poster.uploadError ?? 'Upload failed') :
-    null
-
-  // Condense common error strings to something short enough to fit in the overlay
-  function shortReason(r: string): string {
-    if (/not connected/i.test(r)) return 'Not connected'
-    if (/403/.test(r))            return 'Auth error (403)'
-    if (/404/.test(r))            return 'Not found (404)'
-    if (/download failed/i.test(r)) return r.replace(/.*:\s*/, '').slice(0, 18)
-    return r.slice(0, 18)
-  }
-
-  const thumbTitle = errorReason
-    ? `${posterLabel(poster)}\n${errorReason}`
-    : posterLabel(poster)
-
-  return (
-    <div
-      className={styles.thumb}
-      title={thumbTitle}
-      onClick={() => {
-        if (us === 'idle' || us === 'error' || us === 'no_match') {
-          uploadPoster(entryId, poster, patchPoster, setId)
-        }
-      }}
-    >
-      {!imgError && poster.thumbUrl ? (
-        <img
-          src={poster.thumbUrl}
-          alt={posterLabel(poster)}
-          className={styles.thumbImg}
-          onError={() => setImgError(true)}
-          loading="lazy"
-          draggable={false}
-        />
-      ) : (
-        <div className={styles.thumbFallback}>
-          <span className={styles.thumbInitial}>
-            {poster.title.charAt(0).toUpperCase()}
-          </span>
-        </div>
-      )}
-
-      {/* upload status overlay */}
-      {overlayIcon && (
-        <div className={[styles.overlay, overlayClass, errorReason ? styles.overlayErrorState : ''].filter(Boolean).join(' ')}>
-          {overlayIcon}
-          {errorReason && (
-            <span className={styles.overlayErrorText}>{shortReason(errorReason)}</span>
-          )}
-        </div>
-      )}
-
-      {/* idle hover hint */}
-      {us === 'idle' && (
-        <div className={styles.overlayHover}>
-          <Upload size={12} />
-        </div>
-      )}
-
-      {/* status: current poster (Applied) > previously applied (Downloaded) > same-title (soft) */}
-      {applied ? (
-        <div className={styles.appliedBadge} title="This poster is currently applied in your library">
-          <BadgeCheck size={11} /> Applied
-        </div>
-      ) : downloaded ? (
-        <div className={styles.downloadedBadge} title="Uploaded before, but a newer poster is currently applied">
-          <Download size={10} /> Downloaded
-        </div>
-      ) : inLibrary ? (
-        <div className={styles.inLibBadge} title="You've already applied art to this title">
-          <Library size={10} />
-        </div>
-      ) : null}
-
-      {/* zoom to view the full image (doesn't trigger upload) */}
-      <button className={styles.zoomBtn} title="View full size" onClick={e => { e.stopPropagation(); onView() }}>
-        <Maximize2 size={11} />
-      </button>
-    </div>
-  )
+  patchPoster: PatchPoster
 }
 
 
@@ -282,67 +28,13 @@ function PosterThumb({
 export default function UrlQueueEntry({ entry, types, isRunning, patchPoster }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [lightbox, setLightbox] = useState<number | null>(null)
-  const [appliedIdx, setAppliedIdx] = useState<AppliedIndex>({ setKeys: new Set(), titles: new Set(), posterUrls: new Set(), currentByItem: new Map(), currentPosterUrls: new Set() })
   const removeEntry = useScrapeStore(s => s.removeEntry)
-
-  const { shown, hidden: hiddenCount } = useMemo(() => filterByTypes(entry.posters, types), [entry.posters, types])
-  const doneCount = shown.filter(p => p.uploadStatus === 'done').length
-
-  // Set id for this entry, recorded on upload so the Library Browser
-  // recognizes it; the scheduler reads it from the same helper.
-  const entrySetId = setRefOfUrl(entry.url)?.id
-
-  // Reloads when expanded and whenever an upload completes so it stays live.
-  useEffect(() => {
-    if (!expanded) return
-    loadAppliedIndex().then(setAppliedIdx)
-  }, [expanded, doneCount])
-
-  // Grouped sections + a flat list (group order) for the lightbox
-  const groups = useMemo(() => groupPosters(shown), [shown])
-  const lightboxImages = useMemo<LightboxImage[]>(
-    () => groups.flatMap(g => g.posters.map(p => ({
-      url: p.url,
-      label: g.label,
-      caption: p.episode != null ? `Episode ${p.episode}` : (p.title || undefined),
-    }))),
-    [groups],
-  )
-  // "Applied" = this exact poster is the one currently live in Plex.
-  // "Downloaded" = uploaded before but since overwritten by a newer poster.
-  const posterApplied    = (p: PosterResult) => appliedIdx.currentPosterUrls.has(p.url)
-  const posterDownloaded = (p: PosterResult) => !posterApplied(p) && appliedIdx.posterUrls.has(p.url)
-  const inLibraryTitle   = (p: PosterResult) => appliedIdx.titles.has(appliedKey(p.title, p.year))
+  const {
+    shown, hiddenCount, doneCount, entrySetId, groups, lightboxImages, marks,
+    posterCount, errorCount, hasDone, hasErrors, allDone, unappliedCount, uploadAll, uploadUnapplied,
+  } = useEntryUploads(entry, types, patchPoster, expanded)
 
   const source = entry.posters[0]?.source ?? sourceFromUrl(entry.url) ?? 'posterdb'
-
-  const posterCount = shown.length
-  const errorCount  = shown.filter(p =>
-    p.uploadStatus === 'error' || p.uploadStatus === 'no_match'
-  ).length
-
-  const hasDone    = doneCount > 0
-  const hasErrors  = errorCount > 0
-  const allDone    = posterCount > 0 && doneCount === posterCount
-
-  // Posters never applied yet (new title cards, changed art, etc.)
-  const unappliedCount = shown.filter(p => p.uploadStatus !== 'done' && !appliedIdx.posterUrls.has(p.url)).length
-
-  async function uploadAll() {
-    for (const p of shown) {
-      if (p.uploadStatus === 'idle' || p.uploadStatus === 'no_match' || p.uploadStatus === 'error') {
-        await uploadPoster(entry.id, p, patchPoster, entrySetId)
-      }
-    }
-  }
-
-  async function uploadUnapplied() {
-    for (const p of shown) {
-      if (p.uploadStatus !== 'done' && !appliedIdx.posterUrls.has(p.url)) {
-        await uploadPoster(entry.id, p, patchPoster, entrySetId)
-      }
-    }
-  }
 
   return (
     <Reorder.Item
@@ -467,35 +159,14 @@ export default function UrlQueueEntry({ entry, types, isRunning, patchPoster }: 
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             style={{ overflow: 'hidden' }}
           >
-            {(() => {
-              let flat = -1
-              return groups.map(g => (
-                <div key={g.label} className={styles.posterGroup}>
-                  <div className={styles.posterGroupLabel}>
-                    {g.label}<span className={styles.posterGroupCount}>{g.posters.length}</span>
-                  </div>
-                  <div className={`${styles.posterGrid} ${g.kind === 'title_card' || g.kind === 'backdrop' ? styles.posterGridWide : ''}`}>
-                    {g.posters.map(p => {
-                      flat++
-                      const idx = flat
-                      return (
-                        <PosterThumb
-                          key={p.url}
-                          poster={p}
-                          entryId={entry.id}
-                          patchPoster={patchPoster}
-                          onView={() => setLightbox(idx)}
-                          applied={posterApplied(p)}
-                          downloaded={posterDownloaded(p)}
-                          inLibrary={!posterApplied(p) && !posterDownloaded(p) && inLibraryTitle(p)}
-                          setId={entrySetId}
-                        />
-                      )
-                    })}
-                  </div>
-                </div>
-              ))
-            })()}
+            <EntryPosterGroups
+              groups={groups}
+              entryId={entry.id}
+              setId={entrySetId}
+              patchPoster={patchPoster}
+              marks={marks}
+              onView={setLightbox}
+            />
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { ArtworkType, PosterInfo } from '../../../electron/ipc/types'
-import { uuid } from '../../utils/uuid'
+import type { ArtworkType, PosterInfo } from '../../../../electron/ipc/types'
+import { uuid } from '../../../utils/uuid'
 
 export type EntryStatus = 'idle' | 'scraping' | 'done' | 'error'
 export type UploadStatus = 'idle' | 'matching' | 'uploading' | 'done' | 'error' | 'no_match'

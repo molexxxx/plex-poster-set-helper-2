@@ -8,7 +8,7 @@ import {
 import type { NavTab } from '../../app/App'
 import type { LibrarySection, ScheduledJob, LibraryItem } from '../../../electron/ipc/types'
 import { NAV_ENTRIES } from './navModel'
-import { useScrapeStore } from '../../features/scrape/useScrapeStore'
+import { useScrapeStore } from '../../features/scrape/hooks/useScrapeStore'
 import { useNavStore } from '../../app/navStore'
 import { useAppContext } from '../../app/AppContext'
 import { setCreatorState } from '../../utils/creatorPrefs'
