@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  buildRows, countLabel, dayLabel, emptyText, filterEntries, matchesQuery, matchesSeverity, mergeLive, timeOf,
+  buildRows, countLabel, dayLabel, emptyText, errorText, filterEntries, matchesQuery, matchesSeverity, mergeLive, timeOf,
   type ViewEntry,
 } from '../features/logs/logView'
 import { daysBefore, formatBytes, formatLogLine, localDay, normalizeRetentionDays } from '../../electron/services/logFormat'
@@ -93,6 +93,16 @@ describe('mergeLive', () =>
     const live = [entry('info', 'b', '2026-11-09T08:00:01.000Z'), entry('info', 'b2', '2026-11-09T08:00:01.000Z'), entry('info', 'c', '2026-11-09T08:00:02.000Z')]
     expect(mergeLive(h, live).map(e => e.message)).toEqual(['a', 'b', 'b2', 'c'])
     expect(mergeLive(h, [])).toBe(h)
+  })
+})
+
+describe('errorText', () =>
+{
+  it('reads the message of an error and stringifies anything else', () =>
+  {
+    expect(errorText(new Error('disk full'))).toBe('disk full')
+    expect(errorText('plain text')).toBe('plain text')
+    expect(errorText(404)).toBe('404')
   })
 })
 
