@@ -26,7 +26,8 @@ export const VIEWPORTS = [
  * @param arr - Pool to pick from; must be non-empty.
  * @returns One element, uniformly random.
  */
-export function pick<T>(arr: T[]): T {
+export function pick<T>(arr: T[]): T
+{
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
@@ -37,7 +38,8 @@ export function pick<T>(arr: T[]): T {
  * @param max - Upper bound, exclusive.
  * @returns The random value.
  */
-export function rand(min: number, max: number): number {
+export function rand(min: number, max: number): number
+{
   return Math.random() * (max - min) + min
 }
 
@@ -46,7 +48,8 @@ export function rand(min: number, max: number): number {
  *
  * @param ms - Delay in milliseconds.
  */
-export function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void>
+{
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
@@ -64,11 +67,14 @@ export async function mapPool<T, R>(
   items: T[],
   limit: number,
   fn: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
+): Promise<R[]>
+{
   const results = new Array<R>(items.length)
   let next = 0
-  const workers = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () => {
-    for (let i = next++; i < items.length; i = next++) {
+  const workers = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () =>
+  {
+    for (let i = next++; i < items.length; i = next++)
+    {
       results[i] = await fn(items[i], i)
     }
   })
@@ -130,10 +136,12 @@ const PAGE_CLOSE_TIMEOUT_MS = 10_000
  *
  * @param type - Which delay setting to apply.
  */
-export async function sleepConfig(type: 'min' | 'batch' | 'initial' | 'pageWait'): Promise<void> {
+export async function sleepConfig(type: 'min' | 'batch' | 'initial' | 'pageWait'): Promise<void>
+{
   const cfg = ConfigService.get()
   let ms = 0
-  switch (type) {
+  switch (type)
+  {
     case 'min':      ms = rand(cfg.scraperMinDelay, cfg.scraperMaxDelay) * 1000; break
     case 'batch':    ms = cfg.scraperBatchDelay * 1000; break
     case 'initial':  ms = cfg.scraperInitialDelay * 1000; break
@@ -143,7 +151,8 @@ export async function sleepConfig(type: 'min' | 'batch' | 'initial' | 'pageWait'
 }
 
 /** Shared Playwright plumbing for site scrapers: browser lifecycle, stealth contexts, and navigation. */
-export abstract class BaseScraper {
+export abstract class BaseScraper
+{
   protected _browser: Browser | null = null
   protected _aborted = false
   private _launching: Promise<Browser> | null = null
@@ -163,13 +172,16 @@ export abstract class BaseScraper {
    *
    * @returns The connected browser instance.
    */
-  async getBrowser(): Promise<Browser> {
+  async getBrowser(): Promise<Browser>
+  {
     if (this._browser?.isConnected()) return this._browser
-    this._launching ??= (async () => {
+    this._launching ??= (async () =>
+    {
       // PLEX_BROWSER_EXEC is set by PlaywrightService.setupEnv() - bypasses playwright's
       // internal registry lookup so we always use the managed browser in userData/browsers
       const executablePath = process.env.PLEX_BROWSER_EXEC
-      if (!executablePath) {
+      if (!executablePath)
+      {
         throw new Error(
           'Chromium browser is not installed. Open Settings → Browser Engine and click Install.',
         )
@@ -197,9 +209,11 @@ export abstract class BaseScraper {
    *
    * @returns The context (close it when done) and its page.
    */
-  async newContext(): Promise<{ context: BrowserContext; page: Page }> {
+  async newContext(): Promise<{ context: BrowserContext; page: Page }>
+  {
     const browser = await this.getBrowser()
-    const opening = (async () => {
+    const opening = (async () =>
+    {
       const context = await browser.newContext({
         userAgent: pick(USER_AGENTS),
         viewport: pick(VIEWPORTS),
@@ -212,7 +226,8 @@ export abstract class BaseScraper {
       })
       const page = await context.newPage()
       // Mask automation fingerprints (runs in browser context, not Node)
-      await page.addInitScript(() => {
+      await page.addInitScript(() =>
+      {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const g = globalThis as any
         Object.defineProperty(g.navigator, 'webdriver', { get: () => undefined })
@@ -220,9 +235,12 @@ export abstract class BaseScraper {
       })
       return { context, page }
     })()
-    try {
+    try
+    {
       return await withTimeout(opening, PAGE_OPEN_TIMEOUT_MS, 'the headless browser did not open a page')
-    } catch (err) {
+    }
+    catch (err)
+    {
       // A page that opens after the caller gave up would otherwise stay open.
       void opening.then(({ context }) => context.close(), () => {})
       throw err
@@ -246,7 +264,8 @@ export abstract class BaseScraper {
    * @param url - Destination URL.
    * @param waitFor - Selector that signals the content has rendered.
    */
-  async navigate(page: Page, url: string, waitFor: string): Promise<void> {
+  async navigate(page: Page, url: string, waitFor: string): Promise<void>
+  {
     await sleepConfig('initial')
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 })
     await page.waitForSelector(waitFor, { timeout: 15_000 }).catch(() => {})
@@ -254,12 +273,14 @@ export abstract class BaseScraper {
   }
 
   /** Flags the current scrape to stop at its next checkpoint. */
-  abort(): void {
+  abort(): void
+  {
     this._aborted = true
   }
 
   /** Closes the shared browser and clears the abort flag. */
-  async close(): Promise<void> {
+  async close(): Promise<void>
+  {
     await this._browser?.close().catch(() => {})
     this._browser = null
     this._aborted = false

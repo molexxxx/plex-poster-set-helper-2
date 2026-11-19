@@ -3,7 +3,8 @@ import { stripSuffix } from '../../services/titleParse'
 import type { PosterInfo } from '../../ipc/types'
 import { BASE, posterAssetUrl } from './posterdbSite'
 
-export interface RawCard {
+export interface RawCard
+{
   posterId: string
   thumbUrl: string
   title: string
@@ -24,7 +25,8 @@ export interface RawCard {
  * @param text - Raw card title.
  * @returns The year, or undefined.
  */
-export function parseYear(text: string): number | undefined {
+export function parseYear(text: string): number | undefined
+{
   let year: number | undefined
   for (const m of text.matchAll(/\((\d{4})\)/g)) year = parseInt(m[1])
   return year
@@ -39,9 +41,11 @@ export function parseYear(text: string): number | undefined {
  * @param rawTitle - Raw card title.
  * @returns The bare media title.
  */
-export function parseCardTitle(rawTitle: string): string {
+export function parseCardTitle(rawTitle: string): string
+{
   const years = /\(\d{4}\)/g
-  for (let m = years.exec(rawTitle); m; m = years.exec(rawTitle)) {
+  for (let m = years.exec(rawTitle); m; m = years.exec(rawTitle))
+  {
     const rest = rawTitle.slice(years.lastIndex)
     if (!rest || rest.trimStart().startsWith('-')) return rawTitle.slice(0, m.index).trim()
   }
@@ -56,8 +60,10 @@ export function parseCardTitle(rawTitle: string): string {
  * @param text - Raw card title.
  * @returns The season number, 0 for Specials, or 'Cover'.
  */
-function parseShowSeason(text: string): number | 'Cover' | undefined {
-  if (text.includes(' - ')) {
+function parseShowSeason(text: string): number | 'Cover' | undefined
+{
+  if (text.includes(' - '))
+  {
     const last = text.split(' - ').pop()!.trim()
     if (/specials/i.test(last)) return 0
     const m = last.match(/season\s+(\d+)/i)
@@ -76,10 +82,12 @@ function parseShowSeason(text: string): number | 'Cover' | undefined {
  * @param $ - Cheerio handle over the page HTML.
  * @returns One raw card per poster found.
  */
-export function parseCards($: cheerio.CheerioAPI): RawCard[] {
+export function parseCards($: cheerio.CheerioAPI): RawCard[]
+{
   const cards: RawCard[] = []
 
-  $('div.overlay[data-poster-id]').each((_, el) => {
+  $('div.overlay[data-poster-id]').each((_, el) =>
+  {
     const $overlay = $(el)
     const posterId = $overlay.attr('data-poster-id')
     if (!posterId) return
@@ -89,8 +97,10 @@ export function parseCards($: cheerio.CheerioAPI): RawCard[] {
 
     // The specific selector wins; a comma-joined union with .first() would
     // return whichever match comes first in the markup.
-    const firstOf = (...selectors: string[]) => {
-      for (const sel of selectors) {
+    const firstOf = (...selectors: string[]) =>
+    {
+      for (const sel of selectors)
+      {
         const $el = $cell.find(sel).first()
         if ($el.length) return $el
       }
@@ -156,7 +166,8 @@ export function parseCards($: cheerio.CheerioAPI): RawCard[] {
  * @param cards - Cards from parseCards().
  * @returns Posters with original-quality URLs and display thumbs.
  */
-export function cardsToPosters(cards: RawCard[]): PosterInfo[] {
+export function cardsToPosters(cards: RawCard[]): PosterInfo[]
+{
   return cards.map(c => ({
     title: c.title,
     url: posterAssetUrl(c.posterId),
@@ -179,7 +190,8 @@ export const MEDIA_PAGE_MARKER = 'div.overlay[data-poster-id], p.h2'
  * @param $ - Cheerio handle over the page HTML.
  * @returns true for a media page.
  */
-export function isMediaPage($: cheerio.CheerioAPI): boolean {
+export function isMediaPage($: cheerio.CheerioAPI): boolean
+{
   return $('div.overlay[data-poster-id]').length > 0 || /no posters have been made/i.test($('p.h2').text())
 }
 
@@ -191,6 +203,7 @@ export function isMediaPage($: cheerio.CheerioAPI): boolean {
  * @param card - A parsed card.
  * @returns true for a card the browser should show.
  */
-export function isMediaCard(card: RawCard): boolean {
+export function isMediaCard(card: RawCard): boolean
+{
   return /movie|show|collection/i.test(card.mediaType)
 }

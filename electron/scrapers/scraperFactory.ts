@@ -36,17 +36,20 @@ const BROWSE_DEADLINE_MESSAGE = 'the search did not finish within 3 minutes. Use
 const mediuxBrowses = createInFlight<PosterSetSummary[]>()
 const posterdbBrowses = createInFlight<PosterdbBrowseResult & { error?: string }>()
 
-function getPosterdb(): PosterdbScraper {
+function getPosterdb(): PosterdbScraper
+{
   if (!_posterdb) _posterdb = new PosterdbScraper()
   return _posterdb
 }
 
-function getMediux(): MediuxScraper {
+function getMediux(): MediuxScraper
+{
   if (!_mediux) _mediux = new MediuxScraper()
   return _mediux
 }
 
-function getScraper(source: ScraperSource): BaseScraper | null {
+function getScraper(source: ScraperSource): BaseScraper | null
+{
   if (source === 'posterdb') return getPosterdb()
   if (source === 'mediux')   return getMediux()
   return null
@@ -71,11 +74,13 @@ export const ScraperFactory = {
     onProgress: ProgressCallback,
     workerId = 0,
     types?: readonly ArtworkType[],
-  ): Promise<PosterInfo[]> {
+  ): Promise<PosterInfo[]>
+  {
     if (_aborted) return []
 
     const source = classifyUrl(url)
-    if (source === 'unknown') {
+    if (source === 'unknown')
+    {
       Logger.warn('ScraperFactory', `Unknown URL source: ${url}`)
       onProgress({ url, status: 'error', error: 'Unsupported URL (must be theposterdb.com or mediux.pro)', workerId })
       return []
@@ -84,12 +89,15 @@ export const ScraperFactory = {
     const scraper = getScraper(source)!
     onProgress({ url, status: 'scraping', workerId })
 
-    try {
+    try
+    {
       const found = await scraper.scrape(url, types)
       const posters = types ? found.filter(p => types.includes(posterKind(p))) : found
       onProgress({ url, status: 'done', posterCount: posters.length, workerId })
       return posters
-    } catch (err) {
+    }
+    catch (err)
+    {
       const error = readableError(err)
       Logger.error('ScraperFactory', `scrapeUrl failed [${url}]: ${error}`)
       onProgress({ url, status: 'error', error, workerId })
@@ -107,14 +115,16 @@ export const ScraperFactory = {
   async scrapeMany(
     urls: string[],
     onProgress: ProgressCallback,
-  ): Promise<Map<string, PosterInfo[]>> {
+  ): Promise<Map<string, PosterInfo[]>>
+  {
     _aborted = false
     const cfg = ConfigService.get()
     const limit = pLimit(Math.max(1, cfg.maxWorkers))
     const results = new Map<string, PosterInfo[]>()
 
     const tasks = urls.map((url, i) =>
-      limit(async () => {
+      limit(async () =>
+      {
         if (_aborted) return
         const workerId = (i % cfg.maxWorkers) + 1
         const posters = await ScraperFactory.scrapeUrl(url, onProgress, workerId)
@@ -127,7 +137,8 @@ export const ScraperFactory = {
   },
 
   /** Aborts all in-flight scrapes. */
-  abort(): void {
+  abort(): void
+  {
     _aborted = true
     _posterdb?.abort()
     _mediux?.abort()
@@ -135,7 +146,8 @@ export const ScraperFactory = {
   },
 
   /** Closes scraper browser instances at the end of a session. */
-  async close(): Promise<void> {
+  async close(): Promise<void>
+  {
     await Promise.allSettled([
       _posterdb?.close(),
       _mediux?.close(),
@@ -155,7 +167,8 @@ export const ScraperFactory = {
    * @returns Set summaries with uploader metadata.
    * @throws When MediUX cannot be read, or the browse passes the deadline.
    */
-  async browseMediux(tmdbId: string, type: 'movie' | 'show'): Promise<PosterSetSummary[]> {
+  async browseMediux(tmdbId: string, type: 'movie' | 'show'): Promise<PosterSetSummary[]>
+  {
     return mediuxBrowses(`${type}|${tmdbId}`, () =>
       withTimeout(getMediux().browseSets(tmdbId, type), BROWSE_DEADLINE_MS, BROWSE_DEADLINE_MESSAGE))
   },
@@ -177,20 +190,26 @@ export const ScraperFactory = {
     year: number | undefined,
     type: PosterdbMediaType,
     fresh = false,
-  ): Promise<PosterdbBrowseResult & { error?: string }> {
-    return posterdbBrowses(`${type}|${title}|${year ?? ''}|${fresh ? 'fresh' : ''}`, async () => {
+  ): Promise<PosterdbBrowseResult & { error?: string }>
+  {
+    return posterdbBrowses(`${type}|${title}|${year ?? ''}|${fresh ? 'fresh' : ''}`, async () =>
+    {
       const scraper = (_browsePosterdb ??= new PosterdbScraper())
       _browsesInFlight++
       // Pages come over plain HTTP; the browser only steps in for a gated
       // page. Drop it once no browse needs it, counting one that ran past the
       // deadline, so neither the desktop app nor a long-lived container keeps
       // an idle Chromium around.
-      const browse = scraper.browseSets(title, year, type, fresh).finally(async () => {
+      const browse = scraper.browseSets(title, year, type, fresh).finally(async () =>
+      {
         if (--_browsesInFlight === 0) await scraper.close().catch(() => {})
       })
-      try {
+      try
+      {
         return await withTimeout(browse, BROWSE_DEADLINE_MS, BROWSE_DEADLINE_MESSAGE)
-      } catch (err) {
+      }
+      catch (err)
+      {
         const error = readableError(err)
         Logger.warn('ScraperFactory', `browsePosterdb failed for "${title}": ${error}`)
         return { sets: [], capped: false, error }
@@ -207,12 +226,16 @@ export const ScraperFactory = {
    * @param type - Movie, show, or collection.
    * @returns The sets; throws with the reason when the link cannot be used.
    */
-  async linkPosterdb(url: string, title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterSetSummary[]> {
+  async linkPosterdb(url: string, title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterSetSummary[]>
+  {
     const scraper = (_browsePosterdb ??= new PosterdbScraper())
     _browsesInFlight++
-    try {
+    try
+    {
       return await scraper.linkSets(url, title, year, type)
-    } finally {
+    }
+    finally
+    {
       if (--_browsesInFlight === 0) await scraper.close().catch(() => {})
     }
   },
@@ -223,7 +246,8 @@ export const ScraperFactory = {
    * @param url - Set, boxset, movie, or show page link.
    * @returns The sets; throws with the reason when the link cannot be used.
    */
-  async linkMediux(url: string): Promise<PosterSetSummary[]> {
+  async linkMediux(url: string): Promise<PosterSetSummary[]>
+  {
     return getMediux().linkSets(url)
   },
 
@@ -241,7 +265,8 @@ export const ScraperFactory = {
     collectionTitle: string,
     tmdbCollectionId: string | undefined,
     childTmdbIds: string[],
-  ): Promise<PosterSetSummary[]> {
+  ): Promise<PosterSetSummary[]>
+  {
     return mediuxBrowses(`collection|${tmdbCollectionId ?? ''}|${childTmdbIds.join(',')}|${collectionTitle}`, () =>
       withTimeout(
         getMediux().browseCollectionSets(collectionTitle, tmdbCollectionId, childTmdbIds),
@@ -258,7 +283,8 @@ export const ScraperFactory = {
    *   full catalog.
    * @returns That page's sets with parsed title/year per set.
    */
-  async browseMediuxUser(username: string, page = 1) {
+  async browseMediuxUser(username: string, page = 1)
+  {
     return getMediux().browseUserSets(username, page)
   },
 
@@ -274,7 +300,8 @@ export const ScraperFactory = {
   async browseMediuxUserAll(
     username: string,
     opts: Parameters<ReturnType<typeof getMediux>['browseAllUserSets']>[1] = {},
-  ) {
+  )
+  {
     return getMediux().browseAllUserSets(username, opts)
   },
 
@@ -284,7 +311,8 @@ export const ScraperFactory = {
    * @param url - URL to inspect.
    * @returns true for theposterdb.com and mediux.pro URLs.
    */
-  isSupported(url: string): boolean {
+  isSupported(url: string): boolean
+  {
     return classifyUrl(url) !== 'unknown'
   },
 
@@ -294,7 +322,8 @@ export const ScraperFactory = {
    * @param url - URL to inspect.
    * @returns The source, or null when unsupported.
    */
-  sourceOf(url: string): 'posterdb' | 'mediux' | null {
+  sourceOf(url: string): 'posterdb' | 'mediux' | null
+  {
     const src = classifyUrl(url)
     return src === 'unknown' ? null : src
   },
@@ -305,10 +334,12 @@ export const ScraperFactory = {
    * @param url - URL to inspect.
    * @returns The source plus a page-type hint when recognisable.
    */
-  describeUrl(url: string): { source: ScraperSource; type?: string } {
+  describeUrl(url: string): { source: ScraperSource; type?: string }
+  {
     const source = classifyUrl(url)
     if (source === 'posterdb') return { source, type: posterdbUrlType(url) }
-    if (source === 'mediux') {
+    if (source === 'mediux')
+    {
       const type = url.includes('/boxsets/') ? 'boxset' : url.includes('/shows/') ? 'show' : 'set'
       return { source, type }
     }

@@ -51,12 +51,14 @@ const mediaIdCache = new Map<string, { hits: SearchHit[]; at: number }>()
  * @param type - Movie, show, or collection.
  * @returns The cache key.
  */
-export function mediaCacheKey(title: string, year: number | undefined, type: PosterdbMediaType): string {
+export function mediaCacheKey(title: string, year: number | undefined, type: PosterdbMediaType): string
+{
   return `${type}|${normalizeTitle(title)}|${year ?? ''}`
 }
 
 /** Drops every remembered title match and avatar (Settings -> Clear cached data, and tests). */
-export function resetPosterdbCaches(): void {
+export function resetPosterdbCaches(): void
+{
   mediaIdCache.clear()
   clearAvatarCache()
 }
@@ -64,18 +66,21 @@ export function resetPosterdbCaches(): void {
 const NO_RESULT: PosterdbBrowseResult = { sets: [], capped: false }
 
 /** Scrapes ThePosterDB set, single-poster, and user-upload pages via a headless browser. */
-export class PosterdbScraper extends BaseScraper {
+export class PosterdbScraper extends BaseScraper
+{
   /**
    * Routes a ThePosterDB URL to the matching scrape strategy.
    *
    * @param url - Set, poster, or user page URL.
    * @returns Posters found, empty for unrecognised URLs.
    */
-  async scrape(url: string): Promise<PosterInfo[]> {
+  async scrape(url: string): Promise<PosterInfo[]>
+  {
     const type = posterdbUrlType(url)
     Logger.scrape('PosterDB', `Scraping ${type}: ${url}`)
 
-    switch (type) {
+    switch (type)
+    {
       case 'set':    return this.scrapeSet(url)
       case 'poster': return this.scrapeSinglePoster(url)
       case 'user':   return this.scrapeUserUploads(url)
@@ -94,14 +99,17 @@ export class PosterdbScraper extends BaseScraper {
    * @param url - Set page URL.
    * @returns Posters found, empty on failure.
    */
-  async scrapeSet(url: string): Promise<PosterInfo[]> {
+  async scrapeSet(url: string): Promise<PosterInfo[]>
+  {
     const setUrl = posterdbPageUrl(url)
-    if (!setUrl) {
+    if (!setUrl)
+    {
       Logger.warn('PosterDB', `Refused to load a URL outside theposterdb.com: ${url}`)
       return []
     }
     const { context, page } = await this.newContext()
-    try {
+    try
+    {
       await this.navigate(page, setUrl, 'div.overlay[data-poster-id]')
       const html = await page.content()
       const $ = cheerio.load(html)
@@ -109,10 +117,14 @@ export class PosterdbScraper extends BaseScraper {
       const posters = cardsToPosters(cards)
       Logger.scrape('PosterDB', `Set ${url} - ${posters.length} posters found`)
       return posters
-    } catch (err) {
+    }
+    catch (err)
+    {
       Logger.error('PosterDB', `scrapeSet failed: ${err instanceof Error ? err.message : err}`)
       return []
-    } finally {
+    }
+    finally
+    {
       await this.closeContext(context)
     }
   }
@@ -124,14 +136,17 @@ export class PosterdbScraper extends BaseScraper {
    * @param url - Poster page URL.
    * @returns The parent set's posters, or just this poster.
    */
-  async scrapeSinglePoster(url: string): Promise<PosterInfo[]> {
+  async scrapeSinglePoster(url: string): Promise<PosterInfo[]>
+  {
     const posterUrl = posterdbPageUrl(url)
-    if (!posterUrl) {
+    if (!posterUrl)
+    {
       Logger.warn('PosterDB', `Refused to load a URL outside theposterdb.com: ${url}`)
       return []
     }
     const { context, page } = await this.newContext()
-    try {
+    try
+    {
       await this.navigate(page, posterUrl, 'div.overlay[data-poster-id], a[title="View Set Page"]')
       const html = await page.content()
       const $ = cheerio.load(html)
@@ -141,7 +156,8 @@ export class PosterdbScraper extends BaseScraper {
         $('a[data-toggle="tooltip"][title="View Set Page"]').first().attr('href') ||
         $('a.rounded.view_all').first().attr('href') ||
         $('a[href*="/set/"]').first().attr('href')
-      if (!setHref) {
+      if (!setHref)
+      {
         const cards = parseCards($)
         return cardsToPosters(cards)
       }
@@ -150,10 +166,14 @@ export class PosterdbScraper extends BaseScraper {
       await this.closeContext(context)
       await sleepConfig('min')
       return this.scrapeSet(setUrl)
-    } catch (err) {
+    }
+    catch (err)
+    {
       Logger.error('PosterDB', `scrapeSinglePoster failed: ${err instanceof Error ? err.message : err}`)
       return []
-    } finally {
+    }
+    finally
+    {
       await this.closeContext(context)
     }
   }
@@ -164,9 +184,11 @@ export class PosterdbScraper extends BaseScraper {
    * @param url - User profile URL.
    * @returns All posters across the paginated upload pages.
    */
-  async scrapeUserUploads(url: string): Promise<PosterInfo[]> {
+  async scrapeUserUploads(url: string): Promise<PosterInfo[]>
+  {
     const profileUrl = posterdbPageUrl(url)
-    if (!profileUrl) {
+    if (!profileUrl)
+    {
       Logger.warn('PosterDB', `Refused to load a URL outside theposterdb.com: ${url}`)
       return []
     }
@@ -175,29 +197,38 @@ export class PosterdbScraper extends BaseScraper {
     let hasMore = true
 
     const baseUrl = profileUrl.split('?')[0]
-    while (hasMore && !this._aborted) {
+    while (hasMore && !this._aborted)
+    {
       const pageUrl = `${baseUrl}?section=uploads&page=${page}`
       const { context, ctx: pageCtx } = await this._newUserPage()
 
-      try {
+      try
+      {
         await this.navigate(pageCtx, pageUrl, 'div.overlay[data-poster-id]')
         const html = await pageCtx.content()
         const $ = cheerio.load(html)
         const cards = parseCards($)
 
-        if (!cards.length) {
+        if (!cards.length)
+        {
           hasMore = false
-        } else {
+        }
+        else
+        {
           allPosters.push(...cardsToPosters(cards))
           // A full page (24 per page) means more may follow; a short page is the last
           hasMore = cards.length >= 24
           page++
           await sleepConfig('batch')
         }
-      } catch (err) {
+      }
+      catch (err)
+      {
         Logger.error('PosterDB', `scrapeUserUploads page ${page} failed: ${err instanceof Error ? err.message : err}`)
         hasMore = false
-      } finally {
+      }
+      finally
+      {
         await this.closeContext(context)
       }
     }
@@ -207,7 +238,8 @@ export class PosterdbScraper extends BaseScraper {
   }
 
   /** Opens a fresh context/page pair with the page aliased to avoid clashing with the loop counter. */
-  private async _newUserPage() {
+  private async _newUserPage()
+  {
     const { context, page } = await this.newContext()
     return { context, ctx: page }
   }
@@ -227,22 +259,29 @@ export class PosterdbScraper extends BaseScraper {
     url: string,
     waitFor: string,
     parse: ($: cheerio.CheerioAPI) => T | null,
-  ): Promise<T | null> {
+  ): Promise<T | null>
+  {
     const { context, page } = await this.newContext()
-    try {
+    try
+    {
       await context.route('**/*', route =>
         HEAVY_RESOURCES.has(route.request().resourceType()) ? route.abort() : route.continue())
       await this.navigate(page, url, waitFor)
       const $ = cheerio.load(await page.content())
-      if (!$(waitFor).length) {
+      if (!$(waitFor).length)
+      {
         Logger.warn('PosterDB', `Page rendered without its content [${url}]`)
         return null
       }
       return parse($)
-    } catch (err) {
+    }
+    catch (err)
+    {
       Logger.warn('PosterDB', `Page load failed [${url}]: ${err instanceof Error ? err.message : err}`)
       return null
-    } finally {
+    }
+    finally
+    {
       await this.closeContext(context)
     }
   }
@@ -261,16 +300,20 @@ export class PosterdbScraper extends BaseScraper {
     url: string,
     waitFor: string,
     parse: ($: cheerio.CheerioAPI) => T | null,
-  ): Promise<T | null> {
+  ): Promise<T | null>
+  {
     const page = posterdbPageUrl(url)
-    if (!page) {
+    if (!page)
+    {
       Logger.warn('PosterDB', `Refused to load a URL outside theposterdb.com: ${url}`)
       return null
     }
     const html = await fetchHtml(page)
-    if (html !== null) {
+    if (html !== null)
+    {
       const $ = cheerio.load(html)
-      if ($(waitFor).length) {
+      if ($(waitFor).length)
+      {
         const result = parse($)
         if (result !== null) return result
       }
@@ -288,7 +331,8 @@ export class PosterdbScraper extends BaseScraper {
    * @param fresh - Skip the remembered match (the panel's Refresh button).
    * @returns The matching media page, or null when the title isn't on the site.
    */
-  async findMedia(title: string, year: number | undefined, type: PosterdbMediaType, fresh = false): Promise<SearchHit | null> {
+  async findMedia(title: string, year: number | undefined, type: PosterdbMediaType, fresh = false): Promise<SearchHit | null>
+  {
     return (await this.findMediaCandidates(title, year, type, fresh))[0] ?? null
   }
 
@@ -305,7 +349,8 @@ export class PosterdbScraper extends BaseScraper {
    * @param fresh - Skip the remembered match (the panel's Refresh button).
    * @returns The matching media pages, best first; empty when the title isn't on the site.
    */
-  async findMediaCandidates(title: string, year: number | undefined, type: PosterdbMediaType, fresh = false): Promise<SearchHit[]> {
+  async findMediaCandidates(title: string, year: number | undefined, type: PosterdbMediaType, fresh = false): Promise<SearchHit[]>
+  {
     const wants = titleAliases(title, type)
     if (!wants.length) return []
 
@@ -316,7 +361,8 @@ export class PosterdbScraper extends BaseScraper {
     const label = `${type} "${title}"${year ? ` (${year})` : ''}`
     let fallback: SearchHit[] = []
     let rows = 0
-    for (let page = 1; page <= MAX_SEARCH_PAGES && !this._aborted; page++) {
+    for (let page = 1; page <= MAX_SEARCH_PAGES && !this._aborted; page++)
+    {
       const url = `${BASE}/search?term=${encodeURIComponent(title)}&section=${SEARCH_SECTION[type]}${page > 1 ? `&page=${page}` : ''}`
       const hits = await this._loadPage(url, 'a[href*="/posters/"]', $ => isSearchPage($) ? parseSearchHits($) : null)
       // A page that failed to load, or that was not a results page at all,
@@ -326,7 +372,8 @@ export class PosterdbScraper extends BaseScraper {
 
       rows += hits.length
       const found = pickSearchHits(hits, wants, year)
-      if (found.length && yearMatches(found[0], year)) {
+      if (found.length && yearMatches(found[0], year))
+      {
         mediaIdCache.set(cacheKey, { hits: found, at: Date.now() })
         return found
       }
@@ -351,7 +398,8 @@ export class PosterdbScraper extends BaseScraper {
    * @param fresh - Skip the remembered title match.
    * @returns Set summaries, most-downloaded first, with a flag when the site has more.
    */
-  async browseSets(title: string, year: number | undefined, type: PosterdbMediaType, fresh = false): Promise<PosterdbBrowseResult> {
+  async browseSets(title: string, year: number | undefined, type: PosterdbMediaType, fresh = false): Promise<PosterdbBrowseResult>
+  {
     const media = await this.findMediaCandidates(title, year, type, fresh)
     if (!media.length || this._aborted) return NO_RESULT
     return this.browseMediaPages(media.map(m => m.mediaId), title, year, type)
@@ -363,20 +411,24 @@ export class PosterdbScraper extends BaseScraper {
    * @param mediaUrl - The media page.
    * @returns Its sets in page order, how many posters it listed, and whether the last page read was full.
    */
-  private async _collectStubs(mediaUrl: string): Promise<{ stubs: SetStub[]; cards: number; full: boolean }> {
+  private async _collectStubs(mediaUrl: string): Promise<{ stubs: SetStub[]; cards: number; full: boolean }>
+  {
     const stubs: SetStub[] = []
     const seen = new Set<string>()
     let cards = 0
     let full = false
-    for (let page = 1; page <= MAX_BROWSE_PAGES && !this._aborted; page++) {
+    for (let page = 1; page <= MAX_BROWSE_PAGES && !this._aborted; page++)
+    {
       const url = page > 1 ? `${mediaUrl}?page=${page}` : mediaUrl
       const found = await this._loadPage(url, MEDIA_PAGE_MARKER, $ => isMediaPage($) ? parseCards($) : null)
-      if (!found?.length) {
+      if (!found?.length)
+      {
         full = false
         break
       }
       cards += found.length
-      for (const stub of stubsFromCards(found)) {
+      for (const stub of stubsFromCards(found))
+      {
         if (seen.has(stub.setId)) continue
         seen.add(stub.setId)
         stubs.push(stub)
@@ -402,9 +454,11 @@ export class PosterdbScraper extends BaseScraper {
    * @param type - Movie, show, or collection.
    * @returns Set summaries, most-downloaded first, with a flag when the site has more.
    */
-  async browseMediaPages(mediaIds: string[], title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterdbBrowseResult> {
+  async browseMediaPages(mediaIds: string[], title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterdbBrowseResult>
+  {
     const pages: Array<{ url: string; stubs: SetStub[]; cards: number; full: boolean }> = []
-    for (const [i, id] of mediaIds.entries()) {
+    for (const [i, id] of mediaIds.entries())
+    {
       if (this._aborted) return NO_RESULT
       if (i > 0) await sleepConfig('min')
       const url = `${BASE}/posters/${id}`
@@ -417,8 +471,10 @@ export class PosterdbScraper extends BaseScraper {
     const mediaUrl = pages[0].url
     const stubs: SetStub[] = []
     const seen = new Set<string>()
-    for (const page of pages) {
-      for (const stub of page.stubs) {
+    for (const page of pages)
+    {
+      for (const stub of page.stubs)
+      {
         if (seen.has(stub.setId)) continue
         seen.add(stub.setId)
         stubs.push(stub)
@@ -431,10 +487,12 @@ export class PosterdbScraper extends BaseScraper {
     const avatars = lookUpAvatars(wanted.map(s => s.uploader))
 
     const concurrency = Math.max(1, Math.min(SET_FETCH_CONCURRENCY, ConfigService.get().maxWorkers))
-    const summaries = await mapPool(wanted, concurrency, async stub => {
+    const summaries = await mapPool(wanted, concurrency, async stub =>
+    {
       // A one-poster set is fully described by the card we already have, so the
       // common movie case costs no extra page loads at all.
-      if (stub.size <= 1) {
+      if (stub.size <= 1)
+      {
         const posters = classifySetPosters(cardsToPosters([stub.card]), title, year, type)
         return stubToSummary(stub, posters, stub.card.title, type)
       }
@@ -455,7 +513,8 @@ export class PosterdbScraper extends BaseScraper {
     const sets = summaries
       .map((s, i): PosterSetSummary | null => (s ? { ...s, popularityRank: i } : null))
       .filter((s): s is PosterSetSummary => s !== null && s.posters.length > 0)
-      .map(s => {
+      .map(s =>
+      {
         const avatar = avatars.avatarOf(s.uploader)
         return avatar ? { ...s, uploaderAvatar: avatar } : s
       })
@@ -478,13 +537,17 @@ export class PosterdbScraper extends BaseScraper {
    * @returns The sets, ready for the Library Browser.
    * @throws When the link is a profile or not a page the app reads, or the page cannot be read.
    */
-  async linkSets(url: string, title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterSetSummary[]> {
-    switch (posterdbUrlType(url)) {
-      case 'set': {
+  async linkSets(url: string, title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterSetSummary[]>
+  {
+    switch (posterdbUrlType(url))
+    {
+      case 'set':
+      {
         const set = await this._linkSet(/\/set\/(\d+)/.exec(url)![1], title, year, type)
         return set ? [set] : []
       }
-      case 'poster': {
+      case 'poster':
+      {
         const setId = await this._loadPage(url, 'a[title="View Set Page"], #main_poster_container, div.overlay[data-poster-id]', parentSetId)
         if (setId === null) throw new Error('The poster page could not be read')
         if (!setId) throw new Error('This poster is not part of a set; link a set or a title page instead')
@@ -510,7 +573,8 @@ export class PosterdbScraper extends BaseScraper {
    * @returns The summary, or null when the set has no movie, show, or collection posters.
    * @throws When the page cannot be read.
    */
-  private async _linkSet(setId: string, title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterSetSummary | null> {
+  private async _linkSet(setId: string, title: string, year: number | undefined, type: PosterdbMediaType): Promise<PosterSetSummary | null>
+  {
     const parsed = await this._loadPage(`${BASE}/set/${setId}`, 'div.overlay[data-poster-id]', $ => ({
       cards: parseCards($).filter(isMediaCard),
       name: parseSetPageTitle($('title').first().text()),

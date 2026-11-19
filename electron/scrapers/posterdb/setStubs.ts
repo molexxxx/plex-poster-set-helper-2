@@ -12,7 +12,8 @@ import { normalizeTitle } from './titleMatch'
  * @param $ - Cheerio handle over the poster page HTML.
  * @returns The set id, or an empty string for a poster uploaded on its own.
  */
-export function parentSetId($: cheerio.CheerioAPI): string {
+export function parentSetId($: cheerio.CheerioAPI): string
+{
   const href =
     $('a[data-toggle="tooltip"][title="View Set Page"]').first().attr('href') ||
     $('a.rounded.view_all').first().attr('href') ||
@@ -21,7 +22,8 @@ export function parentSetId($: cheerio.CheerioAPI): string {
 }
 
 /** A set discovered on a media page, before its full contents are known. */
-export interface SetStub {
+export interface SetStub
+{
   setId: string
   uploader: string
   /** Poster count from the card's badge - how many posters the set holds. */
@@ -37,9 +39,11 @@ export interface SetStub {
  * @param cards - Cards parsed from a media page.
  * @returns One stub per distinct set, first card wins.
  */
-export function stubsFromCards(cards: RawCard[]): SetStub[] {
+export function stubsFromCards(cards: RawCard[]): SetStub[]
+{
   const stubs = new Map<string, SetStub>()
-  for (const c of cards) {
+  for (const c of cards)
+  {
     if (!c.setId || stubs.has(c.setId)) continue
     stubs.set(c.setId, {
       setId: c.setId,
@@ -67,9 +71,11 @@ export function classifySetPosters(
   title: string,
   year: number | undefined,
   type: PosterdbMediaType,
-): PosterInfo[] {
+): PosterInfo[]
+{
   const want = normalizeTitle(title)
-  return posters.map(p => {
+  return posters.map(p =>
+  {
     // cardsToPosters already flags collection art from the card's media type.
     if (p.isCollection) return p
     const sameTitle = normalizeTitle(p.title) === want
@@ -95,9 +101,11 @@ export function stubToSummary(
   posters: PosterInfo[],
   setName: string,
   type: PosterdbMediaType,
-): PosterSetSummary {
+): PosterSetSummary
+{
   let posterCount = 0, backdropCount = 0, titleCardCount = 0
-  for (const p of posters) {
+  for (const p of posters)
+  {
     if (p.season === 'Backdrop') backdropCount++
     else if (p.episode != null) titleCardCount++
     else posterCount++
@@ -124,7 +132,8 @@ export function stubToSummary(
  * @param name - Name read from the page title.
  * @returns The name without a trailing year.
  */
-export function cleanSetName(name: string): string {
+export function cleanSetName(name: string): string
+{
   return stripSuffix(name, /\(\d{4}\)\s*$/).trim()
 }
 
@@ -135,7 +144,8 @@ export function cleanSetName(name: string): string {
  * @param pageTitle - Text of the page's title element.
  * @returns The set name without its year.
  */
-export function parseSetPageTitle(pageTitle: string): string {
+export function parseSetPageTitle(pageTitle: string): string
+{
   const by = /\sSet By\s/i.exec(pageTitle)
   return cleanSetName(by ? pageTitle.slice(0, by.index) : pageTitle)
 }

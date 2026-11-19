@@ -4,7 +4,8 @@ import type { PosterSetSummary } from '../../ipc/types'
 export type PosterdbMediaType = 'movie' | 'show' | 'collection'
 
 /** What the library browser gets back for a title. */
-export interface PosterdbBrowseResult {
+export interface PosterdbBrowseResult
+{
   sets: PosterSetSummary[]
   /** The site lists more sets than were read. */
   capped: boolean

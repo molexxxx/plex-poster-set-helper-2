@@ -12,7 +12,8 @@ import type { MediuxSet, Fallback } from './mediuxTypes'
  * @param scriptText - Raw text of one inline script tag.
  * @returns The parsed object, or null when nothing parses.
  */
-function cleanAndParse(scriptText: string): unknown | null {
+function cleanAndParse(scriptText: string): unknown | null
+{
   const cleaned = scriptText
     .replace(/\\\\\\"/g, '')   // matches \ \ \ "
     .replace(/\\/g, '')        // strip remaining backslashes
@@ -22,9 +23,12 @@ function cleanAndParse(scriptText: string): unknown | null {
   const end   = cleaned.lastIndexOf('}')
   if (start < 0 || end <= start) return null
 
-  try {
+  try
+  {
     return JSON.parse(cleaned.slice(start, end + 1))
-  } catch {
+  }
+  catch
+  {
     return null
   }
 }
@@ -36,29 +40,35 @@ function cleanAndParse(scriptText: string): unknown | null {
  * @param root - Parsed RSC payload of unknown shape.
  * @returns The unique sets found, in discovery order.
  */
-function collectSets(root: unknown): MediuxSet[] {
+function collectSets(root: unknown): MediuxSet[]
+{
   const found: MediuxSet[] = []
   const seen = new Set<string | number>()
 
-  const looksLikeSet = (o: Record<string, unknown>): boolean => {
+  const looksLikeSet = (o: Record<string, unknown>): boolean =>
+  {
     const files = o['files']
     return Array.isArray(files) && files.some(
       f => f && typeof f === 'object' && 'id' in f && 'fileType' in f,
     )
   }
 
-  const walk = (node: unknown, depth: number): void => {
+  const walk = (node: unknown, depth: number): void =>
+  {
     if (!node || typeof node !== 'object' || depth > 10) return
 
-    if (Array.isArray(node)) {
+    if (Array.isArray(node))
+    {
       for (const item of node) walk(item, depth + 1)
       return
     }
 
     const obj = node as Record<string, unknown>
-    if (looksLikeSet(obj)) {
+    if (looksLikeSet(obj))
+    {
       const set = obj as unknown as MediuxSet
-      if (!seen.has(set.id)) {
+      if (!seen.has(set.id))
+      {
         seen.add(set.id)
         found.push(set)
       }
@@ -92,11 +102,13 @@ export function hasFlightData(scriptTexts: string[]): boolean
  * @param scriptTexts - Inline script contents from the page.
  * @returns Unique sets found across all matching scripts.
  */
-export function setsFromScripts(scriptTexts: string[]): MediuxSet[] {
+export function setsFromScripts(scriptTexts: string[]): MediuxSet[]
+{
   const all: MediuxSet[] = []
   const seen = new Set<string | number>()
 
-  for (const text of scriptTexts) {
+  for (const text of scriptTexts)
+  {
     if (!text) continue
     // Must reference both files and set; skip the breadcrumb "Set Link\" script
     if (!text.includes('files') || !text.includes('set')) continue
@@ -105,8 +117,10 @@ export function setsFromScripts(scriptTexts: string[]): MediuxSet[] {
     const parsed = cleanAndParse(text)
     if (!parsed) continue
 
-    for (const set of collectSets(parsed)) {
-      if (!seen.has(set.id)) {
+    for (const set of collectSets(parsed))
+    {
+      if (!seen.has(set.id))
+      {
         seen.add(set.id)
         all.push(set)
       }
@@ -122,7 +136,8 @@ export function setsFromScripts(scriptTexts: string[]): MediuxSet[] {
  * @param html - Raw page HTML.
  * @returns Whatever title/year could be parsed.
  */
-export function parseOgTitle(html: string): Fallback {
+export function parseOgTitle(html: string): Fallback
+{
   const m = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)["']/i)
   if (!m?.[1]) return {}
   const raw = m[1].trim()

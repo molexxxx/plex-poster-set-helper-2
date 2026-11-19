@@ -11,7 +11,8 @@ export const ASSET_BASE = 'https://api.mediux.pro/assets'
  * @param d - Date string, or nothing.
  * @returns The year, or undefined.
  */
-export function extractYear(d?: string | null): number | undefined {
+export function extractYear(d?: string | null): number | undefined
+{
   if (!d) return undefined
   const m = d.match(/^(\d{4})/)
   return m ? parseInt(m[1]) : undefined
@@ -23,7 +24,8 @@ export function extractYear(d?: string | null): number | undefined {
  * @param title - The file's title string.
  * @returns The episode number, or undefined.
  */
-function parseEpisodeFromTitle(title?: string | null): number | undefined {
+function parseEpisodeFromTitle(title?: string | null): number | undefined
+{
   if (!title) return undefined
   const m = title.match(/S\d{1,3}\s*E(\d{1,4})/i) ?? title.match(/ E(\d{1,4})\b/i)
   return m ? parseInt(m[1]) : undefined
@@ -37,7 +39,8 @@ function parseEpisodeFromTitle(title?: string | null): number | undefined {
  * @param raw - The file's title string.
  * @returns Parsed title and optional year, or null for blank input.
  */
-export function parseTitleYear(raw?: string | null): { title: string; year?: number } | null {
+export function parseTitleYear(raw?: string | null): { title: string; year?: number } | null
+{
   if (!raw) return null
   const clean = raw.trim()
   if (!clean) return null
@@ -53,7 +56,8 @@ export function parseTitleYear(raw?: string | null): { title: string; year?: num
  * @param title - The file's title string.
  * @returns The title without the suffix.
  */
-function stripArtTypeSuffix(title?: string | null): string {
+function stripArtTypeSuffix(title?: string | null): string
+{
   return stripSuffix(title ?? '', /-\s*Backdrop\s*$/i).trim()
 }
 
@@ -66,7 +70,8 @@ function stripArtTypeSuffix(title?: string | null): string {
  * @param year - Parsed release year, when present.
  * @returns The composite key.
  */
-function memberKey(title: string, year?: number): string {
+function memberKey(title: string, year?: number): string
+{
   return `${title.toLowerCase().trim()}|${year ?? ''}`
 }
 
@@ -79,10 +84,12 @@ function memberKey(title: string, year?: number): string {
  * @param set - The collection set.
  * @returns Map of memberKey -> TMDB id, empty for non-collection sets.
  */
-export function memberIdIndex(set: MediuxSet): Map<string, string> {
+export function memberIdIndex(set: MediuxSet): Map<string, string>
+{
   const map = new Map<string, string>()
   if (!set.collection) return map
-  for (const f of set.files ?? []) {
+  for (const f of set.files ?? [])
+  {
     const id = f.movie_id?.id
     if (id == null) continue
     const parsed = parseTitleYear(stripArtTypeSuffix(f.title))
@@ -99,7 +106,8 @@ export function memberIdIndex(set: MediuxSet): Map<string, string> {
  * @param title - The file's title string.
  * @returns The season number, or undefined.
  */
-function parseSeasonFromTitle(title?: string | null): number | undefined {
+function parseSeasonFromTitle(title?: string | null): number | undefined
+{
   if (!title) return undefined
   const m = title.match(/\bS(\d{1,3})\s*E\d{1,4}/i)
   return m ? parseInt(m[1]) : undefined
@@ -113,7 +121,8 @@ function parseSeasonFromTitle(title?: string | null): number | undefined {
  * @returns The season number (0 for Specials), or undefined for a show-level
  *   poster ("Show (2026)") so it stays the main poster.
  */
-function parseSeasonPosterFromTitle(title?: string | null): number | undefined {
+function parseSeasonPosterFromTitle(title?: string | null): number | undefined
+{
   if (!title) return undefined
   const m = title.match(/-\s*Season\s+(\d{1,3})\b/i)
   if (m) return parseInt(m[1])
@@ -129,10 +138,12 @@ function parseSeasonPosterFromTitle(title?: string | null): number | undefined {
  * @param set - The owning set, used for the id lookup.
  * @returns The season number, or undefined.
  */
-function seasonNumberFor(file: MediuxFile, set: MediuxSet): number | undefined {
+function seasonNumberFor(file: MediuxFile, set: MediuxSet): number | undefined
+{
   if (file.season_id?.season_number != null) return file.season_id.season_number
   const sid = file.season_id?.id
-  if (sid != null && set.show?.seasons) {
+  if (sid != null && set.show?.seasons)
+  {
     const match = set.show.seasons.find(s => String(s.id) === String(sid))
     if (match?.season_number != null) return match.season_number
   }
@@ -150,7 +161,8 @@ function seasonNumberFor(file: MediuxFile, set: MediuxSet): number | undefined {
  *   their own movie_id (backdrops/title cards) can recover one by title/year.
  * @returns The poster, or null when filtered out or unusable.
  */
-export function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: Fallback, memberIds?: Map<string, string>): PosterInfo | null {
+export function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string>, fb: Fallback, memberIds?: Map<string, string>): PosterInfo | null
+{
   const ft = (file.fileType ?? '').toLowerCase().replace(/[-\s]/g, '_')
   if (!allowed.has(ft)) return null
   if (!file.id) return null
@@ -205,18 +217,26 @@ export function fileToInfo(file: MediuxFile, set: MediuxSet, allowed: Set<string
   let season: PosterInfo['season'] | undefined
   let episode: number | undefined
 
-  if (ft === 'backdrop') {
+  if (ft === 'backdrop')
+  {
     season = 'Backdrop'
-  } else if (ft === 'title_card') {
+  }
+  else if (ft === 'title_card')
+  {
     // Prefer structured refs; fall back to the "S<n> E<n>" tokens in file.title
     // (creator-page title cards have no episode_id, only the title string)
     season  = file.episode_id?.season_id?.season_number ?? seasonNumberFor(file, set) ?? parseSeasonFromTitle(file.title)
     episode = file.episode_id?.episode_number ?? parseEpisodeFromTitle(file.title)
-  } else if (ft === 'poster') {
-    if (file.season_id != null) {
+  }
+  else if (ft === 'poster')
+  {
+    if (file.season_id != null)
+    {
       const sn = seasonNumberFor(file, set)
       if (sn != null) season = sn
-    } else {
+    }
+    else
+    {
       // Creator-page season posters encode the season in the title
       // ("Show (2026) - Season 1"); a bare "Show (2026)" stays the show poster
       const sn = parseSeasonPosterFromTitle(file.title)

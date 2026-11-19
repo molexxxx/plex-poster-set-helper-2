@@ -20,7 +20,8 @@ const avatarCache = new Map<string, { url: string | null; at: number }>()
 const avatarLookups = new Map<string, Promise<string | null>>()
 
 /** Forgets every resolved avatar. */
-export function clearAvatarCache(): void {
+export function clearAvatarCache(): void
+{
   avatarCache.clear()
 }
 
@@ -32,7 +33,8 @@ export function clearAvatarCache(): void {
  * @param username - Uploader name as shown on the site.
  * @returns The guessed CDN URL.
  */
-export function guessedAvatarUrl(username: string): string {
+export function guessedAvatarUrl(username: string): string
+{
   return `https://images.theposterdb.com/prod/public/images/users/${encodeURIComponent(username)}/avatar.webp`
 }
 
@@ -46,7 +48,8 @@ export function guessedAvatarUrl(username: string): string {
  *   silhouette (the app's own icon looks the same and fits the theme), or
  *   undefined when the page has no avatar element at all.
  */
-export function parseProfileAvatar($: cheerio.CheerioAPI): string | null | undefined {
+export function parseProfileAvatar($: cheerio.CheerioAPI): string | null | undefined
+{
   const $img = $('img.tpdb-avatar').first()
   if (!$img.length) return undefined
   const raw =
@@ -146,11 +149,13 @@ export function lookUpAvatars(usernames: string[]): AvatarLookup
  * @param usernames - Uploaders to resolve; duplicates are fine.
  * @returns Lowercased username to avatar URL (null = generic icon).
  */
-export async function resolveAvatars(usernames: string[]): Promise<Map<string, string | null>> {
+export async function resolveAvatars(usernames: string[]): Promise<Map<string, string | null>>
+{
   const lookup = lookUpAvatars(usernames)
   await lookup.done
   const out = new Map<string, string | null>()
-  for (const name of new Set(usernames)) {
+  for (const name of new Set(usernames))
+  {
     const avatar = lookup.avatarOf(name)
     if (avatar !== undefined) out.set(name.toLowerCase(), avatar)
   }

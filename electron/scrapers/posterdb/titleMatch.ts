@@ -23,7 +23,8 @@ const LETTER_FOLD: Record<string, string> = {
  * @returns The comparable form.
  */
 
-export function normalizeTitle(s: string): string {
+export function normalizeTitle(s: string): string
+{
   return s
     .normalize('NFD').replace(/\p{M}/gu, '')   // strip accents: "Amélie" -> "amelie"
     .toLowerCase()
@@ -48,7 +49,8 @@ export interface SearchHit { mediaId: string; title: string; year?: number }
  * @param $ - Cheerio handle over the page HTML.
  * @returns true for a search results page.
  */
-export function isSearchPage($: cheerio.CheerioAPI): boolean {
+export function isSearchPage($: cheerio.CheerioAPI): boolean
+{
   return /\bsearch\b/i.test($('title').first().text())
 }
 
@@ -58,9 +60,11 @@ export function isSearchPage($: cheerio.CheerioAPI): boolean {
  * @param $ - Cheerio handle over the search HTML.
  * @returns Every "/posters/{id}" hit with its title and year.
  */
-export function parseSearchHits($: cheerio.CheerioAPI): SearchHit[] {
+export function parseSearchHits($: cheerio.CheerioAPI): SearchHit[]
+{
   const hits: SearchHit[] = []
-  $('a[href*="/posters/"]').each((_, el) => {
+  $('a[href*="/posters/"]').each((_, el) =>
+  {
     const $a = $(el)
     const mediaId = $a.attr('href')?.match(/\/posters\/(\d+)/)?.[1]
     if (!mediaId) return
@@ -85,13 +89,15 @@ export function parseSearchHits($: cheerio.CheerioAPI): SearchHit[] {
  * @returns Every acceptable normalized form; empty when the title has no
  *   letters or digits to match on.
  */
-export function titleAliases(title: string, type: PosterdbMediaType): string[] {
+export function titleAliases(title: string, type: PosterdbMediaType): string[]
+{
   const forms = [title]
   const bare = stripSuffix(title, /\([^()]*\)\s*$/).trim()
   if (bare && bare !== title) forms.push(bare)
   const normalized = [...new Set(forms.map(normalizeTitle).filter(Boolean))]
   if (type !== 'collection') return normalized
-  return [...new Set(normalized.flatMap(n => {
+  return [...new Set(normalized.flatMap(n =>
+  {
     const base = n.replace(/ collection$/, '')
     return [n, base, `${base} collection`]
   }))]
@@ -106,7 +112,8 @@ export function titleAliases(title: string, type: PosterdbMediaType): string[] {
  * @param year - Plex release year, when known.
  * @returns true when there is no year to disagree with, or the years agree.
  */
-export function yearMatches(hit: SearchHit, year?: number): boolean {
+export function yearMatches(hit: SearchHit, year?: number): boolean
+{
   return year == null || (hit.year != null && Math.abs(hit.year - year) <= 1)
 }
 
@@ -121,7 +128,8 @@ export function yearMatches(hit: SearchHit, year?: number): boolean {
  * @param year - Plex release year, when known.
  * @returns The best hit, or null when nothing matches.
  */
-export function pickSearchHit(hits: SearchHit[], wants: string[], year?: number): SearchHit | null {
+export function pickSearchHit(hits: SearchHit[], wants: string[], year?: number): SearchHit | null
+{
   const rank = (h: SearchHit) => wants.indexOf(normalizeTitle(h.title))
   const exact = hits.filter(h => rank(h) >= 0).sort((a, b) => rank(a) - rank(b))
   if (!exact.length) return null
@@ -144,7 +152,8 @@ export function pickSearchHit(hits: SearchHit[], wants: string[], year?: number)
  * @param year - Plex release year, when known.
  * @returns The matching hits, at most MAX_MEDIA_CANDIDATES; empty when nothing matches.
  */
-export function pickSearchHits(hits: SearchHit[], wants: string[], year?: number): SearchHit[] {
+export function pickSearchHits(hits: SearchHit[], wants: string[], year?: number): SearchHit[]
+{
   const best = pickSearchHit(hits, wants, year)
   if (!best) return []
   const sameYear = (h: SearchHit) => best.year == null ? h.year == null : h.year === best.year

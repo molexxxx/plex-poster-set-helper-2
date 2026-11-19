@@ -1,5 +1,6 @@
 /** A site the scrapers read pages from: its canonical origin and the hosts that serve the same pages. */
-export interface ScrapedSite {
+export interface ScrapedSite
+{
   origin: string
   hosts: readonly string[]
 }
@@ -20,20 +21,27 @@ export const MEDIUX_SITE: ScrapedSite = { origin: 'https://mediux.pro', hosts: [
  * @returns The page on the site's origin, or null for any other host,
  *   credentials in the URL, a non-default port, or a malformed path.
  */
-export function sitePageUrl(url: string, site: ScrapedSite): string | null {
+export function sitePageUrl(url: string, site: ScrapedSite): string | null
+{
   let parsed: URL
-  try {
+  try
+  {
     parsed = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`)
-  } catch {
+  }
+  catch
+  {
     return null
   }
   if (!site.hosts.includes(parsed.hostname.toLowerCase())) return null
   if (parsed.username || parsed.password || parsed.port) return null
 
   let path: string
-  try {
+  try
+  {
     path = parsed.pathname.split('/').filter(Boolean).map(segment => encodeURIComponent(decodeURIComponent(segment))).join('/')
-  } catch {
+  }
+  catch
+  {
     return null
   }
   const trailing = path && parsed.pathname.endsWith('/') ? '/' : ''

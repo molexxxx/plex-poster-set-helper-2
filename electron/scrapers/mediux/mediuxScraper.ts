@@ -48,7 +48,8 @@ const RESUME_SLACK_PAGES = 12
  * @param url - Page URL to check; a missing scheme is treated as https.
  * @returns The page on the site's origin, or null when it is not a MediUX page.
  */
-export function mediuxPageUrl(url: string): string | null {
+export function mediuxPageUrl(url: string): string | null
+{
   return sitePageUrl(url, MEDIUX_SITE)
 }
 
@@ -61,7 +62,8 @@ const SLOW_TITLE_MESSAGE = 'it took more than a minute to answer. A second try i
 const SLOW_PAGE_MESSAGE = 'MediUX took more than a minute to answer. A second try is usually quick, so run it again in a moment.'
 
 /** Scrapes MediUX set, boxset, and creator pages via the server-rendered RSC payload. */
-export class MediuxScraper extends BaseScraper {
+export class MediuxScraper extends BaseScraper
+{
 
   /**
    * Scrapes a MediUX URL into posters, using plain HTTP first and a browser
@@ -71,18 +73,23 @@ export class MediuxScraper extends BaseScraper {
    * @param types - File types to keep; unset keeps the types picked in Settings.
    * @returns Posters of the allowed file types.
    */
-  async scrape(url: string, types?: readonly string[]): Promise<PosterInfo[]> {
+  async scrape(url: string, types?: readonly string[]): Promise<PosterInfo[]>
+  {
     Logger.scrape('MediUX', `Scraping: ${url}`)
     const allowed = new Set<string>(types ?? ConfigService.get().mediuxFilters)
 
     let result: PageSets | null = null
-    try {
+    try
+    {
       result = await this._fetchPage(url)
-    } catch (err) {
+    }
+    catch (err)
+    {
       // MediUX renders the page for the browser just as slowly.
       if (isTimeoutError(err)) throw errorWithCause(SLOW_PAGE_MESSAGE, err)
     }
-    if (result?.sets.length) {
+    if (result?.sets.length)
+    {
       // Boxset pages strip per-file metadata (no movie_id / file titles), so a
       // collection set's posters can't be told apart. Re-fetch each collection
       // set's own /sets/{id} page, which carries the full per-movie metadata.
@@ -91,7 +98,8 @@ export class MediuxScraper extends BaseScraper {
         : result.sets
       return this._emit(sets, allowed, url, result.fallback)
     }
-    if (result?.flight) {
+    if (result?.flight)
+    {
       Logger.warn('MediUX', `No set data found for: ${url}`)
       return []
     }
@@ -110,10 +118,12 @@ export class MediuxScraper extends BaseScraper {
    * @param sets - Sets from a boxset page.
    * @returns The same sets, with collection sets replaced by enriched copies.
    */
-  private async _enrichCollectionSets(sets: MediuxSet[]): Promise<MediuxSet[]> {
+  private async _enrichCollectionSets(sets: MediuxSet[]): Promise<MediuxSet[]>
+  {
     // Each set's /sets/{id} re-fetch is independent, so fan them out with a small
     // concurrency cap instead of one slow round-trip after another.
-    return mapPool(sets, 4, async s => {
+    return mapPool(sets, 4, async s =>
+    {
       if (this._aborted) return s
       const posters = (s.files ?? []).filter(f => (f.fileType ?? '').toLowerCase().includes('poster'))
       // Movie/show browse pages strip per-file movie_id and the set-level
@@ -133,16 +143,20 @@ export class MediuxScraper extends BaseScraper {
         datedMovies.size > 1
       const needsEnrich = looksLikeCollection && posters.length > 1 && !posters.some(f => f.movie_id)
       if (!needsEnrich) return s
-      try {
+      try
+      {
         const full = await this._fetchSets(`https://mediux.pro/sets/${s.id}`)
         const found = full?.sets.find(x => String(x.id) === String(s.id))
         const fullSet = found && keepDownloads(found, s)
-        if (fullSet?.files?.some(f => f.movie_id)) {
+        if (fullSet?.files?.some(f => f.movie_id))
+        {
           Logger.scrape('MediUX', `Enriched collection set ${s.id} (${s.collection?.collection_name}) via /sets/${s.id}`)
           return fullSet
         }
         return fullSet ?? s
-      } catch (err) {
+      }
+      catch (err)
+      {
         Logger.warn('MediUX', `Enrich failed for set ${s.id}: ${err instanceof Error ? err.message : err}`)
         return s
       }
@@ -159,15 +173,19 @@ export class MediuxScraper extends BaseScraper {
    * @param type - Media type of the title.
    * @returns Set summaries, empty when none exist.
    */
-  async browseSets(tmdbId: string, type: 'movie' | 'show'): Promise<PosterSetSummary[]> {
+  async browseSets(tmdbId: string, type: 'movie' | 'show'): Promise<PosterSetSummary[]>
+  {
     const url = `https://mediux.pro/${type === 'movie' ? 'movies' : 'shows'}/${tmdbId}`
     Logger.scrape('MediUX', `Browsing sets: ${url}`)
 
     const allTypes = new Set(['poster', 'backdrop', 'title_card'])
     let result: PageSets | null = null
-    try {
+    try
+    {
       result = await this._fetchPage(url)
-    } catch (err) {
+    }
+    catch (err)
+    {
       if (isTimeoutError(err)) throw errorWithCause(SLOW_TITLE_MESSAGE, err)
     }
     let sets = result?.sets ?? []
@@ -175,21 +193,26 @@ export class MediuxScraper extends BaseScraper {
 
     // A real title page without sets has none to find; only a block or
     // challenge page is worth a browser load.
-    if (!sets.length && !result?.flight) {
+    if (!sets.length && !result?.flight)
+    {
       const { context, page } = await this.newContext()
-      try {
+      try
+      {
         await sleepConfig('initial')
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 })
         await page.waitForSelector('script', { timeout: 5_000 }).catch(() => {})
         await page.waitForTimeout(1500)
         const scripts = await this._readScripts(page)
         sets = setsFromScripts(scripts)
-      } finally {
+      }
+      finally
+      {
         await this.closeContext(context)
       }
     }
 
-    if (!sets?.length) {
+    if (!sets?.length)
+    {
       Logger.warn('MediUX', `No sets found for ${type} ${tmdbId}`)
       return []
     }
@@ -212,11 +235,13 @@ export class MediuxScraper extends BaseScraper {
     collectionTitle: string,
     tmdbCollectionId: string | undefined,
     childTmdbIds: string[],
-  ): Promise<PosterSetSummary[]> {
+  ): Promise<PosterSetSummary[]>
+  {
     const allTypes = new Set(['poster', 'backdrop', 'title_card'])
     const collNorm = normalizeCollectionName(collectionTitle)
 
-    const matchesTitle = (name: string) => {
+    const matchesTitle = (name: string) =>
+    {
       const n = normalizeCollectionName(name)
       return n === collNorm || n.includes(collNorm) || collNorm.includes(n)
     }
@@ -228,18 +253,23 @@ export class MediuxScraper extends BaseScraper {
     const filterSummaries = (raw: MediuxSet[]) =>
       raw
         .map(s => setToSummary(s, allTypes, deriveSetFallback(s)))
-        .filter(s => {
+        .filter(s =>
+        {
           if (!hasCollectionArt(s)) return false
           if (matchesTitle(s.setName)) return true
           return s.posters.some(p => p.isCollection && matchesTitle(p.title))
         })
 
     const rawById = new Map<string, MediuxSet>()
-    const fetchInto = async (url: string, timeoutMs: number) => {
-      try {
+    const fetchInto = async (url: string, timeoutMs: number) =>
+    {
+      try
+      {
         const result = await this._fetchSets(url, timeoutMs)
         for (const s of result?.sets ?? []) rawById.set(String(s.id), s)
-      } catch (err) {
+      }
+      catch (err)
+      {
         Logger.warn('MediUX', `Collection fetch failed for ${url}: ${err instanceof Error ? err.message : err}`)
       }
     }
@@ -248,7 +278,8 @@ export class MediuxScraper extends BaseScraper {
     // after every fetch, only re-fetches /sets/{id} for sets it hasn't enriched
     // yet instead of re-enriching the whole accumulated pile each pass.
     const enrichedById = new Map<string, MediuxSet>()
-    const finalize = async (): Promise<PosterSetSummary[]> => {
+    const finalize = async (): Promise<PosterSetSummary[]> =>
+    {
       const pending = [...rawById.values()].filter(s => !enrichedById.has(String(s.id)))
       for (const s of await this._enrichCollectionSets(pending)) enrichedById.set(String(s.id), s)
       if (!enrichedById.size) return []
@@ -259,10 +290,12 @@ export class MediuxScraper extends BaseScraper {
 
     // TMDB collection pages can be very large (multi-MB); use a longer timeout and
     // skip member-movie scans when this page already yields matches.
-    if (tmdbCollectionId) {
+    if (tmdbCollectionId)
+    {
       await fetchInto(`https://mediux.pro/collections/${tmdbCollectionId}`, 90_000)
       const fromCollection = await finalize()
-      if (fromCollection.length) {
+      if (fromCollection.length)
+      {
         Logger.scrape('MediUX', `Collection browse: ${fromCollection.length} matching set(s) for "${collectionTitle}"`)
         return fromCollection
       }
@@ -270,17 +303,20 @@ export class MediuxScraper extends BaseScraper {
 
     // Fall back to member movies (cap scans — franchise pages are also huge).
     const maxChildScans = tmdbCollectionId ? 2 : 3
-    for (const id of childTmdbIds.slice(0, maxChildScans)) {
+    for (const id of childTmdbIds.slice(0, maxChildScans))
+    {
       if (this._aborted) break
       await fetchInto(`https://mediux.pro/movies/${id}`, 60_000)
       const partial = await finalize()
-      if (partial.length) {
+      if (partial.length)
+      {
         Logger.scrape('MediUX', `Collection browse: ${partial.length} matching set(s) for "${collectionTitle}"`)
         return partial
       }
     }
 
-    if (!rawById.size) {
+    if (!rawById.size)
+    {
       Logger.warn('MediUX', `No raw sets found for collection "${collectionTitle}"`)
       return []
     }
@@ -298,7 +334,8 @@ export class MediuxScraper extends BaseScraper {
    * @returns The sets, ready for the Library Browser.
    * @throws When the link is a creator page or not a page the app reads, or the page has no set data.
    */
-  async linkSets(url: string): Promise<PosterSetSummary[]> {
+  async linkSets(url: string): Promise<PosterSetSummary[]>
+  {
     const titlePage = /\/(movies|shows)\/(\d+)/.exec(url)
     if (titlePage) return this.browseSets(titlePage[2], titlePage[1] === 'movies' ? 'movie' : 'show')
     if (/\/user\//.test(url)) throw new Error('A creator page lists every set they made; open it from the Creators tab, or link one set, a boxset, or a title page here')
@@ -306,9 +343,12 @@ export class MediuxScraper extends BaseScraper {
     if (!set && !/\/boxsets\/\d+/.test(url)) throw new Error('Not a MediUX set, boxset, movie, or show page link')
 
     let result: PageSets
-    try {
+    try
+    {
       result = await this._fetchPage(url)
-    } catch (err) {
+    }
+    catch (err)
+    {
       throw isTimeoutError(err) ? errorWithCause(SLOW_PAGE_MESSAGE, err) : err
     }
     if (!result.sets.length) throw new Error('No set data found at that link')
@@ -335,7 +375,8 @@ export class MediuxScraper extends BaseScraper {
    * @param page - 1-based page; each page is a 24-set window, +12 new per page.
    * @returns The creator's own sets from that page.
    */
-  async browseUserSets(username: string, page = 1): Promise<MediuxUserSet[]> {
+  async browseUserSets(username: string, page = 1): Promise<MediuxUserSet[]>
+  {
     const base = `https://mediux.pro/user/${encodeURIComponent(username)}/sets`
     const url = page > 1 ? `${base}?page=${page}` : base
     // No per-page log here: a full catalog crawl walks hundreds of pages, so the
@@ -350,12 +391,16 @@ export class MediuxScraper extends BaseScraper {
     let sets: MediuxSet[] | null = null
     let flight = false
     let lastError: unknown
-    for (let attempt = 0; attempt < 2 && sets === null; attempt++) {
-      try {
+    for (let attempt = 0; attempt < 2 && sets === null; attempt++)
+    {
+      try
+      {
         const result = await this._fetchSets(url, USER_PAGE_TIMEOUT_MS, true)
         sets = result?.sets ?? []
         flight = !!result?.flight
-      } catch (err) {
+      }
+      catch (err)
+      {
         lastError = err
         if (attempt === 0) await sleep(USER_PAGE_RETRY_MS)
       }
@@ -363,19 +408,24 @@ export class MediuxScraper extends BaseScraper {
 
     // A real page with no sets is past the end of the catalog, and a browser
     // load would find none either.
-    if (!sets?.length && !flight) {
+    if (!sets?.length && !flight)
+    {
       const { context, page: pg } = await this.newContext()
-      try {
+      try
+      {
         await sleepConfig('initial')
         await pg.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 })
         await pg.waitForSelector('script', { timeout: 5_000 }).catch(() => {})
         await pg.waitForTimeout(1500)
         const found = setsFromScripts(await this._readScripts(pg))
         if (found.length) sets = found
-      } finally {
+      }
+      finally
+      {
         await this.closeContext(context)
       }
-      if (sets === null) {
+      if (sets === null)
+      {
         throw new Error(`Could not load page ${page} of @${username}'s sets: ${lastError instanceof Error ? lastError.message : lastError}`)
       }
     }
@@ -387,12 +437,14 @@ export class MediuxScraper extends BaseScraper {
     // The page can include other creators' sets (recommendations) - keep only this
     // creator's own (plus any set lacking a denormalised username, to be safe)
     const target = username.toLowerCase()
-    const owned = sets.filter(s => {
+    const owned = sets.filter(s =>
+    {
       const u = s.user_created?.username?.toLowerCase()
       return !u || u === target
     })
 
-    const out = owned.map(s => {
+    const out = owned.map(s =>
+    {
       const fb = deriveSetFallback(s)
       const summary = setToSummary(s, allTypes, fb)
       return {
@@ -448,7 +500,8 @@ export class MediuxScraper extends BaseScraper {
       startPage?: number
       seen?: ReadonlySet<string>
     } = {},
-  ): Promise<{ sets: MediuxUserSet[]; capped: boolean }> {
+  ): Promise<{ sets: MediuxUserSet[]; capped: boolean }>
+  {
     const batchSize = Math.max(1, opts.batchSize ?? USER_CRAWL_BATCH)
     const maxPages  = Math.max(batchSize, opts.maxPages ?? 400)
     const { signal, onBatch } = opts
@@ -466,7 +519,8 @@ export class MediuxScraper extends BaseScraper {
     // immediately, then ramp up to the full concurrent batch size.
     let start = Math.max(1, opts.startPage ?? 1)
     let curBatch = onBatch ? Math.min(2, batchSize) : batchSize
-    while (start <= maxPages && !aborted()) {
+    while (start <= maxPages && !aborted())
+    {
       const pages: number[] = []
       for (let p = start; p < start + curBatch && p <= maxPages; p++) pages.push(p)
       lastPage = pages[pages.length - 1]
@@ -477,8 +531,10 @@ export class MediuxScraper extends BaseScraper {
 
       const fresh: MediuxUserSet[] = []
       // Merge in page order so the accumulated list stays newest-first.
-      for (const pageSets of batch) {
-        for (const s of pageSets) {
+      for (const pageSets of batch)
+      {
+        for (const s of pageSets)
+        {
           if (seen.has(s.id)) continue
           seen.add(s.id)
           all.push(s)
@@ -488,11 +544,14 @@ export class MediuxScraper extends BaseScraper {
 
       // A full batch with no new ids means we've gone past the catalog's end,
       // unless a resumed crawl is still inside sets it collected before.
-      if (fresh.length === 0) {
+      if (fresh.length === 0)
+      {
         const empty = batch.every(pageSets => pageSets.length === 0)
         if (empty || resumeSlack <= 0) { reachedEnd = true; break }
         resumeSlack -= pages.length
-      } else {
+      }
+      else
+      {
         resumeSlack = 0
       }
 
@@ -529,14 +588,17 @@ export class MediuxScraper extends BaseScraper {
     url: string,
     timeoutMs = 25_000,
     strict = false,
-  ): Promise<PageSets | null> {
+  ): Promise<PageSets | null>
+  {
     const page = mediuxPageUrl(url)
-    if (!page) {
+    if (!page)
+    {
       Logger.warn('MediUX', `Refused to fetch a URL outside mediux.pro: ${url}`)
       if (strict) throw new Error(`Not a MediUX page: ${url}`)
       return null
     }
-    try {
+    try
+    {
       const res = await fetch(page, {
         headers: {
           'User-Agent':      pick(USER_AGENTS),
@@ -550,7 +612,8 @@ export class MediuxScraper extends BaseScraper {
       // MediUX set/boxset pages return HTTP 500 while still streaming the RSC
       // payload with valid data - parse the body regardless of status
       const html = await res.text()
-      if (!html || html.length < 500) {
+      if (!html || html.length < 500)
+      {
         Logger.warn('MediUX', `HTTP ${res.status}, empty/short body for: ${url}`)
         if (strict) throw new Error(`HTTP ${res.status} with an empty page`)
         return null
@@ -567,7 +630,9 @@ export class MediuxScraper extends BaseScraper {
       const sets = setsFromScripts(scripts)
       Logger.scrape('MediUX', `HTTP: extracted ${sets.length} set(s)`)
       return { sets, fallback, flight: hasFlightData(scripts) }
-    } catch (err) {
+    }
+    catch (err)
+    {
       Logger.warn('MediUX', `HTTP fetch failed for ${url}: ${err instanceof Error ? err.message : err}`)
       if (strict) throw err instanceof Error ? err : new Error(String(err))
       return null
@@ -581,27 +646,32 @@ export class MediuxScraper extends BaseScraper {
    * @param allowed - Enabled fileTypes.
    * @returns Posters found, empty on failure.
    */
-  private async _scrapeViaBrowser(url: string, allowed: Set<string>): Promise<PosterInfo[]> {
+  private async _scrapeViaBrowser(url: string, allowed: Set<string>): Promise<PosterInfo[]>
+  {
     const pageUrl = mediuxPageUrl(url)
-    if (!pageUrl) {
+    if (!pageUrl)
+    {
       Logger.warn('MediUX', `Refused to load a URL outside mediux.pro: ${url}`)
       return []
     }
     Logger.scrape('MediUX', `Browser: ${pageUrl}`)
     const { context, page } = await this.newContext()
 
-    try {
+    try
+    {
       await sleepConfig('initial')
       await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 })
       await page.waitForSelector('script', { timeout: 5_000 }).catch(() => {})
       await page.waitForTimeout(1500)
 
-      const ogTitle = page.evaluate((): { title?: string } => {
+      const ogTitle = page.evaluate((): { title?: string } =>
+      {
         const doc = (globalThis as unknown as { document: { querySelector(s: string): { getAttribute(a: string): string | null } | null } }).document
         const c = doc.querySelector('meta[property="og:title"]')?.getAttribute('content')
         return { title: c ?? undefined }
       })
-      const fallback = await withTimeout(ogTitle, SCRIPTS_READ_TIMEOUT_MS, 'the page did not answer').then((r): Fallback => {
+      const fallback = await withTimeout(ogTitle, SCRIPTS_READ_TIMEOUT_MS, 'the page did not answer').then((r): Fallback =>
+      {
         if (!r.title) return {}
         return splitTrailingYear(r.title) ?? { title: r.title }
       }).catch(() => ({} as Fallback))
@@ -616,10 +686,14 @@ export class MediuxScraper extends BaseScraper {
 
       Logger.warn('MediUX', `No set data found for: ${url}`)
       return []
-    } catch (err) {
+    }
+    catch (err)
+    {
       Logger.error('MediUX', `Browser scrape failed: ${err instanceof Error ? err.message : err}`)
       return []
-    } finally {
+    }
+    finally
+    {
       await this.closeContext(context)
     }
   }
@@ -630,7 +704,8 @@ export class MediuxScraper extends BaseScraper {
    * @param page - Loaded page.
    * @returns Non-empty script bodies.
    */
-  private async _readScripts(page: Page): Promise<string[]> {
+  private async _readScripts(page: Page): Promise<string[]>
+  {
     const reading = page.$$eval('script', (els: Array<{ textContent: string | null }>) =>
       els.map(e => e.textContent ?? '').filter(Boolean),
     )
@@ -683,9 +758,11 @@ export class MediuxScraper extends BaseScraper {
    * @param fallback - Page-level title/year fallback.
    * @returns All posters across the sets.
    */
-  private _emit(sets: MediuxSet[], allowed: Set<string>, url: string, fallback: Fallback = {}): PosterInfo[] {
+  private _emit(sets: MediuxSet[], allowed: Set<string>, url: string, fallback: Fallback = {}): PosterInfo[]
+  {
     const out: PosterInfo[] = []
-    for (const set of sets) {
+    for (const set of sets)
+    {
       if (this._aborted) break
       // Per-set title/year handles creator pages where each set is a different
       // title and the page-level og:title is absent
