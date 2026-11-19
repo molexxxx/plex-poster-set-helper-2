@@ -179,3 +179,14 @@ export function mergeLive(history: LogEntry[], live: LogEntry[]): LogEntry[]
   const fresh = live.filter(e => e.ts > last || (e.ts === last && !seen.has(`${e.ts}|${e.level}|${e.message}`)))
   return fresh.length ? [...history, ...fresh] : history
 }
+
+/**
+ * Reads the message of anything thrown.
+ *
+ * @param err - What was caught.
+ * @returns The error's message, or the value as text.
+ */
+export function errorText(err: unknown): string
+{
+  return err instanceof Error ? err.message : String(err)
+}

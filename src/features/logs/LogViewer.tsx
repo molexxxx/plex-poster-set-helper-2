@@ -1,36 +1,19 @@
-import { useCallback, useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import {
-  AlertTriangle, AppWindow, CheckCircle2, ChevronDown, ClipboardList, Copy, Download, FolderOpen, Maximize2, Search, Trash2, X,
-} from 'lucide-react'
-import Segmented from '../../components/ui/Segmented'
-import Select from '../../components/ui/Select'
-import Menu, { type MenuItem } from '../../components/ui/Menu'
+import { useDeferredValue, useRef, useState } from 'react'
+import { AppWindow, ChevronDown, ClipboardList, Download, FolderOpen, Trash2 } from 'lucide-react'
+import type { MenuItem } from '../../components/ui/Menu'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
-import { copyText } from '../../utils/clipboard'
-import { LOG_LEVEL_LABELS, formatBytes, formatLogLine, localDay } from '../../../electron/services/logFormat'
-import type { LogEntry, LogStatus } from '../../../electron/ipc/types'
-import {
-  buildRows, countLabel, dayLabel, emptyText, filterEntries, fullTime, matchesQuery, matchesSeverity, mergeLive, timeOf,
-  type Severity, type ViewEntry,
-} from './logView'
+import { formatBytes } from '../../../electron/services/logFormat'
+import { countLabel, dayLabel, emptyText, type Severity } from './logView'
+import { useLogNotice } from './hooks/useLogNotice'
+import { useLogFeed } from './hooks/useLogFeed'
+import { useLogActions } from './hooks/useLogActions'
+import LogToolbar from './components/LogToolbar'
+import LogLines from './components/LogLines'
+import LogNotice from './components/LogNotice'
+import shared from './components/logShared.module.css'
 import styles from './LogViewer.module.css'
-
-const PAGE = 1000
-const MAX_ROWS = 20000
-const NEAR_BOTTOM = 40
-const NOTICE_MS = 5000
-const NOTICE_LONG_MS = 12000
-
-/** done confirms an action; warn confirms one the user should follow up on; error reports a failure. */
-type NoticeTone = 'done' | 'warn' | 'error'
-
-const SEVERITY_OPTIONS: Array<{ value: Severity; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'warn', label: 'Warnings and errors' },
-  { value: 'error', label: 'Errors' },
-]
 
 interface Props
 {
@@ -40,282 +23,26 @@ interface Props
   onExpand?: () => void
 }
 
-function errorText(err: unknown): string
-{
-  return err instanceof Error ? err.message : String(err)
-}
-
 /**
  * Saved and live log lines with a day picker, a severity filter, search,
  * copying, and file actions. Follows new lines while scrolled to the bottom.
  */
 export default function LogViewer({ mode, onClose, onExpand }: Props)
 {
-  const [entries, setEntries] = useState<ViewEntry[]>([])
-  const [cursor, setCursor] = useState<string | undefined>()
-  const [trimmed, setTrimmed] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [loadingEarlier, setLoadingEarlier] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [reloadNonce, setReloadNonce] = useState(0)
-  const [day, setDay] = useState('latest')
-  const [status, setStatus] = useState<LogStatus | null>(null)
   const [severity, setSeverity] = useState<Severity>('all')
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
-  const [atBottom, setAtBottom] = useState(true)
-  const [newCount, setNewCount] = useState(0)
-  const [copied, setCopied] = useState(false)
-  const [confirmClear, setConfirmClear] = useState(false)
-  const [announcement, setAnnouncement] = useState('')
-  const [notice, setNotice] = useState<{ text: string; tone: NoticeTone } | null>(null)
-  const [isWeb, setIsWeb] = useState(false)
-  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const dayLabelId = useId()
-  const nextId = useRef(1)
-  const scrollRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
-  const atBottomRef = useRef(true)
-  const keepOffset = useRef<number | null>(null)
-  const pendingLive = useRef<LogEntry[] | null>(null)
-  const followRef = useRef(true)
-  const filterRef = useRef<{ severity: Severity; query: string }>({ severity: 'all', query: '' })
-  const countRef = useRef(0)
-
-  const follows = day === 'latest' || day === localDay(new Date())
   const pickDays = mode !== 'drawer'
 
-  useEffect(() =>
-  {
-    followRef.current = follows
-    filterRef.current = { severity, query: deferredQuery }
-    countRef.current = entries.length
-  })
-
-  const announce = useCallback((message: string) =>
-  {
-    setAnnouncement('')
-    setTimeout(() => setAnnouncement(message), 30)
-  }, [])
-
-  const refreshStatus = useCallback(() =>
-  {
-    window.api.log.status().then(setStatus).catch(() => { /* the day picker keeps its last list */ })
-  }, [])
-
-  const notify = useCallback((text: string, tone: NoticeTone = 'done') =>
-  {
-    if (noticeTimer.current) clearTimeout(noticeTimer.current)
-    setNotice({ text, tone })
-    noticeTimer.current = setTimeout(() => setNotice(null), tone === 'done' ? NOTICE_MS : NOTICE_LONG_MS)
-  }, [])
-
-  function dismissNotice()
-  {
-    if (noticeTimer.current) clearTimeout(noticeTimer.current)
-    setNotice(null)
-  }
-
-  useEffect(() => () =>
-  {
-    if (noticeTimer.current) clearTimeout(noticeTimer.current)
-  }, [])
-
-  useEffect(() =>
-  {
-    window.api.app.getEnv().then(env => setIsWeb(!!env.web)).catch(() => { /* assume desktop */ })
-    if (pickDays) refreshStatus()
-  }, [pickDays, refreshStatus])
-
-  useEffect(() =>
-  {
-    let cancelled = false
-    pendingLive.current = []
-    window.api.log.getHistory({ day: day === 'latest' ? undefined : day, limit: PAGE })
-      .then(page =>
-      {
-        if (cancelled) return
-        const merged = mergeLive(page.entries, followRef.current ? pendingLive.current ?? [] : [])
-        atBottomRef.current = true
-        setAtBottom(true)
-        setNewCount(0)
-        setEntries(merged.map(e => ({ ...e, id: nextId.current++ })))
-        setCursor(page.cursor)
-        setTrimmed(false)
-        setError(null)
-      })
-      .catch(err =>
-      {
-        if (!cancelled) setError(errorText(err))
-      })
-      .finally(() =>
-      {
-        if (cancelled) return
-        pendingLive.current = null
-        setLoading(false)
-      })
-    return () => { cancelled = true }
-  }, [day, reloadNonce])
-
-  useEffect(() =>
-  {
-    return window.api.log.onEntry((entry: LogEntry) =>
-    {
-      if (!followRef.current) return
-      if (pendingLive.current)
-      {
-        pendingLive.current.push(entry)
-        return
-      }
-      const row: ViewEntry = { ...entry, id: nextId.current++ }
-      if (countRef.current >= MAX_ROWS) setTrimmed(true)
-      setEntries(prev => prev.length >= MAX_ROWS ? [...prev.slice(prev.length - MAX_ROWS + 1), row] : [...prev, row])
-      const { severity: s, query: q } = filterRef.current
-      if (!atBottomRef.current && matchesSeverity(entry, s) && matchesQuery(entry, q))
-      {
-        setNewCount(c =>
-        {
-          if (c === 0) announce('New log lines below')
-          return c + 1
-        })
-      }
-    })
-  }, [announce])
-
-  const visible = useMemo(() => filterEntries(entries, severity, deferredQuery), [entries, severity, deferredQuery])
-  const rows = useMemo(() => buildRows(visible), [visible])
-
-  useLayoutEffect(() =>
-  {
-    const el = scrollRef.current
-    if (!el) return
-    if (keepOffset.current != null)
-    {
-      el.scrollTop = el.scrollHeight - keepOffset.current
-      keepOffset.current = null
-    }
-    else if (atBottomRef.current)
-    {
-      el.scrollTop = el.scrollHeight
-    }
-  }, [rows, loading])
-
-  function onScroll()
-  {
-    const el = scrollRef.current
-    if (!el) return
-    const near = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM
-    atBottomRef.current = near
-    setAtBottom(near)
-    if (near) setNewCount(0)
-  }
-
-  function scrollToBottom()
-  {
-    const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
-    atBottomRef.current = true
-    setAtBottom(true)
-    setNewCount(0)
-  }
-
-  function reload()
-  {
-    setLoading(true)
-    setReloadNonce(n => n + 1)
-  }
-
-  function pickDay(next: string)
-  {
-    if (next === day) return
-    setLoading(true)
-    setDay(next)
-  }
-
-  async function loadEarlier()
-  {
-    if (trimmed)
-    {
-      reload()
-      return
-    }
-    if (!cursor) return
-    setLoadingEarlier(true)
-    try
-    {
-      const page = await window.api.log.getHistory({ day: day === 'latest' ? undefined : day, cursor, limit: PAGE })
-      const el = scrollRef.current
-      keepOffset.current = el ? el.scrollHeight - el.scrollTop : null
-      setEntries(prev => [...page.entries.map(e => ({ ...e, id: nextId.current++ })), ...prev])
-      setCursor(page.cursor)
-    }
-    catch (err)
-    {
-      notify(`Earlier lines could not be loaded: ${errorText(err)}`, 'error')
-    }
-    finally
-    {
-      setLoadingEarlier(false)
-    }
-  }
-
-  async function copyVisible()
-  {
-    const ok = await copyText(visible.map(formatLogLine).join('\n'))
-    if (!ok)
-    {
-      notify('Copying was blocked by the browser. Select the lines and press Ctrl+C instead.', 'error')
-      return
-    }
-    setCopied(true)
-    announce(`Copied ${countLabel(visible.length, visible.length)}`)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  async function copyDiagnostics()
-  {
-    try
-    {
-      const ok = await copyText(await window.api.log.diagnostics())
-      if (ok) notify('Diagnostics copied. Check them before posting publicly: error lines can include your Plex server address and folder paths.', 'warn')
-      else notify('Copying was blocked by the browser.', 'error')
-    }
-    catch (err)
-    {
-      notify(`Diagnostics could not be read: ${errorText(err)}`, 'error')
-    }
-  }
-
-  async function saveCopy()
-  {
-    try
-    {
-      const res = await window.api.log.exportCopy(day === 'latest' ? undefined : { day })
-      if (res.saved && res.path) notify(`Saved to ${res.path}`)
-    }
-    catch (err)
-    {
-      notify(`The logs could not be saved: ${errorText(err)}`, 'error')
-    }
-  }
-
-  async function clearLogs()
-  {
-    setConfirmClear(false)
-    try
-    {
-      await window.api.log.clear()
-      notify('Logs cleared')
-      if (day !== 'latest') setDay('latest')
-      reload()
-      if (pickDays) refreshStatus()
-    }
-    catch (err)
-    {
-      notify(`The logs could not be cleared: ${errorText(err)}`, 'error')
-    }
-  }
+  const { notice, notify, dismissNotice, announcement, announce } = useLogNotice()
+  const {
+    entries, visible, rows, loading, loadingEarlier, error, trimmed, cursor,
+    day, setDay, pickDay, reload, loadEarlier, scrollRef, onScroll, scrollToBottom, atBottom, newCount,
+  } = useLogFeed(severity, deferredQuery, announce, notify)
+  const {
+    status, isWeb, copied, confirmClear, setConfirmClear, refreshStatus, copyVisible, copyDiagnostics, saveCopy, clearLogs,
+  } = useLogActions({ pickDays, day, setDay, reload, visible, notify, announce })
 
   function onKeyDown(e: React.KeyboardEvent<HTMLElement>)
   {
@@ -368,48 +95,25 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
 
   return (
     <section className={`${styles.viewer} ${styles[mode]}`} aria-label="Logs" onKeyDown={onKeyDown} data-log-viewer>
-      <div className={styles.toolbar}>
-        {mode === 'drawer' && <h2 className={styles.title}>Logs</h2>}
-        {pickDays && (
-          <div className={styles.daySelect}>
-            <span id={dayLabelId} className={styles.srOnly}>Day</span>
-            <Select options={dayOptions} value={day} onChange={pickDay} placeholder="Newest lines" ariaLabelledBy={dayLabelId} />
-          </div>
-        )}
-        <Segmented options={SEVERITY_OPTIONS} value={severity} onChange={setSeverity} ariaLabel="Show" />
-        <label className={styles.search}>
-          <Search size={13} aria-hidden />
-          <input
-            ref={searchRef}
-            type="search"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search logs"
-            aria-label="Search logs"
-            spellCheck={false}
-          />
-        </label>
-        <span className={styles.spacer} />
-        <span className={styles.count} aria-live="off">{loading ? '' : countLabel(visible.length, entries.length)}</span>
-        <div className={styles.actions}>
-          <Button
-            variant="ghost" size="sm"
-            icon={copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
-            onClick={() => void copyVisible()}
-            disabled={!visible.length}
-            title="Copy the lines shown, as plain text"
-          >
-            {copied ? 'Copied' : 'Copy'}
-          </Button>
-          <Menu label="More log actions" items={menuItems} />
-          {onExpand && (
-            <Button variant="ghost" size="sm" icon={<Maximize2 size={13} />} onClick={onExpand} aria-label="Open the full Logs page" title="Open the full Logs page" />
-          )}
-          {onClose && (
-            <Button variant="ghost" size="sm" icon={<X size={14} />} onClick={onClose} aria-label="Close logs" title="Close logs (Esc)" />
-          )}
-        </div>
-      </div>
+      <LogToolbar
+        mode={mode}
+        pickDays={pickDays}
+        dayOptions={dayOptions}
+        day={day}
+        onPickDay={pickDay}
+        severity={severity}
+        onSeverity={setSeverity}
+        query={query}
+        onQuery={setQuery}
+        searchRef={searchRef}
+        countText={loading ? '' : countLabel(visible.length, entries.length)}
+        copied={copied}
+        canCopy={!!visible.length}
+        onCopy={() => void copyVisible()}
+        menuItems={menuItems}
+        onExpand={onExpand}
+        onClose={onClose}
+      />
 
       <div className={styles.bodyWrap}>
         <div
@@ -447,54 +151,12 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
               ) : null}
             </div>
           ) : (
-            rows.map(row =>
-            {
-              if (row.kind === 'day')
-              {
-                return (
-                  <div key={row.key} className={styles.dayRow}>
-                    <span>{dayLabel(row.day)}</span>
-                  </div>
-                )
-              }
-              const e = row.entry
-              if (row.kind === 'start')
-              {
-                return (
-                  <div key={row.key} className={styles.startRow}>
-                    <span className={styles.time} title={fullTime(e.ts)}>{timeOf(e.ts)}</span>
-                    <span className={styles.startText}>{e.message}</span>
-                  </div>
-                )
-              }
-              const meta = e.meta && Object.keys(e.meta).length ? JSON.stringify(e.meta) : ''
-              return (
-                <div key={row.key} className={styles.row} data-level={e.level}>
-                  <span className={styles.time} title={fullTime(e.ts)}>{timeOf(e.ts)}</span>
-                  <span className={styles.level} data-level={e.level}>{LOG_LEVEL_LABELS[e.level] ?? e.level.toUpperCase()}</span>
-                  <span className={styles.module} title={e.module}>{e.module}</span>
-                  <span className={styles.message}>
-                    {e.message}
-                    {meta && <span className={styles.meta}> {meta}</span>}
-                  </span>
-                </div>
-              )
-            })
+            <LogLines rows={rows} />
           )}
         </div>
 
         <div className={styles.noticeSlot} role="status" aria-live="polite">
-          {notice && (
-            <div className={styles.notice} data-tone={notice.tone}>
-              {notice.tone === 'done'
-                ? <CheckCircle2 size={14} aria-hidden />
-                : <AlertTriangle size={14} aria-hidden />}
-              <span className={styles.noticeText}>{notice.text}</span>
-              <button type="button" className={styles.noticeClose} onClick={dismissNotice} aria-label="Dismiss">
-                <X size={12} aria-hidden />
-              </button>
-            </div>
-          )}
+          {notice && <LogNotice notice={notice} onDismiss={dismissNotice} />}
         </div>
 
         {!atBottom && newCount > 0 && (
@@ -514,7 +176,7 @@ export default function LogViewer({ mode, onClose, onExpand }: Props)
         onCancel={() => setConfirmClear(false)}
       />
 
-      <p className={styles.srOnly} aria-live="polite">{announcement}</p>
+      <p className={shared.srOnly} aria-live="polite">{announcement}</p>
     </section>
   )
 }
