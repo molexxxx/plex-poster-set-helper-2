@@ -56,7 +56,8 @@ export default function AccountBlock({ cfg, plex, connected, setConfirm }: Accou
               <Button
                 variant="secondary" size="sm"
                 icon={copiedAuth ? <CheckCircle2 size={13} /> : <Copy size={13} />}
-                onClick={async () => {
+                onClick={async () =>
+                {
                   try { if (!(await copyText(authStatus.authUrl!))) return; setCopiedAuth(true); setTimeout(() => setCopiedAuth(false), 1800) } catch { /* clipboard may be blocked */ }
                 }}
               >

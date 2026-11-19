@@ -9,7 +9,8 @@ export function useAnnouncer()
 {
   const [announcement, setAnnouncement] = useState('')
 
-  const announce = useCallback((message: string) => {
+  const announce = useCallback((message: string) =>
+  {
     setAnnouncement('')
     setTimeout(() => setAnnouncement(message), 30)
   }, [])

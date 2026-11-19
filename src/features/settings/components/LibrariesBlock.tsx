@@ -15,7 +15,8 @@ export default function LibrariesBlock({ cfg, plex }: { cfg: AppConfig; plex: Pl
   const movieLibs = libraries.filter(l => l.type === 'movie')
   const showLibs  = libraries.filter(l => l.type === 'show')
 
-  function libraryRow(lib: Library, kind: 'movie' | 'show') {
+  function libraryRow(lib: Library, kind: 'movie' | 'show')
+  {
     const included = !(cfg!.excludedLibraries ?? []).includes(lib.title)
     const count = libCounts[lib.key]
     const noun = kind === 'movie' ? 'movies' : 'shows'

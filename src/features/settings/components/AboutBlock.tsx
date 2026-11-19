@@ -9,7 +9,8 @@ import Block from './Block'
 import Row from './Row'
 import styles from './AboutBlock.module.css'
 /** Version and update rows. */
-export default function AboutBlock({ env, announce }: { env: AppEnv | null; announce: (message: string) => void }) {
+export default function AboutBlock({ env, announce }: { env: AppEnv | null; announce: (message: string) => void })
+{
   const { status, info, version, mode, lastChecked, check, download, restart } = useUpdater()
   const [checking, setChecking] = useState(false)
   const [upToDate, setUpToDate] = useState(false)
@@ -17,12 +18,14 @@ export default function AboutBlock({ env, announce }: { env: AppEnv | null; anno
   const isDocker = mode === 'docker'
   const devBuild = !!env && !env.packaged && !env.web
 
-  async function onCheck() {
+  async function onCheck()
+  {
     setChecking(true)
     setUpToDate(false)
     const res = await check()
     setChecking(false)
-    if (!res.available) {
+    if (!res.available)
+    {
       setUpToDate(true)
       announce('You have the latest version')
     }

@@ -18,7 +18,8 @@ import AdvancedGroup from './groups/AdvancedGroup'
 import rowStyles from './components/settingsRows.module.css'
 import styles from './SettingsPage.module.css'
 /** Settings: Plex connection, artwork options, app behavior, and advanced maintenance, one group at a time. */
-export default function SettingsPage() {
+export default function SettingsPage()
+{
   const [group, setGroup] = useState<GroupId>('plex')
   const rootRef = useRef<HTMLDivElement>(null)
   const tabRefs = useRef<Record<GroupId, HTMLButtonElement | null>>({ plex: null, artwork: null, app: null, advanced: null })
@@ -35,7 +36,8 @@ export default function SettingsPage() {
   const isWeb = !!env?.web
 
   /** Shows a group and returns the page to its top. */
-  const openGroup = useCallback((id: GroupId) => {
+  const openGroup = useCallback((id: GroupId) =>
+  {
     setGroup(id)
     rootRef.current?.parentElement?.scrollTo({ top: 0 })
   }, [])
@@ -43,15 +45,19 @@ export default function SettingsPage() {
   // Command-palette deep link: open the group that holds the anchor, then bring it into view.
   const settingsAnchor = useNavStore(s => s.settingsAnchor)
   const clearSettings  = useNavStore(s => s.clearSettings)
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!settingsAnchor || !cfg) return
     const id = settingsAnchor
     let reveal: ReturnType<typeof setTimeout> | undefined
-    const open = setTimeout(() => {
+    const open = setTimeout(() =>
+    {
       openGroup(ANCHOR_GROUP[id] ?? 'plex')
-      reveal = setTimeout(() => {
+      reveal = setTimeout(() =>
+      {
         const el = document.querySelector(`[data-anchor="${id}"]`)
-        if (el) {
+        if (el)
+        {
           el.scrollIntoView({ block: 'start' })
           el.classList.add(rowStyles.anchorPulse)
           setTimeout(() => el.classList.remove(rowStyles.anchorPulse), 1600)
@@ -62,7 +68,8 @@ export default function SettingsPage() {
     return () => { clearTimeout(open); if (reveal) clearTimeout(reveal) }
   }, [settingsAnchor, cfg, clearSettings, openGroup])
 
-  function onTabKey(e: React.KeyboardEvent) {
+  function onTabKey(e: React.KeyboardEvent)
+  {
     const i = GROUPS.findIndex(g => g.id === group)
     const next = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? (i + 1) % GROUPS.length
       : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? (i - 1 + GROUPS.length) % GROUPS.length

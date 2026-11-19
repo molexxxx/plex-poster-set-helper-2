@@ -90,14 +90,18 @@ export function useLogsAndCaches(active: boolean, announce: (message: string) =>
     }
   }
 
-  async function clearCaches() {
+  async function clearCaches()
+  {
     setClearingCaches(true)
-    try {
+    try
+    {
       await window.api.app.clearCaches()
       setCachesCleared(true)
       announce('Cached data cleared. It is read again on next use.')
       setTimeout(() => setCachesCleared(false), 4000)
-    } finally {
+    }
+    finally
+    {
       setClearingCaches(false)
     }
   }

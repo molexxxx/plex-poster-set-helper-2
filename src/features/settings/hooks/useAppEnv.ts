@@ -16,18 +16,24 @@ export function useAppEnv()
 
   useEffect(() =>
   {
-    window.api.app.getEnv().then(e => {
+    window.api.app.getEnv().then(e =>
+    {
       setEnv(e)
       if (e.web) return
       window.api.scheduler.getAutoStart().then(setAutoStart).catch(() => { /* keep off */ })
       window.api.scheduler.engineStatus().then(setEngine).catch(() => { /* assume local */ })
     })
   }, [])
-  async function toggleAutoStart(on: boolean) {
+
+  async function toggleAutoStart(on: boolean)
+  {
     setAutoStart(on)
-    try {
+    try
+    {
       await window.api.scheduler.setAutoStart(on)
-    } catch {
+    }
+    catch
+    {
       setAutoStart(!on)
     }
   }

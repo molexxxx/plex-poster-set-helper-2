@@ -37,7 +37,8 @@ export const NAV_DOCK_OPTIONS: Array<{ value: NavDockMode; label: string }> = [
 ]
 
 /** Choices for how many sets are fetched at once. */
-export const WORKER_OPTIONS = Array.from({ length: 8 }, (_, i) => {
+export const WORKER_OPTIONS = Array.from({ length: 8 }, (_, i) =>
+{
   const n = i + 1
   return { value: String(n), label: n === 1 ? '1 (gentlest)' : n === 8 ? '8 (fastest)' : String(n) }
 })

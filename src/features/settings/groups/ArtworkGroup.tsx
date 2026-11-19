@@ -32,7 +32,8 @@ export default function ArtworkGroup({ cfg, setCfg, autosave, libraries, serverC
   return (
     <>
       <Block title="Artwork types" anchor="mediux-filters" description="The types every apply starts with, from MediUX and ThePosterDB. The Library Browser, Creators, and Manual Import can change them while you work, and a scheduled job can keep its own.">
-        {ASSET_TYPES.map(({ type, name, desc }) => {
+        {ASSET_TYPES.map(({ type, name, desc }) =>
+        {
           const on = cfg.mediuxFilters.includes(type)
           return (
             <Row key={type} label={name} description={desc}>
@@ -64,7 +65,8 @@ export default function ArtworkGroup({ cfg, setCfg, autosave, libraries, serverC
         )}
         <div data-anchor="quick-sync">
           <Row label="Schedule and Sync timing" description="The schedule a job gets when you use Schedule on a set or Sync on a creator.">
-            {({ labelId }) => {
+            {({ labelId }) =>
+            {
               const current = cfg.schedulerQuickCron || DEFAULT_QUICK_CRON
               const options = (QUICK_SCHEDULES.includes(current) ? QUICK_SCHEDULES : [...QUICK_SCHEDULES, current])
                 .map(expr => ({ value: expr, label: describeCron(expr) }))

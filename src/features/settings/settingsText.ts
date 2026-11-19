@@ -22,7 +22,8 @@ export function logRetentionText(status: LogStatus | null): string
  * @param agent - Agent id such as com.plexapp.agents.hama.
  * @returns A label like "HAMA", or an empty string.
  */
-export function agentLabel(agent: string | undefined): string {
+export function agentLabel(agent: string | undefined): string
+{
   if (!agent) return ''
   if (agent.includes('hama'))       return 'HAMA agent'
   if (agent.includes('themoviedb')) return 'TMDB agent'
@@ -38,7 +39,8 @@ export function agentLabel(agent: string | undefined): string {
  * @param p - Executable path.
  * @returns The build number, or null when absent.
  */
-export function chromiumBuild(p?: string): string | null {
+export function chromiumBuild(p?: string): string | null
+{
   if (!p) return null
   const m = p.match(/chromium\w*-(\d+)/i)
   return m ? m[1] : null

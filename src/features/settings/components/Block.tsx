@@ -8,7 +8,8 @@ export default function Block({ title, description, action, anchor, children }: 
   /** Deep-link target used by the command palette. */
   anchor?: string
   children: React.ReactNode
-}) {
+})
+{
   const titleId = useId()
   return (
     <section className={styles.block} data-anchor={anchor} aria-labelledby={titleId}>

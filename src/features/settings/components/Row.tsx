@@ -12,7 +12,8 @@ export default function Row({ label, description, stacked, children }: {
   description?: React.ReactNode
   stacked?: boolean
   children?: React.ReactNode | ((ids: { labelId: string; descId: string }) => React.ReactNode)
-}) {
+})
+{
   const labelId = useId()
   const descId = useId()
   const control = typeof children === 'function' ? children({ labelId, descId }) : children

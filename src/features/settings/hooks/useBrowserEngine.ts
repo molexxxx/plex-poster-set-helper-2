@@ -18,7 +18,8 @@ export function useBrowserEngine(announce: (message: string) => void)
   const [engineOpen, setEngineOpen]               = useState(false)
   const installLogRef = useRef<HTMLDivElement>(null)
 
-  const loadBrowserStatus = useCallback(async () => {
+  const loadBrowserStatus = useCallback(async () =>
+  {
     const s = await window.api.browser.getStatus() as BrowserStatus
     setBrowserStatus(s)
     if (!s.installed) setEngineOpen(true)
@@ -28,57 +29,75 @@ export function useBrowserEngine(announce: (message: string) => void)
   {
     loadBrowserStatus()
   }, [loadBrowserStatus])
-  async function copyPath() {
+
+  async function copyPath()
+  {
     if (!browserStatus?.executablePath) return
-    try {
+    try
+    {
       if (!(await copyText(browserStatus.executablePath))) return
       setCopiedPath(true)
       announce('Path copied')
       setTimeout(() => setCopiedPath(false), 1800)
-    } catch { /* clipboard may be blocked */ }
+    }
+    catch { /* clipboard may be blocked */ }
   }
 
-  function appendInstallLog(line: string) {
+  function appendInstallLog(line: string)
+  {
     setInstallLog(prev => [...prev, line])
-    setTimeout(() => {
+    setTimeout(() =>
+    {
       installLogRef.current?.scrollTo({ top: installLogRef.current.scrollHeight })
     }, 30)
   }
 
-  function reportBrowserError(error: BrowserInstallError | undefined) {
+  function reportBrowserError(error: BrowserInstallError | undefined)
+  {
     if (!error) return
     appendInstallLog(`✗ ${error.message}. ${error.hint}`)
     if (error.command) appendInstallLog(`  ${error.command}`)
   }
 
-  async function runBrowserAction(action: () => Promise<BrowserActionResult>) {
+  async function runBrowserAction(action: () => Promise<BrowserActionResult>)
+  {
     setBrowserInstalling(true)
     setInstallLog([])
     const off = window.api.browser.onInstallProgress(appendInstallLog)
-    try {
+    try
+    {
       const result = await action()
-      if (result.ok) {
+      if (result.ok)
+      {
         appendInstallLog('✓ Browser ready')
         announce('Browser engine ready')
-      } else {
+      }
+      else
+      {
         reportBrowserError(result.error)
       }
       setBrowserStatus(result.status)
-    } catch (err) {
+    }
+    catch (err)
+    {
       appendInstallLog(`✗ ${err instanceof Error ? err.message : String(err)}`)
       await loadBrowserStatus()
-    } finally {
+    }
+    finally
+    {
       off()
       setBrowserInstalling(false)
     }
   }
 
-  function installBrowser() {
+  function installBrowser()
+  {
     setEngineOpen(true)
     void runBrowserAction(() => window.api.browser.install({ force: browserStatus?.source === 'managed' }))
   }
 
-  async function cancelBrowserInstall() {
+  async function cancelBrowserInstall()
+  {
     setBrowserStatus(await window.api.browser.cancelInstall())
   }
 

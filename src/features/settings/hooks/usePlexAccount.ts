@@ -39,18 +39,24 @@ export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: 
     const c = await loadConfig()
     if (c.plexServerName) setServerName(c.plexServerName)
   }, [loadConfig])
-  const loadLibraries = useCallback(async () => {
+
+  const loadLibraries = useCallback(async () =>
+  {
     setRefreshLibs(true)
-    try {
+    try
+    {
       const libs = await window.api.plex.getLibraries() as Library[]
       setLibraries(libs)
       if (libs.length > 0) setServerConnected(true)
-    } finally {
+    }
+    finally
+    {
       setRefreshLibs(false)
     }
   }, [])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (!libraries.length) return
     setLibCounts({})
     Promise.all(
@@ -62,14 +68,19 @@ export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: 
     ).then(entries => setLibCounts(Object.fromEntries(entries)))
   }, [libraries])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     reloadConfig()
+
     // Restore state on every mount (handles navigating away and back)
-    window.api.auth.getStatus().then(s => {
+    window.api.auth.getStatus().then(s =>
+    {
       const status = s as PlexAuthStatus
       setAuthStatus(status)
-      if (status.status === 'authorized') {
-        if (status.serverName) {
+      if (status.status === 'authorized')
+      {
+        if (status.serverName)
+        {
           setServerConnected(true)
           setServerName(status.serverName)
         }
@@ -77,20 +88,26 @@ export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: 
       }
     })
 
-    const off = window.api.auth.onStatusChange((s: PlexAuthStatus) => {
+    const off = window.api.auth.onStatusChange((s: PlexAuthStatus) =>
+    {
       setAuthStatus(s)
-      if (s.status === 'authorized') {
+      if (s.status === 'authorized')
+      {
         setSigningIn(false)
         reloadConfig()
-        if (s.serverName) {
+        if (s.serverName)
+        {
           setServerConnected(true)
           setServerName(s.serverName)
           loadLibraries()
-        } else if (s.serverError) {
+        }
+        else if (s.serverError)
+        {
           setTestMsg({ ok: false, msg: s.serverError })
         }
       }
-      if (s.status === 'idle') {
+      if (s.status === 'idle')
+      {
         setLibraries([])
         setServerConnected(false)
         setServerName('')
@@ -100,19 +117,25 @@ export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: 
     })
     return () => { off() }
   }, [reloadConfig, loadLibraries])
-  async function signIn() {
+
+  async function signIn()
+  {
     setSigningIn(true)
     setAuthStatus({ status: 'waiting' })
-    try {
+    try
+    {
       const authUrl = await window.api.auth.signIn()
       if (authUrl) setAuthStatus(prev => prev.status === 'waiting' ? { ...prev, authUrl } : prev)
-    } catch {
+    }
+    catch
+    {
       setSigningIn(false)
       setAuthStatus({ status: 'idle' })
     }
   }
 
-  async function signOut() {
+  async function signOut()
+  {
     await window.api.auth.disconnect()
     setCfg(prev => prev ? { ...prev, plexServerName: '' } : prev)
     setAuthStatus({ status: 'idle' })
@@ -124,13 +147,16 @@ export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: 
     announce('Signed out of Plex')
   }
 
-  async function testConnection() {
+  async function testConnection()
+  {
     if (!cfg) return
     setTesting(true)
     setTestMsg(null)
-    try {
+    try
+    {
       const res = await window.api.plex.connect(cfg.baseUrl, cfg.token) as { success: boolean; serverName?: string; error?: string }
-      if (res.success) {
+      if (res.success)
+      {
         const name = res.serverName ?? ''
         setTestMsg({ ok: true, msg: `Connected to ${name || 'your server'}` })
         setServerConnected(true)
@@ -139,16 +165,21 @@ export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: 
         await window.api.config.set({ baseUrl: cfg.baseUrl, plexServerName: name })
         setCfg(prev => prev ? { ...prev, baseUrl: cfg.baseUrl, plexServerName: name } : prev)
         await loadLibraries()
-      } else {
+      }
+      else
+      {
         setTestMsg({ ok: false, msg: res.error ?? 'Could not reach the server at that address' })
       }
-    } catch (err) {
+    }
+    catch (err)
+    {
       setTestMsg({ ok: false, msg: err instanceof Error ? err.message : String(err) })
     }
     setTesting(false)
   }
 
-  function toggleLibrary(title: string, include: boolean) {
+  function toggleLibrary(title: string, include: boolean)
+  {
     if (!cfg) return
     const current = cfg.excludedLibraries ?? []
     autosave('excludedLibraries', include ? current.filter(t => t !== title) : [...current, title])
