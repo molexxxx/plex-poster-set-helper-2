@@ -1,16 +1,18 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { AppConfig } from '../../../../electron/ipc/types'
 
 /**
- * The config as the Settings page shows it, saved one field at a time.
+ * The config as the Settings page shows it, saved one field at a time. Reads
+ * it on mount and again whenever `loadConfig` is called.
  *
- * @returns The config (null until `loadConfig` runs), its setter, `autosave`,
- *   `loadConfig`, which resolves to the config it read, and the saved TMDB key
- *   with `saveTmdbKey`.
+ * @returns The config (null until read), its setter, `autosave`, `loadConfig`,
+ *   the config as last read (`loaded`, which edits leave alone), and the saved
+ *   TMDB key with `saveTmdbKey`.
  */
 export function useSettingsConfig()
 {
   const [cfg, setCfg] = useState<AppConfig | null>(null)
+  const [loaded, setLoaded] = useState<AppConfig | null>(null)
   const [savedTmdbKey, setSavedTmdbKey] = useState('')
 
   function autosave<K extends keyof AppConfig>(key: K, value: AppConfig[K])
@@ -23,9 +25,14 @@ export function useSettingsConfig()
   {
     const c = await window.api.config.get() as AppConfig
     setCfg(c)
+    setLoaded(c)
     setSavedTmdbKey((c.tmdbApiKey ?? '').trim())
-    return c
   }, [])
+
+  useEffect(() =>
+  {
+    loadConfig()
+  }, [loadConfig])
 
   function saveTmdbKey(value: string)
   {
@@ -34,7 +41,7 @@ export function useSettingsConfig()
     setSavedTmdbKey(key)
   }
 
-  return { cfg, setCfg, autosave, loadConfig, savedTmdbKey, saveTmdbKey }
+  return { cfg, setCfg, autosave, loadConfig, loaded, savedTmdbKey, saveTmdbKey }
 }
 
 /** The config state and actions `useSettingsConfig` returns. */

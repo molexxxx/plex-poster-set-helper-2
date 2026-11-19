@@ -8,17 +8,19 @@ interface PlexAccountOptions
   setCfg: SettingsConfig['setCfg']
   autosave: SettingsConfig['autosave']
   loadConfig: SettingsConfig['loadConfig']
+  /** The config as last read; its saved server name is adopted on every read. */
+  loaded: SettingsConfig['loaded']
   announce: (message: string) => void
 }
 
 /**
- * The Plex sign-in, the server connection, and the server's libraries. Loads
- * the config and restores the sign-in state on mount, then follows sign-in
- * changes made anywhere in the app.
+ * The Plex sign-in, the server connection, and the server's libraries.
+ * Restores the sign-in state on mount, follows sign-in changes made anywhere
+ * in the app, and takes the saved server name from each config read.
  *
  * @returns Sign-in and server state, the libraries with their item counts, and the actions on them.
  */
-export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: PlexAccountOptions)
+export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, loaded, announce }: PlexAccountOptions)
 {
   const [authStatus, setAuthStatus] = useState<PlexAuthStatus>({ status: 'idle' })
   const [signingIn, setSigningIn]   = useState(false)
@@ -34,11 +36,13 @@ export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: 
   const [refreshingLibs, setRefreshLibs] = useState(false)
   const [libCounts, setLibCounts]        = useState<Record<string, number>>({})
 
-  const reloadConfig = useCallback(async () =>
+  // Adjusted during render so the name lands in the same commit as the config it was read with.
+  const [adopted, setAdopted] = useState<AppConfig | null>(null)
+  if (loaded !== adopted)
   {
-    const c = await loadConfig()
-    if (c.plexServerName) setServerName(c.plexServerName)
-  }, [loadConfig])
+    setAdopted(loaded)
+    if (loaded?.plexServerName) setServerName(loaded.plexServerName)
+  }
 
   const loadLibraries = useCallback(async () =>
   {
@@ -70,8 +74,6 @@ export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: 
 
   useEffect(() =>
   {
-    reloadConfig()
-
     // Restore state on every mount (handles navigating away and back)
     window.api.auth.getStatus().then(s =>
     {
@@ -94,7 +96,7 @@ export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: 
       if (s.status === 'authorized')
       {
         setSigningIn(false)
-        reloadConfig()
+        loadConfig()
         if (s.serverName)
         {
           setServerConnected(true)
@@ -116,7 +118,7 @@ export function usePlexAccount({ cfg, setCfg, autosave, loadConfig, announce }: 
       }
     })
     return () => { off() }
-  }, [reloadConfig, loadLibraries])
+  }, [loadConfig, loadLibraries])
 
   async function signIn()
   {
