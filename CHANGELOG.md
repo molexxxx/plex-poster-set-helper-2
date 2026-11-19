@@ -19,6 +19,12 @@ The web UI's sign-in did not keep anyone out. Once you had signed in, any browse
 
 **If port 3939 was ever reachable from outside your home network,** through port forwarding or a reverse proxy, treat the token as exposed. Plex tokens don't expire, so this update cannot cancel one that was already copied. Update first and sign in once, so the app records which account owns it. Then remove **Plex Poster Set Helper 2** under **Authorized Devices** in your Plex account settings and sign in again. If you also use the desktop app and can't tell the entries apart, removing both is fine; the desktop app will ask you to sign in again.
 
+### Fixes
+- **Run later** on the job the Scheduler shows when it opens keeps that job in view. The detail pane used to switch to whichever job had moved to the top.
+
+### Under the hood
+The Library, Creators, Settings, and Scheduler screens were reorganized into smaller components with no change in behavior.
+
 ## What's new in v2.17.1
 
 ### Servers with more than one address
