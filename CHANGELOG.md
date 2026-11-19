@@ -4,6 +4,30 @@ Release notes for Plex Poster Set Helper 2. The Build & Release workflow reads t
 section whose heading matches the pushed tag and uses it as the GitHub release body,
 so keep each version under its own `## What's new in vX.Y.Z` heading.
 
+## What's new in v2.17.3
+
+### MediUX searches stop failing and hanging
+MediUX takes 20 to 40 seconds to build the page for a title nobody has opened in a while. The app gave up after 25 seconds, logged "MediUX HTTP fetch failed: The operation was aborted due to timeout", and then loaded the page again in a hidden browser, which is slower still. Those titles showed no MediUX sets, and when the hidden browser got stuck, the sets panel stayed on "Still searching" for good.
+
+- The app now waits up to a minute for a MediUX page and asks once more when there is no answer. MediUX keeps the page it built, so the second try is usually quick.
+- A title MediUX has no sets for no longer gets a second load in the hidden browser.
+- When MediUX is still searching after 10 seconds, the sets panel says it can take up to a minute for a title it has not served lately.
+- If MediUX never answers, the panel says so and suggests **Refresh** instead of searching on.
+- Scraping a MediUX link in **Manual Import**, or linking one to a title, gets the same longer wait and second try.
+- A creator's catalog finishes sooner: the empty pages past its end no longer load again in the hidden browser.
+
+### ThePosterDB results show sooner
+ThePosterDB sets no longer wait on uploader avatars. A slow profile page used to hold back the whole list. Now the sets show at most 2 seconds after they are found, and an avatar that was still loading shows the next time the title's sets are loaded.
+
+### Both sites
+- A site search gives up after 3 minutes, so the sets panel no longer stays on "Still searching".
+- Opening a title again while its search is still running joins that search instead of starting a second one.
+- Starting the hidden browser, opening and closing its pages, and reading MediUX pages in it now have time limits.
+- Errors read plainly, such as "the page did not load within 45 seconds", instead of including the hidden browser's internal log.
+
+### Under the hood
+The MediUX and ThePosterDB scrapers were split into smaller files with no change in behavior.
+
 ## What's new in v2.17.2
 
 ### Security: the Docker web UI requires your Plex account
