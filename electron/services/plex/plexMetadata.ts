@@ -12,10 +12,12 @@ import type { PlexItem } from '../../ipc/types'
 export function extractGuids(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   m: any,
-): { tmdbId?: string; tvdbId?: string; imdbId?: string; anidbId?: string } {
+): { tmdbId?: string; tvdbId?: string; imdbId?: string; anidbId?: string }
+{
   const out: { tmdbId?: string; tvdbId?: string; imdbId?: string; anidbId?: string } = {}
 
-  const assign = (raw: string) => {
+  const assign = (raw: string) =>
+  {
     const s = raw.toLowerCase()
     let mm: RegExpMatchArray | null
     if ((mm = s.match(/tmdb:\/\/(\d+)/)) || (mm = s.match(/themoviedb:\/\/(\d+)/))) out.tmdbId ??= mm[1]
@@ -71,7 +73,8 @@ export function photoSize(value: number, fallback: number): number
  * @param s - Title to normalise (assumed already trimmed).
  * @returns The title without a trailing whitespace + "Collection" suffix.
  */
-export function stripCollectionSuffix(s: string): string {
+export function stripCollectionSuffix(s: string): string
+{
   if (!s.toLowerCase().endsWith('collection')) return s
   const head = s.slice(0, s.length - 'collection'.length)
   return /\s$/.test(head) ? head.trimEnd() : s
@@ -86,7 +89,8 @@ export function stripCollectionSuffix(s: string): string {
  * @returns The normalised item.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapMetadata(m: any, libraryTitle: string, libraryType: 'movie' | 'show'): PlexItem {
+export function mapMetadata(m: any, libraryTitle: string, libraryType: 'movie' | 'show'): PlexItem
+{
   return {
     key: m.ratingKey as string,
     title: m.title as string,
@@ -109,7 +113,8 @@ export function mapMetadata(m: any, libraryTitle: string, libraryType: 'movie' |
  * @param title - Full title.
  * @returns A shorter query, or null when no useful reduction exists.
  */
-export function broadenTitle(title: string): string | null {
+export function broadenTitle(title: string): string | null
+{
   const t = title.trim()
   const colon = t.indexOf(':')
   if (colon > 1) return t.slice(0, colon).trim()

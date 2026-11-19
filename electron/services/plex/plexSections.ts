@@ -18,7 +18,8 @@ const PLEX_SORT_FIELD: Record<LibrarySort, string> = {
 }
 
 /** Builds a Plex `sort=field:dir` param from the Library Browser sort choice. */
-function plexSortParam(sort?: LibrarySort, dir?: SortDir): string {
+function plexSortParam(sort?: LibrarySort, dir?: SortDir): string
+{
   const field = PLEX_SORT_FIELD[sort ?? 'title'] ?? 'titleSort'
   return `${field}:${dir ?? 'asc'}`
 }
@@ -51,7 +52,8 @@ const EPISODE_PAGE_CAP = 40
  * @param fresh - Bypass the cache.
  * @returns Light items for the whole section.
  */
-async function readSectionLight(baseUrl: string, token: string, sectionKey: string, libType: 'movie' | 'show', fresh?: boolean): Promise<LightItem[]> {
+async function readSectionLight(baseUrl: string, token: string, sectionKey: string, libType: 'movie' | 'show', fresh?: boolean): Promise<LightItem[]>
+{
   const cached = _lightSections.get(sectionKey)
   if (!fresh && cached && Date.now() - cached.at < FILTER_CACHE_MS) return cached.items
   const type = libType === 'movie' ? 1 : 2
@@ -71,21 +73,28 @@ async function readSectionLight(baseUrl: string, token: string, sectionKey: stri
  * @param sectionKey - Library section the items must belong to.
  * @returns Light items in no particular order.
  */
-async function readItemsLight(baseUrl: string, token: string, keys: string[], sectionKey: string): Promise<LightItem[]> {
+async function readItemsLight(baseUrl: string, token: string, keys: string[], sectionKey: string): Promise<LightItem[]>
+{
   const out: LightItem[] = []
-  const read = async (batch: string[]): Promise<unknown[]> => {
+  const read = async (batch: string[]): Promise<unknown[]> =>
+  {
     const data = await plexFetch(baseUrl, token, `/library/metadata/${batch.join(',')}?${LIGHT_QUERY}`) as { MediaContainer?: { Metadata?: unknown[] } }
     return data?.MediaContainer?.Metadata ?? []
   }
-  for (let i = 0; i < keys.length; i += KEY_BATCH) {
+  for (let i = 0; i < keys.length; i += KEY_BATCH)
+  {
     const batch = keys.slice(i, i + KEY_BATCH)
     let nodes: unknown[]
-    try {
+    try
+    {
       nodes = await read(batch)
-    } catch {
+    }
+    catch
+    {
       // A key Plex has since deleted can fail the whole batch; read the rest singly.
       nodes = []
-      for (const key of batch) {
+      for (const key of batch)
+      {
         try { nodes.push(...await read([key])) } catch { /* gone */ }
       }
     }
@@ -105,19 +114,22 @@ async function readItemsLight(baseUrl: string, token: string, keys: string[], se
  * @param fresh - Bypass the cache.
  * @returns Rating keys of shows still airing.
  */
-async function readRecentShowKeys(baseUrl: string, token: string, sectionKey: string, fresh?: boolean): Promise<Set<string>> {
+async function readRecentShowKeys(baseUrl: string, token: string, sectionKey: string, fresh?: boolean): Promise<Set<string>>
+{
   const cached = _recentShows.get(sectionKey)
   if (!fresh && cached && Date.now() - cached.at < FILTER_CACHE_MS) return cached.keys
   const since = new Date(Date.now() - AIRING_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10)
   const keys = new Set<string>()
-  for (let page = 0; page < EPISODE_PAGE_CAP; page++) {
+  for (let page = 0; page < EPISODE_PAGE_CAP; page++)
+  {
     const data = await plexFetch(
       baseUrl, token,
       `/library/sections/${sectionKey}/all?type=4&sort=originallyAvailableAt:desc&X-Plex-Container-Start=${page * EPISODE_PAGE}&X-Plex-Container-Size=${EPISODE_PAGE}&${LIGHT_QUERY}`,
     ) as { MediaContainer?: { Metadata?: Array<{ grandparentRatingKey?: string | number; originallyAvailableAt?: string }> } }
     const episodes = data?.MediaContainer?.Metadata ?? []
     let passedWindow = false
-    for (const ep of episodes) {
+    for (const ep of episodes)
+    {
       if (!ep.originallyAvailableAt) continue
       if (ep.originallyAvailableAt < since) { passedWindow = true; break }
       if (ep.grandparentRatingKey != null) keys.add(String(ep.grandparentRatingKey))
@@ -138,14 +150,18 @@ async function readRecentShowKeys(baseUrl: string, token: string, sectionKey: st
  * @param mapItems - Converts raw metadata to library items.
  * @returns Library items in page order.
  */
-async function hydrateItems(baseUrl: string, token: string, page: LightItem[], mapItems: (metadata: unknown[]) => LibraryItem[]): Promise<LibraryItem[]> {
+async function hydrateItems(baseUrl: string, token: string, page: LightItem[], mapItems: (metadata: unknown[]) => LibraryItem[]): Promise<LibraryItem[]>
+{
   if (!page.length) return []
   const fallback = (it: LightItem): LibraryItem => ({ key: it.key, title: it.title, year: it.year, type: 'show', thumb: thumbUrl(baseUrl, token, it.thumb) })
-  try {
+  try
+  {
     const data = await plexFetch(baseUrl, token, `/library/metadata/${page.map(it => it.key).join(',')}?includeGuids=1`) as { MediaContainer?: { Metadata?: unknown[] } }
     const full = new Map(mapItems(data?.MediaContainer?.Metadata ?? []).map(it => [it.key, it]))
     return page.map(it => full.get(it.key) ?? fallback(it))
-  } catch {
+  }
+  catch
+  {
     return page.map(fallback)
   }
 }
@@ -153,7 +169,8 @@ async function hydrateItems(baseUrl: string, token: string, page: LightItem[], m
 /** The Library Browser grid: reading a section with its filters, and the caches behind it. */
 export const plexSections = {
   /** Drops the cached light section reads and recent-episode scans used by grid filters. */
-  clearGridCaches(): void {
+  clearGridCaches(): void
+  {
     _lightSections.clear()
     _recentShows.clear()
   },
@@ -164,7 +181,8 @@ export const plexSections = {
    * @param req - Section key, offset/limit, and optional title filter.
    * @returns The page of items plus the section's total count.
    */
-  async getSectionItems(req: SectionItemsReq): Promise<SectionItemsRes> {
+  async getSectionItems(req: SectionItemsReq): Promise<SectionItemsRes>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return { items: [], total: 0 }
     const { baseUrl, token, libraries } = conn
@@ -174,7 +192,8 @@ export const plexSections = {
     const libType = lib.type as 'movie' | 'show'
     const mapItems = (metadata: unknown[]): LibraryItem[] =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      metadata.map((m: any) => {
+      metadata.map((m: any) =>
+      {
         const guids = extractGuids(m)
         const thumbPath = m.thumb as string | undefined
         const thumb = thumbUrl(baseUrl, token, thumbPath)
@@ -189,7 +208,8 @@ export const plexSections = {
       })
 
     const status = libType === 'show' ? req.status : undefined
-    if (req.artFilter || status) {
+    if (req.artFilter || status)
+    {
       // Plex knows nothing about applied history or series status, so the
       // candidates are read in a light form, filtered and sorted here, and only
       // the page on screen is read in full.
@@ -200,7 +220,8 @@ export const plexSections = {
         ? await readItemsLight(baseUrl, token, historyKeysFor(req.artFilter, byItem, coverage), lib.key)
         : await readSectionLight(baseUrl, token, lib.key, libType, req.fresh)
       let showStatus: Map<string, ShowStatus> | undefined
-      if (status) {
+      if (status)
+      {
         const recent = await readRecentShowKeys(baseUrl, token, lib.key, req.fresh)
         showStatus = await ShowStatusService.resolve(pool, {
           resolveTmdbId: show => plexIds.resolveTmdbId({

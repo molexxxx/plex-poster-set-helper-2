@@ -4,7 +4,8 @@ import { describeNetworkError, findServer } from '../plexConnections'
 import type { ConnectReq, ConnectRes, Library, LibrarySection } from '../../ipc/types'
 import { PlexHttpError, plexFetch, hostOf } from './plexHttp'
 
-interface PlexConnection {
+interface PlexConnection
+{
   baseUrl: string
   token: string
   serverName: string
@@ -60,7 +61,8 @@ export const plexConnection = {
    * @param token - Plex auth token.
    * @returns The filtered library list.
    */
-  async fetchLibraries(baseUrl: string, token: string): Promise<Library[]> {
+  async fetchLibraries(baseUrl: string, token: string): Promise<Library[]>
+  {
     const data = await plexFetch(baseUrl, token, '/library/sections') as {
       MediaContainer?: { Directory?: Array<{ key: string; title: string; type: string; agent?: string }> }
     }
@@ -76,7 +78,8 @@ export const plexConnection = {
    * @param type - Section media type.
    * @returns The total item count, or 0 when not connected.
    */
-  async getLibraryCount(key: string, type: 'movie' | 'show'): Promise<number> {
+  async getLibraryCount(key: string, type: 'movie' | 'show'): Promise<number>
+  {
     if (!_conn) return 0
     const { baseUrl, token } = _conn
     const plexType = type === 'movie' ? 1 : 2
@@ -93,7 +96,8 @@ export const plexConnection = {
    *
    * @returns Sections available to the library browser.
    */
-  async getSections(): Promise<LibrarySection[]> {
+  async getSections(): Promise<LibrarySection[]>
+  {
     if (!_conn) return []
     const excluded = ConfigService.get().excludedLibraries ?? []
     return _conn.libraries

@@ -26,7 +26,8 @@ export async function plexFetch(
   token: string,
   path: string,
   options?: RequestInit,
-): Promise<unknown> {
+): Promise<unknown>
+{
   const url = `${baseUrl.replace(/\/$/, '')}${path}`
   const res = await fetch(url, {
     ...options,

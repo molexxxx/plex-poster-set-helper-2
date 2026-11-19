@@ -13,7 +13,8 @@ export const plexCollections = {
    * @returns Collection items in the requested order (Plex collections only
    *   meaningfully support title and date-added; other sorts fall back to title).
    */
-  async listCollections(req: { offset: number; limit: number; search?: string; sort?: LibrarySort; sortDir?: SortDir }): Promise<SectionItemsRes> {
+  async listCollections(req: { offset: number; limit: number; search?: string; sort?: LibrarySort; sortDir?: SortDir }): Promise<SectionItemsRes>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return { items: [], total: 0 }
     const { baseUrl, token, libraries } = conn
@@ -21,14 +22,17 @@ export const plexCollections = {
     const all: LibraryItem[] = []
     const addedAt = new Map<LibraryItem, number>()
 
-    for (const lib of libraries) {
+    for (const lib of libraries)
+    {
       if (lib.type !== 'movie' || excluded.includes(lib.title)) continue
-      try {
+      try
+      {
         const data = await plexFetch(
           baseUrl, token,
           `/library/sections/${lib.key}/collections`,
         ) as { MediaContainer?: { Metadata?: Array<{ ratingKey?: string; title?: string; childCount?: number; thumb?: string; addedAt?: number }> } }
-        for (const c of data?.MediaContainer?.Metadata ?? []) {
+        for (const c of data?.MediaContainer?.Metadata ?? [])
+        {
           if (!c.ratingKey || !c.title) continue
           const item: LibraryItem = {
             key: c.ratingKey,
@@ -41,15 +45,20 @@ export const plexCollections = {
           addedAt.set(item, typeof c.addedAt === 'number' ? c.addedAt : 0)
           all.push(item)
         }
-      } catch {
+      }
+      catch
+      {
         // section may not support collections
       }
     }
 
     const mul = req.sortDir === 'desc' ? -1 : 1
-    if (req.sort === 'recentlyAdded') {
+    if (req.sort === 'recentlyAdded')
+    {
       all.sort((a, b) => mul * ((addedAt.get(a) ?? 0) - (addedAt.get(b) ?? 0)))
-    } else {
+    }
+    else
+    {
       all.sort((a, b) => mul * a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
     }
     const q = req.search?.trim().toLowerCase()
@@ -65,13 +74,15 @@ export const plexCollections = {
     title: string
     tmdbCollectionId?: string
     children: LibraryItem[]
-  }> {
+  }>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return { title: '', children: [] }
     const { baseUrl, token } = conn
     let title = ''
     let tmdbCollectionId: string | undefined
-    try {
+    try
+    {
       const data = await plexFetch(
         baseUrl, token,
         `/library/metadata/${collectionKey}?includeGuids=1`,
@@ -81,12 +92,15 @@ export const plexCollections = {
       const meta = data?.MediaContainer?.Metadata?.[0]
       title = meta?.title ?? ''
       const guidSources = [meta?.guid, ...(meta?.Guid ?? []).map(g => g.id)]
-      for (const raw of guidSources) {
+      for (const raw of guidSources)
+      {
         if (!raw) continue
         const m = String(raw).match(/collection[/:](\d+)/i)
         if (m) { tmdbCollectionId = m[1]; break }
       }
-    } catch {
+    }
+    catch
+    {
       // metadata fetch failed - still try children
     }
     const children = await plexCollections.getCollectionChildren(collectionKey)
@@ -99,11 +113,13 @@ export const plexCollections = {
    * @param collectionKey - Collection ratingKey.
    * @returns Member movies with external ids.
    */
-  async getCollectionChildren(collectionKey: string): Promise<LibraryItem[]> {
+  async getCollectionChildren(collectionKey: string): Promise<LibraryItem[]>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return []
     const { baseUrl, token } = conn
-    try {
+    try
+    {
       const data = await plexFetch(
         baseUrl, token,
         `/library/metadata/${collectionKey}/children?includeGuids=1`,
@@ -119,7 +135,9 @@ export const plexCollections = {
         thumb: thumbUrl(baseUrl, token, m.thumb as string | undefined),
         ...extractGuids(m),
       }))
-    } catch {
+    }
+    catch
+    {
       return []
     }
   },

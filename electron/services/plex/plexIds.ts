@@ -16,10 +16,12 @@ export const plexIds = {
    * Looks up a TMDB collection id from a member movie (Plex collections often
    * only carry a Plex uuid guid, not tmdb://collection/…).
    */
-  async resolveTmdbCollectionId(movieTmdbId: string): Promise<string | null> {
+  async resolveTmdbCollectionId(movieTmdbId: string): Promise<string | null>
+  {
     const key = ConfigService.get().tmdbApiKey?.trim()
     if (!key) return null
-    try {
+    try
+    {
       const res = await fetch(
         `https://api.themoviedb.org/3/movie/${movieTmdbId}?api_key=${key}`,
         { signal: AbortSignal.timeout(15_000) },
@@ -28,13 +30,16 @@ export const plexIds = {
       const body = await res.json() as { belongs_to_collection?: { id?: number } }
       const id = body.belongs_to_collection?.id
       return id ? String(id) : null
-    } catch (err) {
+    }
+    catch (err)
+    {
       Logger.warn('Plex', `TMDB collection resolve failed: ${err instanceof Error ? err.message : err}`)
       return null
     }
   },
 
-  async resolveTmdbId(item: LibraryItem): Promise<string | null> {
+  async resolveTmdbId(item: LibraryItem): Promise<string | null>
+  {
     if (item.tmdbId) return item.tmdbId
 
     let { tvdbId, imdbId } = item
@@ -42,7 +47,8 @@ export const plexIds = {
     // HAMA anime carry an AniDB id that TMDB's /find can't resolve. Map it via
     // the Fribb dataset: most entries yield a direct TMDB id (no key needed),
     // and the rest backfill a tvdb/imdb id for the /find path below.
-    if (item.anidbId) {
+    if (item.anidbId)
+    {
       const mapped = await AnimeMappingService.resolve(item.anidbId)
       if (mapped?.tmdbId) return mapped.tmdbId
       tvdbId ??= mapped?.tvdbId
@@ -57,7 +63,8 @@ export const plexIds = {
       : imdbId ? { source: 'imdb_id', value: imdbId } : null
     if (!external) return null
 
-    try {
+    try
+    {
       const url = `https://api.themoviedb.org/3/find/${external.value}?external_source=${external.source}&api_key=${key}`
       const res = await fetch(url, { signal: AbortSignal.timeout(15_000) })
       if (!res.ok) return null
@@ -67,7 +74,9 @@ export const plexIds = {
       }
       const hit = item.type === 'movie' ? body.movie_results?.[0] : body.tv_results?.[0]
       return hit ? String(hit.id) : null
-    } catch (err) {
+    }
+    catch (err)
+    {
       Logger.warn('Plex', `TMDB resolve failed: ${err instanceof Error ? err.message : err}`)
       return null
     }

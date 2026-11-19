@@ -17,7 +17,8 @@ export const plexSearch = {
    * @param req - Title, optional year, library include-list, and media type.
    * @returns The best match, or null when nothing qualifies.
    */
-  async findInLibrary(req: FindItemReq): Promise<PlexItem | null> {
+  async findInLibrary(req: FindItemReq): Promise<PlexItem | null>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return null
     const { baseUrl, token, libraries: allLibs } = conn
@@ -28,7 +29,8 @@ export const plexSearch = {
     // Libraries eligible for this lookup: an explicit include-list wins, else
     // exclusions apply, and the requested media type is honoured so a TV show set
     // never matches a same-named movie ("Sugar" 2024 show vs "Sugar" 2008 movie).
-    const searchLibs = allLibs.filter(lib => {
+    const searchLibs = allLibs.filter(lib =>
+    {
       if (filterNames.length && !filterNames.includes(lib.title)) return false
       if (!filterNames.length && excluded.includes(lib.title)) return false
       if (mediaType && lib.type !== mediaType) return false
@@ -36,19 +38,25 @@ export const plexSearch = {
     })
 
     // Runs Plex's relevance search for one query across every eligible library.
-    const gather = async (query: string): Promise<PlexItem[]> => {
+    const gather = async (query: string): Promise<PlexItem[]> =>
+    {
       const found: PlexItem[] = []
-      for (const lib of searchLibs) {
+      for (const lib of searchLibs)
+      {
         const type = lib.type === 'movie' ? 1 : 2
-        try {
+        try
+        {
           const data = await plexFetch(
             baseUrl, token,
             `/library/sections/${lib.key}/search?query=${encodeURIComponent(query)}&type=${type}&limit=20&includeGuids=1`,
           ) as { MediaContainer?: { Metadata?: unknown[] } }
-          for (const m of data?.MediaContainer?.Metadata ?? []) {
+          for (const m of data?.MediaContainer?.Metadata ?? [])
+          {
             found.push(mapMetadata(m, lib.title, lib.type as 'movie' | 'show'))
           }
-        } catch {
+        }
+        catch
+        {
           // section may not support the search type - skip silently
         }
       }
@@ -60,7 +68,8 @@ export const plexSearch = {
     if (byId) return byId
 
     const mappedTitle = mappedPlexTitle(ConfigService.get().titleMappings, title, year)
-    if (mappedTitle) {
+    if (mappedTitle)
+    {
       const mapped = pickMappedItem(await gather(mappedTitle), mappedTitle, { year, tmdbId })
       if (mapped) return mapped
     }
@@ -74,9 +83,11 @@ export const plexSearch = {
     // Chalice") even though it's in the library, so the candidate never appears
     // to match against. Re-search with just the main title to pull it into the
     // pool, then match strictly by id.
-    if (tmdbId) {
+    if (tmdbId)
+    {
       const broad = broadenTitle(title)
-      if (broad && normTitle(broad) !== wanted) {
+      if (broad && normTitle(broad) !== wanted)
+      {
         const byTmdb = (await gather(broad)).find(c => c.tmdbId === tmdbId)
         if (byTmdb) return byTmdb
       }
@@ -94,7 +105,8 @@ export const plexSearch = {
    * @param req - The collection name to match.
    * @returns The matched collection, or null.
    */
-  async findCollection(req: FindCollectionReq): Promise<PlexCollection | null> {
+  async findCollection(req: FindCollectionReq): Promise<PlexCollection | null>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return null
     const { baseUrl, token, libraries: allLibs } = conn
@@ -106,14 +118,17 @@ export const plexSearch = {
     const altTitle = stripCollectionSuffix(title)
 
     const candidates: PlexCollection[] = []
-    for (const lib of allLibs) {
+    for (const lib of allLibs)
+    {
       if (lib.type !== 'movie' && lib.type !== 'show') continue
-      try {
+      try
+      {
         const data = await plexFetch(
           baseUrl, token,
           `/library/sections/${lib.key}/collections`,
         ) as { MediaContainer?: { Metadata?: Array<{ ratingKey?: string; title?: string; childCount?: number; thumb?: string }> } }
-        for (const c of data?.MediaContainer?.Metadata ?? []) {
+        for (const c of data?.MediaContainer?.Metadata ?? [])
+        {
           if (!c.ratingKey || !c.title) continue
           candidates.push({
             key: c.ratingKey,
@@ -123,7 +138,9 @@ export const plexSearch = {
             thumb: c.thumb,
           })
         }
-      } catch {
+      }
+      catch
+      {
         // section may not support collections - skip silently
       }
     }
@@ -158,7 +175,8 @@ export const plexSearch = {
    * up. Scoping to the item's own library also avoids listing collections in
    * every library.
    */
-  async resolveCollectionByName(name: string, librarySectionId?: string): Promise<PlexCollection | null> {
+  async resolveCollectionByName(name: string, librarySectionId?: string): Promise<PlexCollection | null>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return null
     const { baseUrl, token, libraries: allLibs } = conn
@@ -168,16 +186,20 @@ export const plexSearch = {
       ? allLibs.filter(l => String(l.key) === String(librarySectionId))
       : []
     const libs = scoped.length ? scoped : allLibs
-    for (const lib of libs) {
+    for (const lib of libs)
+    {
       if (lib.type !== 'movie' && lib.type !== 'show') continue
-      try {
+      try
+      {
         const data = await plexFetch(
           baseUrl, token,
           `/library/sections/${lib.key}/collections`,
         ) as { MediaContainer?: { Metadata?: Array<{ ratingKey?: string; title?: string; childCount?: number; thumb?: string; smart?: string | number }> } }
-        for (const c of data?.MediaContainer?.Metadata ?? []) {
+        for (const c of data?.MediaContainer?.Metadata ?? [])
+        {
           if (!c.ratingKey || !c.title) continue
-          if (c.title.trim().toLowerCase() === wanted) {
+          if (c.title.trim().toLowerCase() === wanted)
+          {
             return {
               key: c.ratingKey,
               title: c.title,
@@ -188,7 +210,9 @@ export const plexSearch = {
             }
           }
         }
-      } catch {
+      }
+      catch
+      {
         // section may not support collections - skip silently
       }
     }
@@ -201,25 +225,31 @@ export const plexSearch = {
    * @param req - The label to filter on.
    * @returns Matching items with display-ready thumb URLs.
    */
-  async getLabeledItems(req: LabelReq): Promise<PlexItem[]> {
+  async getLabeledItems(req: LabelReq): Promise<PlexItem[]>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return []
     const { baseUrl, token, libraries: allLibs } = conn
     const items: PlexItem[] = []
 
-    for (const lib of allLibs) {
+    for (const lib of allLibs)
+    {
       const type = lib.type === 'movie' ? 1 : 2
-      try {
+      try
+      {
         const data = await plexFetch(
           baseUrl, token,
           `/library/sections/${lib.key}/all?type=${type}&label.tag.tag=${encodeURIComponent(req.label)}`,
         ) as { MediaContainer?: { Metadata?: unknown[] } }
-        for (const m of data?.MediaContainer?.Metadata ?? []) {
+        for (const m of data?.MediaContainer?.Metadata ?? [])
+        {
           const item = mapMetadata(m, lib.title, lib.type as 'movie' | 'show')
           item.thumb = thumbUrl(baseUrl, token, item.thumb, 120, 180)
           items.push(item)
         }
-      } catch {
+      }
+      catch
+      {
         // label filter unsupported on this section version - skip
       }
     }

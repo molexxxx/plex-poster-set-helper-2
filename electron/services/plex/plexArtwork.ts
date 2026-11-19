@@ -24,10 +24,12 @@ async function deleteUploadedImage(
   token: string,
   itemKey: string,
   kind: 'poster' | 'art',
-): Promise<boolean> {
+): Promise<boolean>
+{
   const listPath = kind === 'art' ? 'arts' : 'posters'
   const delPath  = kind === 'art' ? 'art'  : 'thumb'
-  try {
+  try
+  {
     const data = await plexFetch(baseUrl, token, `/library/metadata/${itemKey}/${listPath}`) as {
       MediaContainer?: { Metadata?: Array<{ ratingKey?: string; provider?: string; selected?: boolean }> }
     }
@@ -41,7 +43,9 @@ async function deleteUploadedImage(
 
     await plexFetch(baseUrl, token, `/library/metadata/${itemKey}/${delPath}`, { method: 'DELETE' })
     return true
-  } catch (err) {
+  }
+  catch (err)
+  {
     Logger.warn('Plex', `Delete uploaded ${kind} failed - key ${itemKey}: ${err instanceof Error ? err.message : err}`)
     return false
   }
@@ -64,18 +68,23 @@ async function waitForActivity(
   token: string,
   match: RegExp,
   { pollMs = 1000, graceMs = 4000, maxMs = 180_000 }: { pollMs?: number; graceMs?: number; maxMs?: number } = {},
-): Promise<void> {
+): Promise<void>
+{
   const start = Date.now()
   let seen = false
-  for (;;) {
+  for (;;)
+  {
     let active = false
-    try {
+    try
+    {
       const data = await plexFetch(baseUrl, token, '/activities') as {
         MediaContainer?: { Activity?: Array<{ type?: string; title?: string; subtitle?: string }> }
       }
       active = (data?.MediaContainer?.Activity ?? []).some(a =>
         match.test(`${a.type ?? ''} ${a.title ?? ''} ${a.subtitle ?? ''}`))
-    } catch {
+    }
+    catch
+    {
       // /activities unavailable on this server - fall back to the grace window
     }
     const elapsed = Date.now() - start
@@ -93,7 +102,8 @@ export const plexArtwork = {
    * Returns current Plex poster thumbs for a library item and its related
    * hierarchy (collection members, seasons, etc.).
    */
-  async getCurrentArt(req: CurrentArtReq): Promise<CurrentArtRes> {
+  async getCurrentArt(req: CurrentArtReq): Promise<CurrentArtRes>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return { slots: [] }
     const { baseUrl, token } = conn
@@ -102,8 +112,10 @@ export const plexArtwork = {
     const movieLabel = (title: string, year?: number) =>
       year ? `${title} (${year})` : title
 
-    if (req.type === 'collection') {
-      try {
+    if (req.type === 'collection')
+    {
+      try
+      {
         const data = await plexFetch(
           baseUrl, token,
           `/library/metadata/${req.key}?includeGuids=1`,
@@ -119,10 +131,13 @@ export const plexArtwork = {
           kind: 'collection',
           highlight: true,
         })
-      } catch {
+      }
+      catch
+      {
         slots.push({ key: req.key, label: req.title, kind: 'collection', highlight: true })
       }
-      for (const child of await plexCollections.getCollectionChildren(req.key)) {
+      for (const child of await plexCollections.getCollectionChildren(req.key))
+      {
         slots.push({
           key: child.key,
           label: movieLabel(child.title, child.year),
@@ -133,10 +148,12 @@ export const plexArtwork = {
       return { slots }
     }
 
-    if (req.type === 'movie') {
+    if (req.type === 'movie')
+    {
       let collectionTags: string[] = []
       let librarySectionId: string | undefined
-      try {
+      try
+      {
         const data = await plexFetch(
           baseUrl, token,
           `/library/metadata/${req.key}?includeGuids=1`,
@@ -167,7 +184,9 @@ export const plexArtwork = {
           kind: 'movie',
           highlight: true,
         })
-      } catch {
+      }
+      catch
+      {
         slots.push({
           key: req.key,
           label: movieLabel(req.title, req.year),
@@ -182,7 +201,8 @@ export const plexArtwork = {
       // organisational buckets, not artwork families, so they're skipped entirely
       // (neither the collection nor its members belong in this item's art strip).
       const MEMBER_EXPAND_CAP = 30
-      for (const tag of collectionTags) {
+      for (const tag of collectionTags)
+      {
         const coll = await plexSearch.resolveCollectionByName(tag, librarySectionId)
         if (!coll) continue
         if (coll.smart || (coll.childCount != null && coll.childCount > MEMBER_EXPAND_CAP)) continue
@@ -194,7 +214,8 @@ export const plexArtwork = {
           thumb: thumbUrl(baseUrl, token, coll.thumb),
           kind: 'collection',
         })
-        for (const child of children) {
+        for (const child of children)
+        {
           if (child.key === req.key) continue
           slots.push({
             key: child.key,
@@ -208,7 +229,8 @@ export const plexArtwork = {
     }
 
     // show
-    try {
+    try
+    {
       const data = await plexFetch(
         baseUrl, token,
         `/library/metadata/${req.key}?includeGuids=1`,
@@ -223,18 +245,22 @@ export const plexArtwork = {
         kind: 'show',
         highlight: true,
       })
-    } catch {
+    }
+    catch
+    {
       slots.push({ key: req.key, label: req.title, kind: 'show', highlight: true })
     }
 
-    try {
+    try
+    {
       const seasonData = await plexFetch(baseUrl, token, `/library/metadata/${req.key}/children`) as {
         MediaContainer?: { Metadata?: Array<{ ratingKey: string; index?: number; thumb?: string }> }
       }
       const seasons = (seasonData?.MediaContainer?.Metadata ?? [])
         .slice()
         .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
-      for (const s of seasons) {
+      for (const s of seasons)
+      {
         const idx = s.index ?? 0
         slots.push({
           key: s.ratingKey,
@@ -244,7 +270,9 @@ export const plexArtwork = {
           season: idx,
         })
       }
-    } catch {
+    }
+    catch
+    {
       // seasons unavailable
     }
 
@@ -267,7 +295,8 @@ export const plexArtwork = {
     showKey: string,
     season?: number | 'Cover' | 'Backdrop',
     episode?: number,
-  ): Promise<{ key: string; kind: 'poster' | 'art' } | { kind: 'skip'; reason: string }> {
+  ): Promise<{ key: string; kind: 'poster' | 'art' } | { kind: 'skip'; reason: string }>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return { key: showKey, kind: 'poster' }
     const { baseUrl, token } = conn
@@ -275,7 +304,8 @@ export const plexArtwork = {
     if (season === 'Backdrop') return { key: showKey, kind: 'art' }
     if (season == null || season === 'Cover') return { key: showKey, kind: 'poster' }
 
-    try {
+    try
+    {
       const seasonData = await plexFetch(baseUrl, token, `/library/metadata/${showKey}/children`) as {
         MediaContainer?: { Metadata?: Array<{ ratingKey: string; index?: number }> }
       }
@@ -283,7 +313,8 @@ export const plexArtwork = {
       const seasonNode = seasons.find(s => s.index === season)
       // Skip rather than clobbering the show poster with a season poster /
       // title card the user can't actually use
-      if (!seasonNode) {
+      if (!seasonNode)
+      {
         Logger.warn('Plex', `Season ${season} not found under show ${showKey} - skipping`)
         return { kind: 'skip', reason: `Season ${season} not in library` }
       }
@@ -298,12 +329,15 @@ export const plexArtwork = {
       // Skip rather than overwriting the season poster with this episode's
       // title card (the cause of "all cards on the season poster" when a set
       // has more episodes than Plex has)
-      if (!epNode) {
+      if (!epNode)
+      {
         Logger.warn('Plex', `S${season}E${episode} not found - skipping`)
         return { kind: 'skip', reason: `S${season}E${episode} not in library` }
       }
       return { key: epNode.ratingKey, kind: 'poster' }
-    } catch (err) {
+    }
+    catch (err)
+    {
       Logger.warn('Plex', `Target resolution failed for show ${showKey}: ${err instanceof Error ? err.message : err}`)
       return { key: showKey, kind: 'poster' }
     }
@@ -316,7 +350,8 @@ export const plexArtwork = {
    * @param req - Item key, image URL, source site, and season/episode hints.
    * @returns Success flag, with an error message on failure or skip.
    */
-  async uploadPoster(req: UploadReq): Promise<UploadRes> {
+  async uploadPoster(req: UploadReq): Promise<UploadRes>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) return { success: false, error: 'Not connected to Plex' }
     const { baseUrl, token } = conn
@@ -324,14 +359,19 @@ export const plexArtwork = {
     const labelTag = source === 'mediux' ? 'MediUX' : 'ThePosterDB'
     const named = title ? `"${title}"` : `item ${itemKey}`
 
-    try {
+    try
+    {
       let target: { key: string; kind: 'poster' | 'art' }
-      if (isCollection) {
+      if (isCollection)
+      {
         // Collections have child movies; never walk /children or art lands on a member.
         target = season === 'Backdrop' ? { key: itemKey, kind: 'art' } : { key: itemKey, kind: 'poster' }
-      } else {
+      }
+      else
+      {
         const resolved = await plexArtwork.resolveTarget(itemKey, season, episode)
-        if (resolved.kind === 'skip') {
+        if (resolved.kind === 'skip')
+        {
           Logger.scrape('Plex', `Skipped upload to ${named} - ${resolved.reason}`)
           return { success: false, error: resolved.reason, skipped: true }
         }
@@ -366,7 +406,9 @@ export const plexArtwork = {
       const art = target.kind === 'art' ? 'Backdrop' : 'Poster'
       Logger.success('Plex', `${art} applied to ${named} (${where}) from ${labelTag}`, { key: target.key })
       return { success: true }
-    } catch (err) {
+    }
+    catch (err)
+    {
       const error = err instanceof Error ? err.message : String(err)
       Logger.error('Plex', `Upload to ${named} failed: ${error}`, { key: itemKey })
       return { success: false, error }
@@ -379,7 +421,8 @@ export const plexArtwork = {
    *
    * @param req - Item key and whether to reset hierarchically.
    */
-  async resetPoster(req: ResetReq): Promise<void> {
+  async resetPoster(req: ResetReq): Promise<void>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) throw new Error('Not connected to Plex')
     const { baseUrl, token } = conn
@@ -388,7 +431,8 @@ export const plexArtwork = {
     // Free the uploaded image data first: Plex can only delete the *active* thumb/art,
     // so this must happen before the original poster is re-selected below. Deletion
     // also reverts Plex to a default, making the select-original step a clean fallback.
-    if (deleteUploads) {
+    if (deleteUploads)
+    {
       await deleteUploadedImage(baseUrl, token, itemKey, 'poster')
       await deleteUploadedImage(baseUrl, token, itemKey, 'art')
     }
@@ -399,14 +443,17 @@ export const plexArtwork = {
     const posters = postersData?.MediaContainer?.Metadata ?? []
 
     // Any poster that isn't from the custom upload provider
-    const original = posters.find(p => {
+    const original = posters.find(p =>
+    {
       const src = p.provider ?? ''
       return src !== 'custom' && src !== ''
     }) ?? posters.find(p => !p.selected)
 
-    if (original) {
+    if (original)
+    {
       const posterKey = original.ratingKey ?? original.thumb ?? ''
-      if (posterKey) {
+      if (posterKey)
+      {
         await plexFetch(
           baseUrl, token,
           `/library/metadata/${itemKey}/poster?url=${encodeURIComponent(posterKey)}`,
@@ -415,27 +462,36 @@ export const plexArtwork = {
       }
     }
 
-    for (const label of ['MediUX', 'ThePosterDB']) {
-      try {
+    for (const label of ['MediUX', 'ThePosterDB'])
+    {
+      try
+      {
         await plexFetch(
           baseUrl, token,
           `/library/metadata/${itemKey}?label[].tag.tag=${encodeURIComponent(label)}&label[].tag.locked=0`,
           { method: 'PUT' },
         )
-      } catch {
+      }
+      catch
+      {
         // label may not exist on this item
       }
     }
 
-    if (hierarchical) {
-      try {
+    if (hierarchical)
+    {
+      try
+      {
         const childData = await plexFetch(baseUrl, token, `/library/metadata/${itemKey}/children`) as {
           MediaContainer?: { Metadata?: Array<{ ratingKey: string }> }
         }
-        for (const child of childData?.MediaContainer?.Metadata ?? []) {
+        for (const child of childData?.MediaContainer?.Metadata ?? [])
+        {
           await plexArtwork.resetPoster({ itemKey: child.ratingKey, hierarchical: true, deleteUploads })
         }
-      } catch {
+      }
+      catch
+      {
         // no children or server error - skip
       }
     }
@@ -449,7 +505,8 @@ export const plexArtwork = {
    * (the task runs asynchronously server-side) so the UI reflects real completion
    * rather than a guessed cooldown.
    */
-  async cleanBundles(): Promise<void> {
+  async cleanBundles(): Promise<void>
+  {
     const conn = plexConnection.getConnection()
     if (!conn) throw new Error('Not connected to Plex')
     const { baseUrl, token } = conn
@@ -465,7 +522,8 @@ export const plexArtwork = {
    *
    * @returns Counts keyed by mediux, posterdb, total, movies, and shows.
    */
-  async getStats(): Promise<Record<string, number>> {
+  async getStats(): Promise<Record<string, number>>
+  {
     const [mediuxItems, posterdbItems] = await Promise.all([
       plexSearch.getLabeledItems({ label: 'MediUX' }),
       plexSearch.getLabeledItems({ label: 'ThePosterDB' }),
