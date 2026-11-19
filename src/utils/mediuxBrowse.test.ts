@@ -14,7 +14,8 @@ vi.mock('../../electron/services/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn(), session: vi.fn(), scrape: vi.fn(), debug: vi.fn() },
 }))
 
-const { MediuxScraper, hasFlightData } = await import('../../electron/scrapers/mediuxScraper')
+const { MediuxScraper } = await import('../../electron/scrapers/mediux/mediuxScraper')
+const { hasFlightData } = await import('../../electron/scrapers/mediux/flightPayload')
 
 const PADDING = '<!-- padding -->'.repeat(60)
 /** A page Cloudflare serves instead of MediUX's own: long enough to parse, without the flight payload. */

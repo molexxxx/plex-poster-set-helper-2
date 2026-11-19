@@ -1,7 +1,9 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import * as cheerio from 'cheerio'
 import type { PosterInfo } from '../../electron/ipc/types'
-import type { RawCard, SearchHit, SetStub } from '../../electron/scrapers/posterdbScraper'
+import type { RawCard } from '../../electron/scrapers/posterdb/cards'
+import type { SearchHit } from '../../electron/scrapers/posterdb/titleMatch'
+import type { SetStub } from '../../electron/scrapers/posterdb/setStubs'
 
 vi.mock('../../electron/services/config', () => ({
   ConfigService: {
@@ -17,12 +19,12 @@ vi.mock('../../electron/services/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn(), session: vi.fn(), scrape: vi.fn(), debug: vi.fn() },
 }))
 
-const mod = await import('../../electron/scrapers/posterdbScraper')
-const {
-  PosterdbScraper, parseYear, parseCardTitle, parseCards, cardsToPosters, normalizeTitle, isSearchPage, parseSearchHits,
-  titleAliases, pickSearchHit, stubsFromCards, classifySetPosters, parseProfileAvatar, resolveAvatars, guessedAvatarUrl,
-  stubToSummary, isMediaCard, cleanSetName,
-} = mod
+const { PosterdbScraper, resetPosterdbCaches } = await import('../../electron/scrapers/posterdb/posterdbScraper')
+const { posterdbPageUrl, posterdbUrlType } = await import('../../electron/scrapers/posterdb/posterdbSite')
+const { parseYear, parseCardTitle, parseCards, cardsToPosters, isMediaCard, isMediaPage } = await import('../../electron/scrapers/posterdb/cards')
+const { normalizeTitle, isSearchPage, parseSearchHits, titleAliases, pickSearchHit, pickSearchHits } = await import('../../electron/scrapers/posterdb/titleMatch')
+const { stubsFromCards, classifySetPosters, stubToSummary, cleanSetName, parentSetId } = await import('../../electron/scrapers/posterdb/setStubs')
+const { parseProfileAvatar, resolveAvatars, guessedAvatarUrl, lookUpAvatars } = await import('../../electron/scrapers/posterdb/avatars')
 
 type Scraper = InstanceType<typeof PosterdbScraper>
 
@@ -140,7 +142,7 @@ const poster = (title: string, year?: number, extra: Partial<PosterInfo> = {}): 
 afterEach(() =>
 {
   vi.unstubAllGlobals()
-  mod.resetPosterdbCaches()
+  resetPosterdbCaches()
 })
 
 describe('parseYear and parseCardTitle', () =>
@@ -457,8 +459,8 @@ describe('avatars', () =>
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const first = mod.lookUpAvatars(['alice'])
-    const second = mod.lookUpAvatars(['ALICE', 'Unknown'])
+    const first = lookUpAvatars(['alice'])
+    const second = lookUpAvatars(['ALICE', 'Unknown'])
     expect(first.avatarOf('alice')).toBe(guessedAvatarUrl('alice'))
     expect(second.avatarOf('Unknown')).toBeUndefined()
 
@@ -632,7 +634,7 @@ describe('PosterdbScraper.browseSets', () =>
     }
 
     release()
-    const late = mod.lookUpAvatars(['bob'])
+    const late = lookUpAvatars(['bob'])
     await late.done
     expect(late.avatarOf('bob')).toBe(`${BASE}/images/users/avatars/avatar-01.webp`)
     expect(requests(fetchMock, profileUrl('bob'))).toBe(1)
@@ -733,22 +735,22 @@ describe('pickSearchHits', () =>
       hit('1', 'Marvel Cinematic universe'), hit('2', 'Marvel Cinematic Universe'), hit('3', 'Marvel Knights'),
       hit('4', 'Marvel Cinematic Universe (Collection)'), hit('5', 'Marvel Cinematic Universe Collection'),
     ]
-    expect(mod.pickSearchHits(hits, wants).map(h => h.mediaId)).toEqual(['1', '2', '4', '5'])
+    expect(pickSearchHits(hits, wants).map(h => h.mediaId)).toEqual(['1', '2', '4', '5'])
   })
 
   it('keeps only duplicates that share the chosen year', () =>
   {
     const dune = titleAliases('Dune', 'movie')
     const hits = [hit('1', 'Dune', 1984), hit('2', 'Dune', 2021), hit('3', 'Dune', 2021), hit('4', 'Dune')]
-    expect(mod.pickSearchHits(hits, dune, 2021).map(h => h.mediaId)).toEqual(['2', '3'])
-    expect(mod.pickSearchHits(hits, dune, 1984).map(h => h.mediaId)).toEqual(['1'])
-    expect(mod.pickSearchHits([hit('3', 'Dune: Part Two', 2024)], dune)).toEqual([])
+    expect(pickSearchHits(hits, dune, 2021).map(h => h.mediaId)).toEqual(['2', '3'])
+    expect(pickSearchHits(hits, dune, 1984).map(h => h.mediaId)).toEqual(['1'])
+    expect(pickSearchHits([hit('3', 'Dune: Part Two', 2024)], dune)).toEqual([])
   })
 
   it('caps how many entries are read', () =>
   {
     const hits = Array.from({ length: 9 }, (_, i) => hit(String(i), 'Marvel Cinematic Universe'))
-    expect(mod.pickSearchHits(hits, wants)).toHaveLength(6)
+    expect(pickSearchHits(hits, wants)).toHaveLength(6)
   })
 })
 
@@ -759,23 +761,23 @@ describe('page markers and link types', () =>
 
   it('tells an empty media page from a challenge page', () =>
   {
-    expect(mod.isMediaPage(cheerio.load(EMPTY_MEDIA))).toBe(true)
-    expect(mod.isMediaPage(cheerio.load(mediaPage([{ id: 'a', caption: 'Dune (2021)' }])))).toBe(true)
-    expect(mod.isMediaPage(cheerio.load('<html><head><title>Just a moment...</title></head><body></body></html>'))).toBe(false)
+    expect(isMediaPage(cheerio.load(EMPTY_MEDIA))).toBe(true)
+    expect(isMediaPage(cheerio.load(mediaPage([{ id: 'a', caption: 'Dune (2021)' }])))).toBe(true)
+    expect(isMediaPage(cheerio.load('<html><head><title>Just a moment...</title></head><body></body></html>'))).toBe(false)
   })
 
   it('reads the parent set of a poster page', () =>
   {
-    expect(mod.parentSetId(cheerio.load('<a class="btn" href="https://theposterdb.com/set/4475" data-toggle="tooltip" title="View Set Page">Set</a>'))).toBe('4475')
-    expect(mod.parentSetId(cheerio.load('<a class="rounded view_all" href="/set/77">all</a>'))).toBe('77')
-    expect(mod.parentSetId(cheerio.load('<div id="main_poster_container"></div>'))).toBe('')
+    expect(parentSetId(cheerio.load('<a class="btn" href="https://theposterdb.com/set/4475" data-toggle="tooltip" title="View Set Page">Set</a>'))).toBe('4475')
+    expect(parentSetId(cheerio.load('<a class="rounded view_all" href="/set/77">all</a>'))).toBe('77')
+    expect(parentSetId(cheerio.load('<div id="main_poster_container"></div>'))).toBe('')
   })
 
   it('classifies title pages apart from the requests listing', () =>
   {
-    expect(mod.posterdbUrlType('https://theposterdb.com/posters/1993')).toBe('media')
-    expect(mod.posterdbUrlType('https://theposterdb.com/posters/requests')).toBe('unknown')
-    expect(mod.posterdbUrlType('https://theposterdb.com/poster/9772')).toBe('poster')
+    expect(posterdbUrlType('https://theposterdb.com/posters/1993')).toBe('media')
+    expect(posterdbUrlType('https://theposterdb.com/posters/requests')).toBe('unknown')
+    expect(posterdbUrlType('https://theposterdb.com/poster/9772')).toBe('poster')
   })
 })
 
@@ -785,17 +787,17 @@ describe('ThePosterDB URL checks', () =>
 
   it('rebuilds ThePosterDB page links on the site origin', () =>
   {
-    expect(mod.posterdbPageUrl('https://theposterdb.com/set/4475')).toBe('https://theposterdb.com/set/4475')
-    expect(mod.posterdbPageUrl('http://www.theposterdb.com/poster/9772?page=2')).toBe('https://theposterdb.com/poster/9772?page=2')
-    expect(mod.posterdbPageUrl('theposterdb.com/user/alice')).toBe('https://theposterdb.com/user/alice')
-    expect(mod.posterdbPageUrl('https://theposterdb.com/user/Some%20Name?section=uploads&page=2')).toBe('https://theposterdb.com/user/Some%20Name?section=uploads&page=2')
-    expect(mod.posterdbPageUrl('https://theposterdb.com/search?term=Dune%20(2021)&section=movies')).toBe('https://theposterdb.com/search?term=Dune%20(2021)&section=movies')
+    expect(posterdbPageUrl('https://theposterdb.com/set/4475')).toBe('https://theposterdb.com/set/4475')
+    expect(posterdbPageUrl('http://www.theposterdb.com/poster/9772?page=2')).toBe('https://theposterdb.com/poster/9772?page=2')
+    expect(posterdbPageUrl('theposterdb.com/user/alice')).toBe('https://theposterdb.com/user/alice')
+    expect(posterdbPageUrl('https://theposterdb.com/user/Some%20Name?section=uploads&page=2')).toBe('https://theposterdb.com/user/Some%20Name?section=uploads&page=2')
+    expect(posterdbPageUrl('https://theposterdb.com/search?term=Dune%20(2021)&section=movies')).toBe('https://theposterdb.com/search?term=Dune%20(2021)&section=movies')
   })
 
   it('keeps an encoded slash inside its own path segment', () =>
   {
-    expect(mod.posterdbPageUrl('https://theposterdb.com/user/a%2F..%2Fapi')).toBe('https://theposterdb.com/user/a%2F..%2Fapi')
-    expect(mod.posterdbPageUrl('https://theposterdb.com/user/%E0%A4%A')).toBeNull()
+    expect(posterdbPageUrl('https://theposterdb.com/user/a%2F..%2Fapi')).toBe('https://theposterdb.com/user/a%2F..%2Fapi')
+    expect(posterdbPageUrl('https://theposterdb.com/user/%E0%A4%A')).toBeNull()
   })
 
   it('refuses links to any other host', () =>
@@ -810,8 +812,8 @@ describe('ThePosterDB URL checks', () =>
       'https://theposterdb.com:8443/set/1',
       'not a url',
     ]) {
-      expect(mod.posterdbPageUrl(url), url).toBeNull()
-      expect(mod.posterdbUrlType(url), url).toBe('unknown')
+      expect(posterdbPageUrl(url), url).toBeNull()
+      expect(posterdbUrlType(url), url).toBe('unknown')
     }
   })
 

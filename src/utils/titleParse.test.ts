@@ -10,8 +10,10 @@ vi.mock('../../electron/services/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn(), session: vi.fn(), scrape: vi.fn(), debug: vi.fn() },
 }))
 
-const { parseCardTitle, titleAliases, cleanSetName, parseSetPageTitle } = await import('../../electron/scrapers/posterdbScraper')
-const { deriveSetFallback, parseNameYear, stripFileSuffix } = await import('../../electron/scrapers/mediuxScraper')
+const { parseCardTitle } = await import('../../electron/scrapers/posterdb/cards')
+const { titleAliases } = await import('../../electron/scrapers/posterdb/titleMatch')
+const { cleanSetName, parseSetPageTitle } = await import('../../electron/scrapers/posterdb/setStubs')
+const { deriveSetFallback, parseNameYear, stripFileSuffix } = await import('../../electron/scrapers/mediux/setSummaries')
 
 type RawSet = Parameters<typeof deriveSetFallback>[0]
 

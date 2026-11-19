@@ -15,7 +15,7 @@ vi.mock('../../electron/services/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn(), session: vi.fn(), scrape: vi.fn(), debug: vi.fn() },
 }))
 
-const { MediuxScraper, mediuxPageUrl } = await import('../../electron/scrapers/mediuxScraper')
+const { MediuxScraper, mediuxPageUrl } = await import('../../electron/scrapers/mediux/mediuxScraper')
 
 /** A creator page as MediUX serves it: the sets live in an RSC flight payload script. */
 function pageHtml(sets: Array<{ id: number; name: string }>): string

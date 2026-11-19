@@ -3,17 +3,20 @@ import type { PosterSetSummary } from '../../electron/ipc/types'
 
 const mocks = vi.hoisted(() => ({ mediuxBrowse: vi.fn(), posterdbBrowse: vi.fn(), posterdbClose: vi.fn() }))
 
-vi.mock('../../electron/scrapers/posterdbScraper', () => ({
+vi.mock('../../electron/scrapers/posterdb/posterdbScraper', () => ({
   PosterdbScraper: class
   {
     browseSets = mocks.posterdbBrowse
     close = mocks.posterdbClose
     abort() {}
   },
+}))
+
+vi.mock('../../electron/scrapers/posterdb/posterdbSite', () => ({
   posterdbUrlType: () => 'set',
 }))
 
-vi.mock('../../electron/scrapers/mediuxScraper', () => ({
+vi.mock('../../electron/scrapers/mediux/mediuxScraper', () => ({
   MediuxScraper: class
   {
     browseSets = mocks.mediuxBrowse

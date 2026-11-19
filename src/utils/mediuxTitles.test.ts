@@ -7,7 +7,7 @@ vi.mock('../../electron/services/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn(), session: vi.fn(), scrape: vi.fn(), debug: vi.fn() },
 }))
 
-const { deriveSetFallback, parseNameYear, stripFileSuffix } = await import('../../electron/scrapers/mediuxScraper')
+const { deriveSetFallback, parseNameYear, stripFileSuffix } = await import('../../electron/scrapers/mediux/setSummaries')
 
 type RawSet = Parameters<typeof deriveSetFallback>[0]
 const file = (fileType: string, title: string) => ({ id: title, fileType, title })

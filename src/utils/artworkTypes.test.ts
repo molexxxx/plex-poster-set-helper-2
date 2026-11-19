@@ -3,17 +3,20 @@ import type { PosterInfo, ScheduledJob, ScrapeProgress } from '../../electron/ip
 
 const mocks = vi.hoisted(() => ({ posterdbScrape: vi.fn(), mediuxScrape: vi.fn() }))
 
-vi.mock('../../electron/scrapers/posterdbScraper', () => ({
+vi.mock('../../electron/scrapers/posterdb/posterdbScraper', () => ({
   PosterdbScraper: class
   {
     scrape = mocks.posterdbScrape
     abort() {}
     async close() {}
   },
+}))
+
+vi.mock('../../electron/scrapers/posterdb/posterdbSite', () => ({
   posterdbUrlType: () => 'set',
 }))
 
-vi.mock('../../electron/scrapers/mediuxScraper', () => ({
+vi.mock('../../electron/scrapers/mediux/mediuxScraper', () => ({
   MediuxScraper: class
   {
     scrape = mocks.mediuxScrape

@@ -25,7 +25,7 @@ import type {
 } from '../ipc/types'
 import { mergeAppliedRecords, parseArtworkTypes } from '../services/scheduleUtils'
 import { browseOutcome, type SourceResult } from '../services/browseSets'
-import { resetPosterdbCaches } from '../scrapers/posterdbScraper'
+import { resetPosterdbCaches } from '../scrapers/posterdb/posterdbScraper'
 import { readableError } from '../services/readableError'
 
 const REPO = 'molexxxx/plex-poster-set-helper-2'

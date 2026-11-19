@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { PosterSetSummary } from '../../electron/ipc/types'
-import type { MediuxSet } from '../../electron/scrapers/mediuxScraper'
+import type { MediuxSet } from '../../electron/scrapers/mediux/mediuxTypes'
 
 vi.mock('../../electron/services/config', () => ({
   ConfigService: { get: () => ({ mediuxFilters: ['poster', 'backdrop', 'title_card'] }) },
@@ -9,7 +9,7 @@ vi.mock('../../electron/services/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn(), session: vi.fn(), scrape: vi.fn(), debug: vi.fn() },
 }))
 
-const { keepDownloads, rankByDownloads, setDownloads } = await import('../../electron/scrapers/mediuxScraper')
+const { keepDownloads, rankByDownloads, setDownloads } = await import('../../electron/scrapers/mediux/setSummaries')
 
 function summary(uploader: string, downloads?: number): PosterSetSummary
 {
