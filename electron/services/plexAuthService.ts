@@ -1,7 +1,7 @@
 import type { BrowserWindow } from 'electron'
 import { ConfigService } from './config'
 import { Logger } from './logger'
-import { PlexService } from './plexService'
+import { PlexService } from './plex/plexService'
 import { describeNetworkError, findServer, plexTvHeaders } from './plexConnections'
 import type { PlexAuthStatus } from '../ipc/types'
 import { isWebMode } from '../runtime/runtime'

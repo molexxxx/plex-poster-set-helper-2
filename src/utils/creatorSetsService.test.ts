@@ -14,7 +14,7 @@ vi.mock('../../electron/scrapers/scraperFactory', () => ({
   ScraperFactory: { browseMediuxUser: vi.fn(), browseMediuxUserAll: vi.fn() },
 }))
 
-vi.mock('../../electron/services/plexService', () => ({
+vi.mock('../../electron/services/plex/plexService', () => ({
   PlexService: { findInLibrary: vi.fn(async () => null) },
 }))
 

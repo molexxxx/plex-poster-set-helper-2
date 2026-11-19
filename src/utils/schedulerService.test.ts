@@ -22,7 +22,7 @@ vi.mock('../../electron/services/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn(), session: vi.fn(), scrape: vi.fn(), debug: vi.fn() },
 }))
 
-vi.mock('../../electron/services/plexService', () => ({
+vi.mock('../../electron/services/plex/plexService', () => ({
   PlexService: {
     getConnection: vi.fn(),
     tryRestoreFromConfig: vi.fn(),
@@ -52,7 +52,7 @@ const { SchedulerService } = await import('../../electron/services/schedulerServ
 const { ScheduleValidationError } = await import('../../electron/services/schedule/jobs')
 const { INTERRUPTED_MESSAGE } = await import('../../electron/services/schedule/runs')
 const { creatorSyncUrl } = await import('../../electron/services/schedule/coverage')
-const { PlexService } = await import('../../electron/services/plexService')
+const { PlexService } = await import('../../electron/services/plex/plexService')
 const { CreatorSetsService } = await import('../../electron/services/creatorSetsService')
 const { ScraperFactory } = await import('../../electron/scrapers/scraperFactory')
 const { appEvents } = await import('../../electron/runtime/events')

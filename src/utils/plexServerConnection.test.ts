@@ -19,7 +19,7 @@ vi.mock('../../electron/runtime/runtime', () => ({ isWebMode: () => state.web })
 vi.mock('../../electron/services/animeMappingService', () => ({ AnimeMappingService: {} }))
 vi.mock('../../electron/services/showStatusService', () => ({ ShowStatusService: {} }))
 
-const { PlexService } = await import('../../electron/services/plexService')
+const { PlexService } = await import('../../electron/services/plex/plexService')
 const { PlexAuthService } = await import('../../electron/services/plexAuthService')
 
 const HASH = '1c174d4b0e884fdfac77b0c9f7146871'

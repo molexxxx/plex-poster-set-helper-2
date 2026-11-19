@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import { PlexService } from '../services/plexService'
+import { PlexService } from '../services/plex/plexService'
 import { ScraperFactory } from '../scrapers/scraperFactory'
 import { mapPool } from '../scrapers/baseScraper'
 import { BulkService } from '../services/bulkService'
