@@ -7,7 +7,8 @@ import { urlLines, withTxt } from '../bulkText'
 export type RunStatus = 'idle' | 'running' | 'done' | 'error'
 
 /** What one URL of a bulk run did. */
-export interface RunResult {
+export interface RunResult
+{
   url: string
   posterCount: number
   uploadedCount: number
@@ -23,7 +24,8 @@ export interface RunResult {
  * @returns The file list and the open file's text with their actions, the
  *   new-file and rename state, the picked types, and the run's status and results.
  */
-export function useBulkFiles() {
+export function useBulkFiles()
+{
   const [files, setFiles]           = useState<string[]>([])
   const [active, setActive]         = useState<string | null>(null)
   const [content, setContent]       = useState('')
@@ -40,21 +42,24 @@ export function useBulkFiles() {
   const isDirty = content !== savedContent
 
 
-  const loadFiles = useCallback(async () => {
+  const loadFiles = useCallback(async () =>
+  {
     const list = await window.api.bulk.listFiles() as string[]
     setFiles(list)
   }, [])
 
   useEffect(() => { loadFiles() }, [loadFiles])
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     window.api.config.get()
       .then(c => { if (c.mediuxFilters?.length) setTypes(new Set(c.mediuxFilters)) })
       .catch(() => { /* keep every type */ })
   }, [])
 
 
-  async function selectFile(filename: string) {
+  async function selectFile(filename: string)
+  {
     if (active === filename) return
     setActive(filename)
     setResults([])
@@ -66,7 +71,8 @@ export function useBulkFiles() {
   }
 
 
-  async function save() {
+  async function save()
+  {
     if (!active) return
     const lines = urlLines(content)
     await window.api.bulk.writeFile(active, lines)
@@ -74,28 +80,34 @@ export function useBulkFiles() {
   }
 
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (showNewInput) setTimeout(() => newInputRef.current?.focus(), 50)
   }, [showNewInput])
 
-  async function createFile() {
+  async function createFile()
+  {
     const name = newFileName.trim()
     if (!name) return
     const filename = withTxt(name)
-    try {
+    try
+    {
       await window.api.bulk.newFile(filename)
       await loadFiles()
       setNewFile('')
       setShowNew(false)
       await selectFile(filename)
-    } catch (err) {
+    }
+    catch (err)
+    {
       // file already exists - just select it
       await selectFile(filename)
     }
   }
 
 
-  async function renameFile(oldName: string, newName: string) {
+  async function renameFile(oldName: string, newName: string)
+  {
     const newFilename = withTxt(newName)
     await window.api.bulk.renameFile(oldName, newFilename)
     await loadFiles()
@@ -104,10 +116,12 @@ export function useBulkFiles() {
   }
 
 
-  async function deleteFile(filename: string) {
+  async function deleteFile(filename: string)
+  {
     await window.api.bulk.deleteFile(filename)
     await loadFiles()
-    if (active === filename) {
+    if (active === filename)
+    {
       setActive(null)
       setContent('')
       setSaved('')
@@ -115,7 +129,8 @@ export function useBulkFiles() {
   }
 
 
-  const runFile = useCallback(async () => {
+  const runFile = useCallback(async () =>
+  {
     if (!active || runStatus === 'running') return
     abortRef.current = false
     setRunStatus('running')
@@ -127,15 +142,19 @@ export function useBulkFiles() {
     const urls = urlLines(content)
     const newResults: RunResult[] = []
 
-    for (const url of urls) {
+    for (const url of urls)
+    {
       if (abortRef.current) break
-      try {
+      try
+      {
         const posters = await window.api.scrape.url(url, [...types]) as PosterInfo[]
         let uploaded = 0
 
-        for (const poster of posters) {
+        for (const poster of posters)
+        {
           if (abortRef.current) break
-          try {
+          try
+          {
             // Collection art applies to a Plex Collection object (matched by name);
             // everything else to an individual movie/show.
             const targetKey = poster.isCollection
@@ -144,7 +163,9 @@ export function useBulkFiles() {
             if (!targetKey) continue
             const res = await window.api.plex.uploadPoster(targetKey, poster.url, poster.source, poster.season, poster.episode, poster.isCollection, poster.title) as { success: boolean; error?: string }
             if (res.success) uploaded++
-          } catch {
+          }
+          catch
+          {
             // per-poster errors are silent - just skip
           }
         }
@@ -155,7 +176,9 @@ export function useBulkFiles() {
           uploadedCount: uploaded,
           status: posters.length === 0 ? 'no_match' : 'done',
         })
-      } catch (err) {
+      }
+      catch (err)
+      {
         newResults.push({
           url,
           posterCount: 0,

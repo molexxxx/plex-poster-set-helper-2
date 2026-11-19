@@ -12,7 +12,8 @@ import styles from './BulkPage.module.css'
 
 
 /** Bulk import page: manage plain-text URL lists and run them against Plex. */
-export default function BulkPage() {
+export default function BulkPage()
+{
   const { plexConnected } = useAppContext()
   const bulk = useBulkFiles()
   const urlCount = urlLines(bulk.content).length

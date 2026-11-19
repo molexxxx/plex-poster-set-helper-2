@@ -6,7 +6,8 @@ import type { RunResult } from '../hooks/useBulkFiles'
 import styles from './RunResults.module.css'
 
 
-interface RunResultsProps {
+interface RunResultsProps
+{
   results: RunResult[]
   running: boolean
   urlCount: number
@@ -14,7 +15,8 @@ interface RunResultsProps {
 
 
 /** A bulk run's progress, with a line for each URL processed. */
-export default function RunResults({ results, running, urlCount }: RunResultsProps) {
+export default function RunResults({ results, running, urlCount }: RunResultsProps)
+{
   const totalUploaded = results.reduce((n, r) => n + r.uploadedCount, 0)
   const errorCount    = results.filter(r => r.status === 'error').length
 

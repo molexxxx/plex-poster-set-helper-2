@@ -7,13 +7,15 @@ import shared from './bulkShared.module.css'
 import styles from './FileSidebar.module.css'
 
 
-interface FileSidebarProps {
+interface FileSidebarProps
+{
   bulk: BulkFiles
 }
 
 
 /** The bulk file list: new file, open, rename, and delete. */
-export default function FileSidebar({ bulk }: FileSidebarProps) {
+export default function FileSidebar({ bulk }: FileSidebarProps)
+{
   const {
     files, active, renaming, setRenaming, newFileName, setNewFile, showNewInput, setShowNew, newInputRef,
     selectFile, createFile, renameFile, deleteFile,
@@ -47,7 +49,8 @@ export default function FileSidebar({ bulk }: FileSidebarProps) {
               className={shared.renameInput}
               value={newFileName}
               onChange={e => setNewFile(e.target.value)}
-              onKeyDown={e => {
+              onKeyDown={e =>
+              {
                 if (e.key === 'Enter') createFile()
                 if (e.key === 'Escape') { setShowNew(false); setNewFile('') }
               }}

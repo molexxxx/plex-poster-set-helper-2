@@ -14,13 +14,15 @@ export default function RenameInput({
   initial: string
   onConfirm: (v: string) => void
   onCancel: () => void
-}) {
+})
+{
   const [value, setValue] = useState(displayName(initial))
   const ref = useRef<HTMLInputElement>(null)
 
   useEffect(() => { ref.current?.select() }, [])
 
-  function submit() {
+  function submit()
+  {
     const v = value.trim()
     if (v && v !== displayName(initial)) onConfirm(v)
     else onCancel()
@@ -33,7 +35,8 @@ export default function RenameInput({
         className={shared.renameInput}
         value={value}
         onChange={e => setValue(e.target.value)}
-        onKeyDown={e => {
+        onKeyDown={e =>
+        {
           if (e.key === 'Enter') submit()
           if (e.key === 'Escape') onCancel()
         }}

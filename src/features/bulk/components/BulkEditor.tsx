@@ -7,7 +7,8 @@ import type { BulkFiles } from '../hooks/useBulkFiles'
 import styles from './BulkEditor.module.css'
 
 
-interface BulkEditorProps {
+interface BulkEditorProps
+{
   bulk: BulkFiles
   /** The open file. */
   active: string
@@ -16,7 +17,8 @@ interface BulkEditorProps {
 
 
 /** The open bulk file: its name, the types to apply, Save and Run, and its URL list. */
-export default function BulkEditor({ bulk, active, urlCount }: BulkEditorProps) {
+export default function BulkEditor({ bulk, active, urlCount }: BulkEditorProps)
+{
   const { content, setContent, isDirty, types, setTypes, runStatus, save, runFile } = bulk
 
   return (
