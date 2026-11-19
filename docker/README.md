@@ -163,6 +163,10 @@ tried and why it failed.
 <details>
 <summary><b>Who can access the app?</b></summary>
 
-Anyone on your network who can reach the port must sign in with Plex before using any
-features. Your Plex token is stored in the config volume.
+Only the Plex account the app is linked to. The first account to sign in links it; after
+that, every browser has to sign in with that same account before it can use the app, and
+any other Plex account is turned away. A browser stays signed in for 30 days after its last
+visit, across container restarts too. **Settings → Plex → Account → Sign out** unlinks the
+account and signs every browser out. Your Plex token stays in the config volume and is never
+sent to the browser.
 </details>

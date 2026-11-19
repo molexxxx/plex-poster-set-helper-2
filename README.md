@@ -79,7 +79,7 @@ Install it from **Community Applications**: search for _Plex Poster Helper_ in t
 ## First run
 
 1. **Browser check.** The app ships with the Chromium headless shell it uses to read the poster sites, so the first launch only checks that it starts. Nothing is downloaded. If the check fails, see [Troubleshooting](#troubleshooting-and-support).
-2. **Sign in to Plex.** Open **Settings → Plex → Account → Sign in with Plex** and approve the request in your browser; the Docker web page asks you to sign in as soon as it opens. Your server is detected automatically and every library is included. To leave one out, switch it off under **Settings → Plex → Libraries**.
+2. **Sign in to Plex.** Open **Settings → Plex → Account → Sign in with Plex** and approve the request in your browser; the Docker web page asks you to sign in as soon as it opens, and from then on only that Plex account can sign in. Your server is detected automatically and every library is included. To leave one out, switch it off under **Settings → Plex → Libraries**.
 3. **Add a TMDB API key** (optional, recommended). A free [TMDB API key](https://www.themoviedb.org/settings/api) fixes most matching problems for titles Plex stores without a TMDB ID. The first launch offers a step to paste one, or add it later under **Settings → Artwork → Title matching**. See [How matching works](#how-matching-works).
 
 That's it: open the **Library Browser** and start applying posters.
