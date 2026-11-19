@@ -488,7 +488,6 @@ export default function SettingsPage() {
   async function signOut() {
     setConfirm(null)
     await window.api.auth.disconnect()
-    await window.api.config.set({ plexServerName: '' })
     setCfg(prev => prev ? { ...prev, plexServerName: '' } : prev)
     setAuthStatus({ status: 'idle' })
     setLibraries([])
@@ -1253,7 +1252,7 @@ export default function SettingsPage() {
       <ConfirmDialog
         open={confirm === 'signout'}
         title="Sign out of Plex?"
-        body="The app stops reading your libraries and applying art until you sign in again, and scheduled jobs cannot apply art in the meantime. Your library choices, schedules, and history are kept."
+        body={`The app stops reading your libraries and applying art until you sign in again, and scheduled jobs cannot apply art in the meantime.${isWeb ? ' Every browser signed in to this app is signed out, and the next Plex account to sign in becomes its owner.' : ''} Your library choices, schedules, and history are kept.`}
         confirmLabel="Sign out"
         onConfirm={() => void signOut()}
         onCancel={() => setConfirm(null)}

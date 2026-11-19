@@ -300,6 +300,11 @@ export const handlers = {
       await PlexAuthService.disconnect()
       emitAuth({ status: 'idle' })
     },
+    /** Abandons a sign-in that has not been approved yet, keeping any linked account. */
+    cancelSignIn: () =>
+    {
+      PlexAuthService.cancel()
+    },
   },
 
   app: {

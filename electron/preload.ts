@@ -91,6 +91,7 @@ const api = {
     signIn: (): Promise<string> => ipcRenderer.invoke('auth:plexSignIn'),
     getStatus: (): Promise<PlexAuthStatus> => ipcRenderer.invoke('auth:plexStatus'),
     disconnect: () => ipcRenderer.invoke('auth:disconnect'),
+    cancelSignIn: (): Promise<void> => ipcRenderer.invoke('auth:cancelSignIn'),
     onStatusChange: (cb: (status: PlexAuthStatus) => void) =>
     {
       const handler = (_: unknown, data: PlexAuthStatus) => cb(data)

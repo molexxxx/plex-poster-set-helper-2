@@ -10,27 +10,54 @@ import type {
 type SseHandler = (event: string, data: unknown) => void
 
 let eventSource: EventSource | null = null
-let authEventSource: EventSource | null = null
+let signedIn = false
 const sseHandlers = new Map<string, Set<SseHandler>>()
-const authSseHandlers = new Set<(status: PlexAuthStatus) => void>()
+const authHandlers = new Set<(status: PlexAuthStatus) => void>()
 
-function ensureAuthSse() {
-  if (authEventSource) return
-  authEventSource = new EventSource('/api/auth/events')
-  authEventSource.addEventListener('auth:statusChange', (e: MessageEvent) => {
-    const data = JSON.parse(e.data as string) as PlexAuthStatus
-    authSseHandlers.forEach(h => h(data))
-    sseHandlers.get('auth:statusChange')?.forEach(h => h('auth:statusChange', data))
-  })
-  authEventSource.onerror = () => {
-    authEventSource?.close()
-    authEventSource = null
-    setTimeout(ensureAuthSse, 3000)
+/**
+ * Records what the server said about this browser's sign-in. Live events need
+ * a session, so the event stream opens once signed in and closes on sign-out,
+ * and listeners hear about a lost session so the sign-in screen can return.
+ *
+ * @param status - Status from the server.
+ * @returns The same status.
+ */
+function applyAuthStatus(status: PlexAuthStatus): PlexAuthStatus
+{
+  const now = status.status === 'authorized'
+  if (now === signedIn) return status
+  signedIn = now
+  if (now)
+  {
+    ensureSse()
   }
+  else
+  {
+    eventSource?.close()
+    eventSource = null
+    authHandlers.forEach(h => h({ status: 'idle' }))
+  }
+  return status
+}
+
+/** Reconnects the event stream after an error, or reports the session as gone. */
+function retrySse()
+{
+  setTimeout(() =>
+  {
+    if (!signedIn) return
+    apiFetch<PlexAuthStatus>('/api/auth/status')
+      .then(status =>
+      {
+        applyAuthStatus(status)
+        if (signedIn) ensureSse()
+      })
+      .catch(retrySse)
+  }, 3000)
 }
 
 function ensureSse() {
-  if (eventSource) return
+  if (eventSource || !signedIn) return
   eventSource = new EventSource('/api/events')
   eventSource.onmessage = () => { /* named events only */ }
   const events = [
@@ -44,10 +71,15 @@ function ensureSse() {
       sseHandlers.get(name)?.forEach(h => h(name, data))
     })
   }
+  eventSource.addEventListener('auth:statusChange', (e: MessageEvent) => {
+    const status = JSON.parse(e.data as string) as PlexAuthStatus
+    if (status.status === 'authorized') authHandlers.forEach(h => h(status))
+    else applyAuthStatus(status)
+  })
   eventSource.onerror = () => {
     eventSource?.close()
     eventSource = null
-    setTimeout(ensureSse, 3000)
+    retrySse()
   }
 }
 
@@ -69,6 +101,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { ...(init?.body != null ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
   })
   if (!res.ok) {
+    if (res.status === 401 && !path.startsWith('/api/auth/')) applyAuthStatus({ status: 'idle' })
     // Fastify's default error reply puts the thrown message in `message` and the
     // HTTP status text in `error`; explicit route replies only set `error`.
     const err = await res.json().catch(() => ({ error: res.statusText })) as { error?: string; message?: string }
@@ -154,15 +187,20 @@ export function createWebClient(): Api {
 
     auth: {
       signIn: async () => {
-        const status = await apiFetch<PlexAuthStatus>('/api/auth/sign-in', { method: 'POST', body: '{}' })
+        const status = applyAuthStatus(await apiFetch<PlexAuthStatus>('/api/auth/sign-in', { method: 'POST', body: '{}' }))
         return status.authUrl ?? ''
       },
-      getStatus: (): Promise<PlexAuthStatus> => apiFetch('/api/auth/status'),
-      disconnect: () => apiFetch('/api/auth/disconnect', { method: 'POST' }),
+      getStatus: async (): Promise<PlexAuthStatus> => applyAuthStatus(await apiFetch<PlexAuthStatus>('/api/auth/status')),
+      disconnect: async () => {
+        await apiFetch('/api/auth/disconnect', { method: 'POST' })
+        applyAuthStatus({ status: 'idle' })
+      },
+      cancelSignIn: async () => {
+        await apiFetch('/api/auth/cancel', { method: 'POST' })
+      },
       onStatusChange: (cb: (status: PlexAuthStatus) => void) => {
-        ensureAuthSse()
-        authSseHandlers.add(cb)
-        return () => { authSseHandlers.delete(cb) }
+        authHandlers.add(cb)
+        return () => { authHandlers.delete(cb) }
       },
     },
 

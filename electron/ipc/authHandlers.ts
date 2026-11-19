@@ -13,4 +13,5 @@ export function registerAuthHandlers(ipcMain: IpcMain, win: BrowserWindow) {
   ipcMain.handle('auth:plexSignIn', async () => (await handlers.auth.beginSignIn(win)).authUrl ?? '')
   ipcMain.handle('auth:plexStatus', () => handlers.auth.getStatus())
   ipcMain.handle('auth:disconnect', () => handlers.auth.disconnect())
+  ipcMain.handle('auth:cancelSignIn', () => handlers.auth.cancelSignIn())
 }

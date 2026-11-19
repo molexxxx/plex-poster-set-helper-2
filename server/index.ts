@@ -10,13 +10,11 @@ import { SchedulerService } from '../electron/services/schedulerService'
 import { PlaywrightService } from '../electron/services/playwrightService'
 import { AnimeMappingService } from '../electron/services/animeMappingService'
 import { CreatorSetsService } from '../electron/services/creatorSetsService'
+import { PlexAuthService } from '../electron/services/plexAuthService'
 import { handlers } from '../electron/handlers'
 import { appEvents } from '../electron/runtime/events'
-import {
-  createSession, destroySession, isValidSession, parseSessionCookie,
-  sessionCookieHeader, clearSessionCookie,
-} from './session'
-import type { FastifyRequest, FastifyReply } from 'fastify'
+import { registerAuth, requireAuth, sessionIdOf } from './auth'
+import { Sessions } from './session'
 
 const PORT = parseInt(process.env.PORT ?? '3939', 10)
 
@@ -39,19 +37,6 @@ function staticDir(): string {
   return dir
 }
 
-function hasPlexToken(): boolean {
-  return !!ConfigService.get().token
-}
-
-function requireAuth(req: FastifyRequest, reply: FastifyReply): boolean {
-  const sessionId = parseSessionCookie(req.headers.cookie)
-  if (!isValidSession(sessionId) || !hasPlexToken()) {
-    reply.code(401).send({ error: 'Unauthorized - sign in with Plex' })
-    return false
-  }
-  return true
-}
-
 export async function startServer() {
   await ConfigService.init()
   Logger.init({ retentionDays: ConfigService.get().logRetentionDays })
@@ -69,63 +54,19 @@ export async function startServer() {
   // carry their own, much smaller budget because they launch processes.
   await app.register(rateLimit, { max: 1000, timeWindow: '1 minute' })
 
-  // --- Public routes ---
+  // Every API route except sign-in, health, and version needs a session from here on.
+  registerAuth(app, {
+    status: () => handlers.auth.getStatus(),
+    unlink: () => handlers.auth.disconnect(),
+  })
+
   app.get('/api/health', async () => ({ ok: true }))
 
-  app.get('/api/auth/status', async (req, reply) => {
-    const sessionId = parseSessionCookie(req.headers.cookie)
-    const status = await handlers.auth.getStatus()
-    if (status.status === 'authorized' && isValidSession(sessionId)) {
-      return status
-    }
-    if (status.status === 'authorized' && hasPlexToken()) {
-      const newSession = createSession()
-      reply.header('Set-Cookie', sessionCookieHeader(newSession))
-      return status
-    }
-    return { status: 'idle' as const }
-  })
-
-  app.post('/api/auth/sign-in', async (_req, reply) => {
-    try {
-      return await handlers.auth.beginSignIn(null)
-    } catch (err) {
-      return reply.code(500).send({ error: err instanceof Error ? err.message : String(err) })
-    }
-  })
-
-  // Public SSE for auth status during sign-in (main /api/events requires a session)
-  app.get('/api/auth/events', async (req, reply) => {
-    reply.raw.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-    })
-
-    const send = (data: unknown) => {
-      reply.raw.write(`event: auth:statusChange\ndata: ${JSON.stringify(data)}\n\n`)
-    }
-
-    const unsub = appEvents.onEvent('auth:statusChange', send)
-    const heartbeat = setInterval(() => reply.raw.write(': ping\n\n'), 25000)
-
-    req.raw.on('close', () => {
-      clearInterval(heartbeat)
-      unsub()
-    })
-  })
-
-  app.post('/api/auth/disconnect', async (req, reply) => {
-    const sessionId = parseSessionCookie(req.headers.cookie)
-    if (sessionId) destroySession(sessionId)
-    await handlers.auth.disconnect()
-    reply.header('Set-Cookie', clearSessionCookie())
-    return { ok: true }
-  })
-
-  // --- SSE (requires auth) ---
+  // Live events for signed-in browsers. The stream ends once its session does,
+  // so a browser signed out elsewhere stops receiving logs and progress.
   app.get('/api/events', async (req, reply) => {
     if (!requireAuth(req, reply)) return
+    const sessionId = sessionIdOf(req)
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -133,11 +74,26 @@ export async function startServer() {
       Connection: 'keep-alive',
     })
 
+    let unsubs: Array<() => void> = []
+    let heartbeat: ReturnType<typeof setInterval> | undefined
+    const close = () =>
+    {
+      clearInterval(heartbeat)
+      unsubs.forEach(u => u())
+      unsubs = []
+    }
+    const alive = () =>
+    {
+      if (Sessions.isValid(sessionId)) return true
+      close()
+      reply.raw.end()
+      return false
+    }
     const send = (event: string, data: unknown) => {
-      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+      if (alive()) reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
     }
 
-    const unsubs = [
+    unsubs = [
       appEvents.onEvent('scrape:progress', d => send('scrape:progress', d)),
       appEvents.onEvent('auth:statusChange', d => send('auth:statusChange', d)),
       appEvents.onEvent('scheduler:onChange', d => send('scheduler:onChange', d)),
@@ -150,39 +106,16 @@ export async function startServer() {
       appEvents.onEvent('library:userSetsChunk', d => send('library:userSetsChunk', d)),
     ]
 
-    const heartbeat = setInterval(() => reply.raw.write(': ping\n\n'), 25000)
+    heartbeat = setInterval(() => {
+      if (alive()) reply.raw.write(': ping\n\n')
+    }, 25000)
 
-    req.raw.on('close', () => {
-      clearInterval(heartbeat)
-      unsubs.forEach(u => u())
-    })
+    req.raw.on('close', close)
   })
 
-  app.addHook('onRequest', async (req, reply) => {
-    if (!req.url.startsWith('/api/')) return
-    const publicPaths = [
-      '/api/health',
-      '/api/auth/status',
-      '/api/auth/sign-in',
-      '/api/auth/disconnect',
-      '/api/auth/events',
-      '/api/events',
-      '/api/browser/status',
-      '/api/browser/install',
-      '/api/app/env',
-      '/api/app/version',
-    ]
-    // Reading config is public so the sign-in screen can render (the token is
-    // blanked for unauthenticated reads); changing it always needs a session.
-    const publicReadPaths = ['/api/config']
-    const urlPath = req.url.split('?')[0]
-    if (publicPaths.includes(urlPath)) return
-    if (req.method === 'GET' && publicReadPaths.includes(urlPath)) return
-    if (!requireAuth(req, reply)) return
-  })
-
-  // Plex
-  app.post('/api/plex/connect', async (req) => handlers.plex.connect((req.body as { baseUrl: string; token: string })))
+  // Plex. The browser never holds the token, so connecting uses the stored one.
+  app.post('/api/plex/connect', async (req) =>
+    handlers.plex.connect({ baseUrl: (req.body as { baseUrl: string }).baseUrl, token: ConfigService.get().token }))
   app.get('/api/plex/libraries', async () => handlers.plex.getLibraries())
   app.get('/api/plex/library-count', async (req) => {
     const q = req.query as { key: string; type: 'movie' | 'show' }
@@ -236,15 +169,17 @@ export async function startServer() {
   app.post('/api/scrape/url', async (req) => handlers.scrape.url(req.body as Parameters<typeof handlers.scrape.url>[0]))
   app.post('/api/scrape/cancel', async () => handlers.scrape.cancel())
 
-  app.get('/api/config', async (req) => {
-    const cfg = handlers.config.get()
-    const sessionId = parseSessionCookie(req.headers.cookie)
-    if (!isValidSession(sessionId) || !hasPlexToken()) {
-      return { ...cfg, token: '' }
-    }
-    return cfg
+  // The Plex token and the owner's identity stay on the server: reads blank the
+  // token and writes cannot change either.
+  app.get('/api/config', async () => ({ ...handlers.config.get(), token: '' }))
+  app.patch('/api/config', async (req) => {
+    const partial = { ...(req.body as Parameters<typeof handlers.config.set>[0]) }
+    delete partial.token
+    delete partial.plexAccountId
+    delete partial.clientIdentifier
+    handlers.config.set(partial)
+    return { ok: true }
   })
-  app.patch('/api/config', async (req) => { handlers.config.set(req.body as Parameters<typeof handlers.config.set>[0]); return { ok: true } })
 
   // Bulk
   app.get('/api/bulk/files', async () => handlers.bulk.listFiles())
@@ -371,6 +306,7 @@ export async function startServer() {
   Logger.success('Server', `Plex Poster Helper web UI at http://0.0.0.0:${PORT}`)
 
   void PlaywrightService.bootstrap()
+  void PlexAuthService.ownerAccountId()
 
   PlexService.tryRestoreFromConfig().then(result => {
     if (result.success) {

@@ -57,7 +57,7 @@ function serveAt(addresses: string[], rootStatus = 200)
   {
     const url = String(input)
     if (url.startsWith('https://plex.tv/api/v2/resources')) return json(resources)
-    if (url.startsWith('https://plex.tv/')) return json({ username: 'viewer' })
+    if (url.startsWith('https://plex.tv/')) return json({ id: 42, username: 'viewer' })
     const base = addresses.find(address => url.startsWith(address))
     if (!base) throw connectTimeout()
     const path = url.slice(base.length)
@@ -156,19 +156,18 @@ describe('sign-in', () =>
     state.config.baseUrl = 'http://localhost:32400'
     serveAt([LAN])
     const onStatus = vi.fn()
-    await PlexAuthService._finalize('token-2', {}, onStatus)
-    expect(onStatus).toHaveBeenCalledWith({ status: 'authorized', token: 'token-2', serverName: 'TrueNAS', serverError: undefined })
-    expect(state.config).toMatchObject({ baseUrl: LAN, plexServerName: 'TrueNAS', token: 'token-2' })
+    await PlexAuthService._finalize('token-2', onStatus)
+    expect(onStatus).toHaveBeenCalledWith({ status: 'authorized', serverName: 'TrueNAS', serverError: undefined })
+    expect(state.config).toMatchObject({ baseUrl: LAN, plexServerName: 'TrueNAS', token: 'token-2', plexAccountId: '42', plexAccountName: 'viewer' })
   })
 
   it('saves no address and says why when none answers', async () =>
   {
     serveAt([])
     const onStatus = vi.fn()
-    await PlexAuthService._finalize('token-2', {}, onStatus)
+    await PlexAuthService._finalize('token-2', onStatus)
     expect(onStatus).toHaveBeenCalledWith({
       status: 'authorized',
-      token: 'token-2',
       serverName: undefined,
       serverError: 'TrueNAS did not answer at any address Plex lists for it. Enter the address you reach it at on this network.',
     })

@@ -160,6 +160,8 @@ export interface AppConfig {
   scraperPageWaitMin: number
   scraperPageWaitMax: number
   clientIdentifier: string
+  /** plex.tv id of the account that owns this install; the web UI only lets that account sign in. */
+  plexAccountId?: string
   plexAccountName?: string
   plexAccountEmail?: string
   plexAccountThumb?: string
@@ -348,7 +350,6 @@ export interface PlexAuthStatus {
   pin?: string
   /** Open this to sign in (shown when no browser can be opened, e.g. Docker). */
   authUrl?: string
-  token?: string
   error?: string
   /** Set when auto-connect succeeds at auth time. */
   serverName?: string
@@ -886,6 +887,7 @@ export type IpcChannels = {
   'auth:plexSignIn': { req: void; res: string }
   'auth:plexStatus': { req: void; res: PlexAuthStatus }
   'auth:disconnect': { req: void; res: void }
+  'auth:cancelSignIn': { req: void; res: void }
   'app:getVersion': { req: void; res: string }
   'app:getEnv': { req: void; res: AppEnv }
   'app:checkUpdate': { req: void; res: UpdateInfo }

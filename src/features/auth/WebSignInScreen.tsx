@@ -1,36 +1,49 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { LogIn, Copy, ExternalLink, CheckCircle2, AlertCircle } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Spinner from '../../components/ui/Spinner'
 import type { PlexAuthStatus } from '../../../electron/ipc/types'
 import { copyText } from '../../utils/clipboard'
+import { errorMessage } from '../../utils/errorMessage'
 import styles from './WebSignInScreen.module.css'
+
+/** How often a waiting browser asks whether its sign-in was approved. */
+const POLL_MS = 2000
 
 interface Props {
   onAuthorized: () => void
 }
 
-/** Full-screen Plex SSO gate shown before the web UI loads. */
+/**
+ * Full-screen Plex sign-in shown before the web UI loads. Each browser signs
+ * in for itself, and only the Plex account this app is linked to gets in.
+ */
 export default function WebSignInScreen({ onAuthorized }: Props) {
   const [status, setStatus] = useState<PlexAuthStatus>({ status: 'idle' })
   const [signingIn, setSigningIn] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    void window.api?.auth.getStatus().then(s => {
-      setStatus(s)
-      if (s.status === 'authorized') onAuthorized()
-    })
-    const off = window.api?.auth.onStatusChange(s => {
-      setStatus(s)
-      if (s.status === 'authorized') {
-        setSigningIn(false)
-        void window.api?.auth.getStatus().then(() => onAuthorized())
-      }
-      if (s.status === 'idle') setSigningIn(false)
-    })
-    return () => { off?.() }
+  const apply = useCallback((s: PlexAuthStatus) => {
+    setStatus(s)
+    setSigningIn(s.status === 'waiting')
+    if (s.status === 'authorized') onAuthorized()
   }, [onAuthorized])
+
+  useEffect(() => {
+    void window.api?.auth.getStatus()
+      .then(s => { if (s.status !== 'idle') apply(s) })
+      .catch(() => { /* the sign-in button still works */ })
+  }, [apply])
+
+  useEffect(() => {
+    if (!signingIn) return
+    const timer = setInterval(() => {
+      void window.api?.auth.getStatus()
+        .then(s => { if (s.status !== 'waiting' || s.authUrl) apply(s) })
+        .catch(() => { /* try again on the next tick */ })
+    }, POLL_MS)
+    return () => clearInterval(timer)
+  }, [signingIn, apply])
 
   async function signIn() {
     setSigningIn(true)
@@ -38,14 +51,14 @@ export default function WebSignInScreen({ onAuthorized }: Props) {
     try {
       const authUrl = await window.api?.auth.signIn()
       if (authUrl) setStatus({ status: 'waiting', authUrl })
-    } catch {
+    } catch (err) {
       setSigningIn(false)
-      setStatus({ status: 'idle' })
+      setStatus({ status: 'error', error: errorMessage(err) })
     }
   }
 
   async function cancel() {
-    await window.api?.auth.disconnect()
+    await window.api?.auth.cancelSignIn().catch(() => { /* the attempt expires on its own */ })
     setSigningIn(false)
     setStatus({ status: 'idle' })
   }
